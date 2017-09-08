@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# file: main_loop.sh
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
