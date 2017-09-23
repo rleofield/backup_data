@@ -1,3 +1,5 @@
+# included with 'source'
+
 
 # file: loop_time_duration.sh
 

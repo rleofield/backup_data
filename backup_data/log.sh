@@ -1,4 +1,6 @@
-# log.sh
+# included with 'source'
+
+
 
 # file: log.sh
 

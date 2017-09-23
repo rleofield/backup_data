@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# file: excecute_all.sh
+# file: start_excecute.sh
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de

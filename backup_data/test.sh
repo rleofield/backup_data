@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# file: tesy.sh
+# file: test.sh
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de

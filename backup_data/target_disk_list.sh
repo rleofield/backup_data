@@ -1,4 +1,5 @@
-#!/bin/bash
+# included with 'source'
+
 
 
 # Copyright (C) 2017 Richard Albrecht

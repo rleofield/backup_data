@@ -1,3 +1,5 @@
+# included with 'source'
+
 # file: filenames.sh
 
 # Copyright (C) 2017 Richard Albrecht
