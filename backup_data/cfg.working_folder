@@ -1,7 +1,5 @@
-# included with 'source'
 
-
-# file: loop_time_duration.sh
+# file: working_folder.sh
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -18,9 +16,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
 
-
-DURATIONx="15"
-DURATION="${DURATIONx}m"
+WORKINGFOLDER="/home/rleo/bin/backup_data"
 
 
 

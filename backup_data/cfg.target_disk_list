@@ -1,6 +1,5 @@
-# exitcodes 
+#!/bin/bash
 
-# file: exit_codes.sh
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -18,27 +17,7 @@
 #------------------------------------------------------------------------------
 
 
+DISKLIST="eluks"
 
-ARRAYSNOK=1
-MEDIAMOUNTcouldn_t_unmounted=1
-
-SUCCESS=0
-DISKLABELNOTFOUND=3
-DISKNOTUNMOUNTED=4
-MOUNTDIRTNOTEXIST=5
-TIMELIMITNOTREACHED=6
-DISKNOTMOUNTED=7
-RSYNCFAILS=8
-
-PRE_WAS_FALSE=10
-PRE_WAS_NOK=11
-
-# no rsnapshotroot = NORSNAPSHOTROOT=12
-NORSNAPSHOTROOT=12
-TESTEXIT=10
-
-STOPEXIT=200
-
-
-
+SUCCESSLINEWIDTH=15
 
