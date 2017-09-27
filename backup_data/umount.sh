@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-# file: mount.sh
+# file: umount.sh
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -19,7 +19,8 @@
 #------------------------------------------------------------------------------
 
 
-. ./log.sh
+
+. ./lib.logger
 
 
 FILENAME=$(basename "$0" .sh)

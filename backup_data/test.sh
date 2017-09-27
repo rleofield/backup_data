@@ -5,6 +5,7 @@
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
 
+
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
@@ -18,18 +19,19 @@
 #------------------------------------------------------------------------------
 
 
-echo "test conf files"
-echo "rsnapshot -c conf/bluks_btest1.conf configtest"
-rsnapshot -c conf/bluks_btest1.conf configtest
 
 
+echo "rsnapshot -c conf/eluks_dserver.conf configtest"
+rsnapshot -c conf/eluks_dserver.conf configtest
+
+
+
+echo ""
 
 echo "test pre check "
 
-
-
-
-
-
+echo "pre/eluks_dserver.pre.sh" 
+RET=$( pre/eluks_dserver.pre.sh )
+echo $?
 
 

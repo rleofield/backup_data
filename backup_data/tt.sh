@@ -2,6 +2,8 @@
 
 # file: tt.sh
 
+
+
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
 
@@ -17,5 +19,6 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
 
+. ./lib.logger
 
-tail -f llog.log -n 2000
+tail -f $LOGFILE -n 2000

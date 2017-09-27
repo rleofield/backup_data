@@ -1,4 +1,4 @@
-# file: 
+# file: copyright.txt
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
 

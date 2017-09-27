@@ -17,10 +17,12 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
 
-cd /home/rleo/bin/backup_data
+. ./cfg.working_folder
+
+cd $WORKINGFOLDER
 
 
-echo "nohup ./execute_all.sh  nohupexecute.out " > start_log.txt
+echo "nohup ./execute_all.sh  nohupexecute.out " 
 nohup ./execute_all.sh > nohupexecute.out &
 
 

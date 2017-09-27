@@ -21,13 +21,14 @@
 
 # 
 
-. ./arrays.sh
+. ./cfg.working_folder
+. ./cfg.projects
 
 
 
 RSNAPSHOTS="${!a_interval[*]}"
 
-WORKINGDIR="/home/rleo/bin/backup_data"
+WORKINGDIR=$WORKINGFOLDER
 
 cd  ${WORKINGDIR}
  
@@ -50,11 +51,11 @@ do
 done
 echo ""
 echo "DISKLIST"
-cat target_disk_list.sh | grep -v '#' | grep DISKLIST
+cat cfg.target_disk_list | grep -v '#' | grep DISKLIST
 echo "a_projects"
-cat arrays.sh | grep -v declare | grep a_projects
+cat cfg.projects | grep -v declare | grep a_projects
 echo "a_interval"
-cat arrays.sh | grep -v declare | grep -v pdiff | grep a_interval
+cat cfg.projects | grep -v declare | grep -v pdiff | grep a_interval
 
 	
 

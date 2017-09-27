@@ -17,13 +17,13 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
 
-. ./loop_time_duration.sh
-. ./target_disk_list.sh
-. ./exit_codes.sh
-. ./filenames.sh
-. ./arrays.sh
-. ./log.sh
-. ./ssh_login.sh
+. ./cfg.loop_time_duration
+. ./cfg.target_disk_list
+. ./cfg.exit_codes
+. ./cfg.filenames
+. ./cfg.projects
+. ./lib.logger
+. ./cfg.ssh_login
 
 
 
@@ -48,7 +48,7 @@ function sheader {
 	local line1=""
 	for _s in ${successline[@]}
 	do
-                txt=$( printf "%15s" $_s )
+                txt=$( printf "%${SUCCESSLINEWIDTH}s" $_s )
                 line1=$line1$txt
 	done
         local ff=$successloglines
@@ -80,13 +80,7 @@ function successlog {
         declare -a unslist=("${!2}")
 	local _disk=$3
 
-	#datelog "${FILENAME}:  sline   in func   : $( echo ${slist[@]} ) "
-	#datelog "${FILENAME}:  unsline in func   : $( echo ${unslist[@]} ) "
-	#datelog "${FILENAME}:  _disk   in func   : $( echo ${_disk} ) "
-	#datelog "successline in func all: $( echo ${successline[@]} ) "
-
-       	#line="d: $_disk, = " 
-       	line="" 
+	line="" 
 	for _s in ${successline[@]}
 	do
 		value="-"
@@ -99,15 +93,13 @@ function successlog {
 		done    
 		for item in "${unslist[@]}" 
 		do
-	#		datelog "un: $_s, item: $item"
 		    	if test "$_s" = "$item" 
 		    	then
 		    		value="nok"
 			fi
 		done    
-                txt=$( printf "%15s" $value )
+                txt=$( printf "%${SUCCESSLINEWIDTH}s" $value )
                 line=$line$txt
-		#datelog "s: $_s, val: $value"
 
 	done
 
@@ -115,8 +107,8 @@ function successlog {
         local _TODAY=`date +%Y%m%d-%H%M`
         datelog "${FILENAME}:  $_TODAY: $line" 
         echo "$_TODAY: $line" >> $ff
-	datelog "${FILENAME}:  rsync $ff $notifytargetsend"
-	#rsync $ff ${notifytargetsend}erfolgsliste.txt
+	datelog "${FILENAME}:  rsync $ff ${notifytargetsend}Backup_erfolgsliste.txt"
+	rsync $ff ${notifytargetsend}Backup_erfolgsliste.txt
 
 }
 
@@ -128,6 +120,8 @@ function successlog {
 _date=$(date +%Y-%m-%d)
 
 oldlogdir=oldlogs/$_date
+	
+datelog "${FILENAME}: rotate log"
 
 if [ ! -d "$oldlogdir" ]
 then
@@ -135,7 +129,7 @@ then
 	mkdir "$oldlogdir"
 	mv aa_* "$oldlogdir"
 	mv rsync_* "$oldlogdir"
-	mv llog.log "$oldlogdir"
+	mv $LOGFILE "$oldlogdir"
 	datelog "${FILENAME}: log rotated to '$oldlogdir'"
 fi
 
@@ -143,12 +137,14 @@ IFS=' '
 declare -a successlist
 declare -a unsuccesslist
 
-## loop over all disks with label ... (in ./target_disk_list.sh )
+## loop over all disks with label ... (in ./cfg.target_disk_list )
 	
 for _disk in $DISKLIST
 do
 	# clean up ssh messages
-	datelog "${FILENAME}: next disk: '$_disk'"
+	datelog ""
+	datelog "${FILENAME}: ==== next disk: '$_disk' ===="
+	datelog ""
 	oldifs2=$IFS
 	IFS=','
 	RET=""
@@ -204,7 +200,7 @@ do
         else
         	if [[ "${RET}" == "$TIMELIMITNOTREACHED" ]]
                 then
-                	datelog "${FILENAME}: '$_disk' wait"
+                	datelog "${FILENAME}: '$_disk' time limit not reached, wait '${DURATION}' minutes"
                 else
                 	if [[ "${RET}" == "$DISKLABELNOTFOUND" ]]
                         then
@@ -226,7 +222,6 @@ if test "$_ls" -eq "0" -a "$_luns" -eq "0"
 then
 	datelog "${FILENAME}: successarrays are empty, no entry in: $successloglines"
 else
-	#datelog "${FILENAME}: successarrays are not empty, write entry to: $successloglines"
 	successlog  successlist[@] unsuccesslist[@] "ready"
 fi
 
@@ -246,8 +241,6 @@ while [  $COUNTER -lt $d ]
 do
      	#echo The counter is $COUNTER
 	COUNTER=$(( COUNTER+1 )) 
-	#datelog "c: $COUNTER"
-	#datelog "d: $d"
         sleep "1s"
 	 #               sleep "1m"
         if test -f $stopfile

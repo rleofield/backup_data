@@ -1,4 +1,6 @@
 *.txt
-*.log
 *.out
 *.log~
+/rsync_eluks_dserver.log
+/aa_eluks_dserver.log
+/cc_log.log

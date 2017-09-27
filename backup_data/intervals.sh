@@ -17,6 +17,8 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
 
+. ./lib.logger
 
-grep "print intervals" llog.log -A 2
+
+grep "print intervals" $LOGFILE -A 2
 

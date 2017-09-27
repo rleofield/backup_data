@@ -17,7 +17,10 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
 
-cd /home/rleo/bin/backup_data
+
+. ./cfg.working_folder
+
+cd $WORKINGFOLDER
 
 
 fullfile=$0
@@ -28,7 +31,7 @@ filename="${filename%.*}"
 #filename="${fullfile##*/}"
 
 
-. ./log.sh
+. ./lib.logger
 
 datelog ""
 datelog "========================"

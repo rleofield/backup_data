@@ -22,8 +22,8 @@
 #   $1 = DISK, Backup-HD
 #   $2 = PROJECT,  Backup-Projekt auf dieser HD
 
-. ./exit_codes.sh
-. ./log.sh
+. ./cfg.exit_codes
+. ./lib.logger
 
 
 

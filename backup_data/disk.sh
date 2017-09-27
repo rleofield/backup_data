@@ -28,12 +28,15 @@
 TODAY=`date +%Y-%m-%dT%H:%M`
 readonly LABEL=$1
 
-. ./loop_time_duration.sh
-. ./exit_codes.sh
-. ./filenames.sh
-. ./log.sh
-. ./ssh_login.sh
-. ./arrays.sh
+# used at
+# disk.sh:671:                    duration=$DURATIONx
+# disk.sh:700:duration=$DURATIONx
+. ./cfg.loop_time_duration
+. ./cfg.exit_codes
+. ./cfg.filenames
+. ./lib.logger
+. ./cfg.ssh_login
+. ./cfg.projects
 
 
 
@@ -68,7 +71,6 @@ fi
 MOUNTDIR=/mnt/$LABEL
 MARKERDIR=$MOUNTDIR/marker
 
-#FILENAME=$(basename "$0" .sh)
 readonly FILENAME="disk:$LABEL"
 
 
@@ -107,10 +109,10 @@ function sshnotifysend {
         local _TODAY=`date +%Y%m%d-%H%M`
         local temp="${notifybasefile}_${_disk}_${_TODAY}_${_ok}.log"
 #        datelog "     send message; '$_disk'"
-#        datelog "     ${notifybasefile}_${_disk}_${_TODAY}_${_ok}.log"
+        datelog " temp =     ${notifybasefile}_${_disk}_${_TODAY}_${_ok}.log"
         $( cat $NOTIFYSENDLOG > $temp )
-        local llog=$(cat $temp )
-        datelog "$llog"
+        local _llog=$(cat $temp )
+        datelog "$_llog"
 
         ## remove comment to activate
         #datelog "rsync $temp $notifytargetsend"
@@ -449,7 +451,11 @@ then
 	datelog ""
         exit $TIMELIMITNOTREACHED
 fi
-
+# start of backup
+# - mount disk
+# - do rsnapshot with projekt.sh ans rs.sh
+# - umount, if programmmed or no /media/user disk 
+# 
 
 rm_notify_file $LABEL
 
@@ -462,9 +468,11 @@ datelog ""
 
 # first, check mount at /media/user
 MEDIAMOUNT=$(df  | grep media | grep $LABEL  | awk '{ print $6 }')
-#datelog "${FILENAME}: MEDIAMOUNT $MEDIAMOUNT"
 if test  "$MEDIAMOUNT" != ""  
 then
+	# use media mount instead of /mnt
+	# 0 = use
+	# 1 = don't use, use /mnt
 	if test $use_mediamount -gt 0  
 	then
 		if test -d $MEDIAMOUNT 
@@ -480,10 +488,8 @@ then
 		fi
 	else
 		datelog "media mount '$MEDIAMOUNT' exists"
-#		datelog "mount --bind $MEDIAMOUNT $MOUNTDIR"
 		MOUNTDIR=$MEDIAMOUNT
 		MARKERDIR=$MOUNTDIR/marker
-		#mount --bind $MEDIAMOUNT $MOUNTDIR
 	fi
 fi
 
@@ -593,7 +599,7 @@ do
 				# collect success for report at end of main loop
 				var="${LABEL}:$p"
 				successlist=( "${successlist[@]}" "$var" )
-				datelog "${FILENAME}: 111 successlist: $( echo ${successlist[@]} )"
+				datelog "${FILENAME}: successlist: $( echo ${successlist[@]} )"
 			else
 			        datelog "${FILENAME}:  error: '$LABEL', project '$p'"
 				sendlog "HD: $LABEL mit Projekt  $p hatte Fehler"
@@ -604,7 +610,7 @@ do
 				# collect unsuccess for report at end of main loop
 				var="${LABEL}:$p"
 				unsuccesslist=( "${unsuccesslist[@]}" "$var" )
-				datelog "${FILENAME}: 222 unsuccesslist: $( echo ${unsuccesslist[@]} )"
+				datelog "${FILENAME}: unsuccesslist: $( echo ${unsuccesslist[@]} )"
 			fi
 		else
 			datelog "${FILENAME}: pre check disk: '${LABEL}_${p}.pre.sh' was wrong"
@@ -675,7 +681,7 @@ then
 			        nextdiff=$mindiff
 			fi
 			_nextdiff=$( encode_diff $nextdiff )
-			sendlog "HD mit Label '$LABEL' kann in den nächsten '${_nextdiff}' vom Server entfernt werden "
+			sendlog "HD mit Label '$LABEL' kann in den nächsten '${_nextdiff}' Minuten vom Server entfernt werden "
 		fi
 		if [ -d $MARKERDIR ]
 		then
@@ -706,7 +712,7 @@ datelog ""
 #sendlog "$msg"
 
 _mind=$( encode_diff $mindiff )
-msg="HD mit Label '$LABEL', nächster Lauf eines Projektes ('$minp')  auf dieser HD ist in '${_mind}'"
+msg="HD mit Label '$LABEL', nächster Lauf eines Projektes ('$minp')  auf dieser HD ist in '${_mind}' Minuten"
 #datelog "${FILENAME}: $msg"
 sendlog "$msg"
 TODAY=`date +%Y%m%d-%H%M`

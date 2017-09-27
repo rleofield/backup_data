@@ -38,8 +38,8 @@ FILENAME=${FILENAME}:${DISK}:$PROJECT
 # 1 A fatal error occurred
 # 2 Some warnings occurred, but the backup still finished
 
-. ./exit_codes.sh
-. ./log.sh
+. ./cfg.exit_codes
+. ./lib.logger
 
 
 
