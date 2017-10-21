@@ -16,7 +16,6 @@ a_properties['red2']="xumount"
 
 # sub projects per disk
 declare -A a_projects
-#a_projects['red2']="dserver eserver kvm ls5eth lserver mserver nc precise1 pserver rleo3 stick1 testbilder userver znano" 
 a_projects['eluks']="dserver" 
 
 # backup interval in minutes
@@ -26,27 +25,11 @@ declare -A a_interval
 # hours:minutes
 # minutes
 a_interval['eluks_dserver']=10
-a_interval['red2_dserver']=1:00:00
-a_interval['red2_eserver']=1:00:00
-a_interval['red2_kvm']=1:00:00
-a_interval['red2_lserver']=1:00:00
-a_interval['red2_ls5eth']=1:00:00
-a_interval['red2_mserver']=1:10:00
-a_interval['red2_nc']=1:00:00
-a_interval['red2_precise1']=1:00:00
-a_interval['red2_pserver']=1:00:00
-a_interval['red2_testbilder']=1:00:00
-a_interval['red2_rleo3']=1:00:00
-a_interval['red2_userver']=1:00:00 
-a_interval['red2_stick1']=1:00:20
-a_interval['red2_znano']=1:00:20
 
 
 # successarray
 # successful projects listed in this order in file 'successloglines.txt' 
 
-#SUCCESSLINE="red2:mserver eluks:dserver red2:dserver red2:eserver red2:kvm red2:lserver red2:ls5eth red2:nc red2:precise1 red2:pserver red2:rleo3 red2:userver red2:stick1 red2:znano"
-#SUCCESSLINE="red2:mserver eluks:dserver red2:dserver red2:eserver red2:kvm red2:lserver red2:ls5eth red2:nc red2:precise1 red2:pserver red2:rleo3 red2:userver red2:znano"
 SUCCESSLINE="eluks:dserver"
 
 

@@ -202,6 +202,7 @@ do
                 then
                 	datelog "${FILENAME}: '$_disk' time limit not reached, wait '${DURATION}' minutes"
                 else
+
                 	if [[ "${RET}" == "$DISKLABELNOTFOUND" ]]
                         then
                         	datelog "${FILENAME}: '$_disk' is not connected with the server"

@@ -60,11 +60,11 @@ do
 	./main_loop.sh
 	RET=$?
 
-	if [[ $RET = 1 ]]
+	if test $RET -eq 1 
 	then
 		exit 1
 	fi
-
+	
 done
 
 # end
