@@ -16,8 +16,10 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
 
+# file backupHD_testBackup.conf*
 
-DISKLIST="eluks"
 
-SUCCESSLINEWIDTH=15
+DISKLIST="backupHD"
+
+SUCCESSLINEWIDTH=25
 

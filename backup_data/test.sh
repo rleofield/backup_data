@@ -21,8 +21,8 @@
 
 
 
-echo "rsnapshot -c conf/eluks_dserver.conf configtest"
-rsnapshot -c conf/eluks_dserver.conf configtest
+echo "rsnapshot -c conf/backupHD_testBackup.conf configtest"
+rsnapshot -c conf/backupHD_testBackup.conf configtest
 
 
 
@@ -30,8 +30,8 @@ echo ""
 
 echo "test pre check "
 
-echo "pre/eluks_dserver.pre.sh" 
-RET=$( pre/eluks_dserver.pre.sh )
+echo "pre/backupHD_testBackup.pre.sh" 
+RET=$( pre/backupHD_testBackup.pre.sh )
 echo $?
 
 

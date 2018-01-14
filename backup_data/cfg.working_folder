@@ -16,7 +16,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
 
-WORKINGFOLDER="/home/rleo/bin/backup_data"
+WORKINGFOLDER="/home/user/bin/backup_data"
 
 
 
