@@ -1,6 +1,8 @@
 #!/bin/bash
 
 # file: start_excecute.sh
+# version 18.08.1
+
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -17,9 +19,34 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
 
-. ./cfg.working_folder
 
-cd $WORKINGFOLDER
+
+
+# only place of STARTFOLDER
+
+STARTFOLDER=/home/test/backup_data 
+WORKINGFOLDER=$STARTFOLDER
+
+
+# for github
+echo "WORKINGFOLDER=$WORKINGFOLDER" > cfg.working_folder
+
+
+wc=$( ps aux | grep execute_all.sh | grep -v grep | wc -l )
+if [ $wc -gt 0 ]
+then
+       	echo "Backup is running, exit"	
+	echo "==  end == "
+	exit
+fi
+
+cd $STARTFOLDER
+pwd
+
+echo "Backup is not running, start in '$STARTFOLDER'"	
+#exit
+
+
 
 
 echo "nohup ./execute_all.sh  nohupexecute.out " 

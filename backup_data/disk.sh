@@ -2,6 +2,7 @@
 
 
 # file: disk.sh
+# version 18.08.1
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -83,7 +84,7 @@ readonly NOTIFYSENDLOG="notifysend.log"
 readonly notifybasefile="Backup-HD"
 
 readonly successlogtxt="successlog.txt"
-readonly maxLASTDATE="2017-01-01 00:00"
+readonly maxLASTDATE="2018-02-01 00:00"
 
 	
 
@@ -146,34 +147,44 @@ function rm_notify_file {
 
 
 
-
-# diff = old - new 
-# h = 60, d = 1440, w=10080, m=43800,y=525600
+# par1 = old
+# par2 = new
+# diff = new - old  
+# h = 60, d = 1440, w=10080, m=43800, y=525600
+# parameter: dateold, datenew in date format
 function time_diff_minutes() {
         local old=$1
         local new=$2
 	#datelog "tdiff old: $old"
 	#datelog "tdiff new: $new"
-        # convert the date "1970-01-01 hour:min:00" in seconds from Unix Date Stamp
+        # convert the date "1970-01-01 hour:min:00" in seconds from Unix Date Stamp to seconds
         # "1980-01-01 00:00"
         local sec_old=$(date +%s -d $old)
         local sec_new=$(date +%s -d $new)
-        echo "$(( (sec_new - sec_old) / 60 ))"
+	ret=$(( (sec_new - sec_old) / 60 ))
+	#datelog "1: done diff minutes = $ret"
+	if test $ret -lt 0 
+	then
+		datelog "done diff ist lower then zero !!!!!!!!!!!!!!!!!!!!!!!!"
+	fi
+        echo "$ret"
 }
 
 
-
+# parameter: disklabel
 function check_disk_label {
         local _LABEL=$1
 
         # 0 = success
         # 1 = error
         local goodlink=1
-	local uuid=$( cat "uuid.txt" | grep $_LABEL | awk '{print $2}' )
-	#local label=$( cat "uuid.txt" | grep $_LABEL | awk '{print $1}' )
+	local uuid=$( cat "uuid.txt" | grep -w $_LABEL | awk '{print $2}' )
+	datelog "uuid.txt | grep -w $_LABEL | awk '{print $2}'"
+	local label=$( cat "uuid.txt" | grep $_LABEL | awk '{print $1}' )
         #disklink="/dev/disk/by-label/$_LABEL"
         local disklink="/dev/disk/by-uuid/$uuid"
         # test, if symbolic link
+	datelog "disklink: '${disklink}'"
         if test -L ${disklink} 
         then
                 # test, if exists
@@ -185,8 +196,8 @@ function check_disk_label {
         echo $goodlink
 }
 
-
-function decode_diff_local {
+# parameter: string with time value, dd:hh:mm 
+function decode_pdiff_local {
 	local v=$1
 	local oldifs=$IFS
 	IFS=':' 
@@ -212,10 +223,12 @@ function decode_diff_local {
 
 }
 
- # parameter is key in a_interval array
-function decode_diff {
+# parameter is key in a_interval array
+# return projekt interval in minutes 
+function decode_pdiff {
 	local _k=$1
-        local _r2=$( decode_diff_local ${a_interval[${_k}]} )
+	local _interval=${a_interval[${_k}]}
+        local _r2=$( decode_pdiff_local ${a_interval[${_k}]} )
         echo $_r2
 }
 
@@ -223,17 +236,22 @@ function decode_diff {
 
 function encode_diff {
 
-        local hour=60
-        local day=$(( hour * 24 ))
+	# testday is in minutes
         local testday=$1
 	local ret=""
 	local negativ="false"
+
+
+	#datelog "${FILENAME}:  encode_diff, testday: $testday"
 	if test $testday -lt 0
 	then
+		#datelog "${FILENAME}: is negative '$testday'"
 		testday=$(( $testday * (-1) ))
 		negativ="true"
 	fi
 
+        local hour=60
+        local day=$(( hour * 24 ))
 	local days=$(( testday/day  ))
         local remainder=$(( testday - days*day   ))
 	local hours=$(( remainder/hour   ))
@@ -245,22 +263,26 @@ function encode_diff {
         	then
                         ret=$minutes
 		else
-                	phours=$( printf "%02d\n"  $hours )
-                       	pminutes=$( printf "%02d\n"  $minutes )
-                       	ret="$phours:$pminutes"
+                	#phours=$( printf "%02d\n"  $hours )
+                       	#pminutes=$( printf "%02d\n"  $minutes )
+			ret=$( printf "%02d:%02d"  $hours $minutes )
+                       	#ret="$phours:$pminutes"
 		fi
 	else
-               	pdays=$( printf "%02d\n"  $days )
-	        phours=$( printf "%02d\n"  $hours )
-	        pminutes=$( printf "%02d\n"  $minutes )
-	       	ret="$pdays:$phours:$pminutes"	
+               	#pdays=$( printf "%02d\n"  $days )
+	        #phours=$( printf "%02d\n"  $hours )
+	        #pminutes=$( printf "%02d\n"  $minutes )
+		ret=$( printf "%02d:%02d:%02d"  $days $hours $minutes )
+	       	#ret="$pdays:$phours:$pminutes"	
 	fi
 
 	# add minus sign, if negative 
 	if test "$negativ" = "true" 
 	then
+		#datelog "${FILENAME}: is negative, correct minus sign"
 		ret="-$ret"
 	fi	
+	#datelog "${FILENAME}:  encode_diff, ret: $ret"
 
         echo "$ret"
 }
@@ -268,8 +290,13 @@ function encode_diff {
 # parameter
 # $1 = Disklabel
 # $2 = Projekt
-# return 0, 1 
-function check_disk_done {
+# return 0, 1, 2, 3  
+
+DONE_REACHED=0
+DONE_NOT_REACHED=1
+DIFF_REPLACEMENT="600"
+
+function check_disk_done_last_done {
         local _label=$1
         local _p=$2
 	local _key=${_label}_${_p}
@@ -277,9 +304,9 @@ function check_disk_done {
         local _LASTLINE=""
         local _current=`date +%Y-%m-%dT%H:%M`
 
-        # 0 = success
+        # 0 = success, backup was done
         # 1 = error
-        local _DONEINTERVAL=1
+        local _DONEINTERVAL=$DONE_NOT_REACHED
         local _DONEFILE="./done/${_key}_done.log"
         #datelog "DONEFILE: '$_DONEFILE'"
         local _LASTLINE=""
@@ -291,17 +318,40 @@ function check_disk_done {
                 _LASTLINE=$(cat $_DONEFILE | awk  'END {print }')
         fi
         local _DIFF=$(time_diff_minutes  $_LASTLINE  $_current  )
-        #local _pdiff=${a_interval[${_key}]}
-	local _pdiff=$( decode_diff ${_key} )
-	
+	local _pdiff=$( decode_pdiff ${_key} )
+
 	if test $_DIFF -ge $_pdiff
         then
         	# diff was greater then reference, take as success
-                _DONEINTERVAL=0
+                _DONEINTERVAL=$DONE_REACHED
         fi
 
         echo $_DONEINTERVAL
 }
+
+
+# 0 = success, no daytime
+# 1 = error
+# 2 = daytime not reached
+# 3 = reached, but daytime
+function check_disk_done {
+        local _label=$1
+        local _p=$2
+	local _key=${_label}_${_p}
+
+        # 0 = success
+        # 1 = error
+        local _DONEINTERVAL=$DONE_NOT_REACHED
+
+	# check, if daytime is reached
+
+	#DONE_REACHED=0
+	#DONE_NOT_REACHED=1
+	_DONEINTERVAL=$( check_disk_done_last_done ${_label} ${_p} )
+        echo $_DONEINTERVAL
+}
+
+
 
 
 function check_pre_host {
@@ -346,7 +396,7 @@ fi
 
 sendlogclear 
 
-datelog "${FILENAME}:  check, if HD '$LABEL' is connected to the PC" 
+datelog "${FILENAME}:  check by UUID, if HD '$LABEL' is connected to the PC" 
 goodlink=$(check_disk_label $LABEL)
 
 LABELFILE="./label/${LABEL}_label_not_present.txt"
@@ -368,27 +418,29 @@ fi
 
 PROJEKTLABELS=${a_projects[$LABEL]}
 
-datelog "${FILENAME}: first check all projects of disk '$LABEL', list: '$PROJEKTLABELS'"
+datelog "${FILENAME}: -- disk '$LABEL', check projects: '$PROJEKTLABELS'"
 
 # start of disk, disk is unmounted
 
 # find, if interval is reached, if not exit
 
-isdone=false
+#isdone=false
 ispre=1
-mindiff=100000
-minexpected=10000
+#mindiff=100000
+#minexpected=10000
 declare -A nextprojects
-nextprojekt=""
-# find projects in time		
+#nextprojekt=""
+
+
+
 datelog "                            dd:hh:mm                 dd:hh:mm               dd:hh:mm"
 for p in $PROJEKTLABELS
 do
-	donekey=${LABEL}_${p}
+	lpkey=${LABEL}_${p}
 	#datelog "${FILENAME}:  do disk $LABEL, projekt $p"
 	
 	tcurrent=`date +%Y-%m-%dT%H:%M`
-	DONE_FILE="./done/${donekey}_done.log"
+	DONE_FILE="./done/${lpkey}_done.log"
 	LASTLINE=$maxLASTDATE
 	if test -f $DONE_FILE 
 	then
@@ -396,56 +448,56 @@ do
 		LASTLINE=$(cat $DONE_FILE | awk  'END {print }')  	
 	fi
 
-	pdiff=$(  decode_diff ${donekey} )
-	DIFF=$(time_diff_minutes  $LASTLINE  $tcurrent  )
-	deltadiff=$(( pdiff - DIFF ))
-	#datelog "delta $deltadiff"
-	if ((deltadiff < mindiff )) 
-	then
-		# 
-		if ((deltadiff > 1 ))
-		then
-			mindiff=$deltadiff
-			nextproject=$p
-		fi
-	fi
-
+	pdiff=$(  decode_pdiff ${lpkey} )
+	done_diff_minutes=$(   time_diff_minutes  $LASTLINE  $tcurrent  )
+	deltadiff=$(( pdiff - done_diff_minutes ))
+        
+	# ret , 0 = do backup, 1 = interval not reached, 2 = daytime not reached
 	DISKDONE=$(check_disk_done $LABEL $p )
 
 	txt=$( printf "%-12s\n"  $( echo "${p}," ) )
-	n0=$( printf "%5s\n"  $DIFF )
-	n1=$( printf "%5s\n"  $pdiff )
+	n0=$( printf "%5s\n"  $done_diff_minutes )
+	pdiff_print=$( printf "%5s\n"  $pdiff )
 	ndelta=$( printf "%6s\n"  $deltadiff )
+
 	fndelta=$( encode_diff $ndelta )
-	fndelta=$( printf "%10s\n"  $fndelta )
+	fndelta=$( printf "%8s\n"  $fndelta )
 	fn0=$( encode_diff  $n0 )
-	fn0=$( printf "%10s\n"  $fn0 )
-	fn1=$( encode_diff  $n1 )
-	fn1=$( printf "%10s\n"  $fn1 )
-	if test "$DISKDONE" -eq 0
+	fn0=$( printf "%8s"  $fn0 )
+	pdiff_minutes_print=$( encode_diff  $pdiff_print )
+	pdiff_minutes_print=$( printf "%8s"  $pdiff_minutes_print )
+
+	if test "$DISKDONE" -eq $DONE_REACHED
 	then
-		datelog "${FILENAME}: $txt   $fn0 last, next in $fndelta,  expected  $fn1,  time limit reached"
+		diskdonetext="ok"
 		ispre=$( check_pre_host $LABEL $p )
 		if test "$ispre" -eq 0
 		then
-			datelog "${FILENAME}: $txt                 pre check disk is ok"
+			# all is ok,  do backup	
+			datelog "${FILENAME}: $txt   $fn0 last, next in $fndelta,  programmed  $pdiff_minutes_print,  reached, source is ok"
 			nextprojects["$p"]=$p
-			isdone=true
+		#	isdone=true
 
 		else
-			datelog "${FILENAME}: $txt                 pre host check wrong, no backup possible"
+			datelog "${FILENAME}: $txt   $fn0 last, next in $fndelta,  programmed  $pdiff_minutes_print,  source not available"
 		fi
-	else
-		datelog "${FILENAME}: $txt   $fn0 last, next in $fndelta,  expected  $fn1,  do nothing"
 	fi
 	
+	if test "$DISKDONE" -eq $DONE_NOT_REACHED
+	then
+		diskdonetext="not"
+		datelog "${FILENAME}: $txt   $fn0 last, next in $fndelta,  programmed  $pdiff_minutes_print,  do nothing"
+	fi
 
 done
 
+#datelog "mindiff: $mindiff"
+#mindiff=$( encode_diff $mindiff )
+# in 'nextprojects' are all projects where we need a backup
+lnextprojects=${#nextprojects[@]}
+#datelog "l nextprojects: $lnextprojects"
 
-mindiff=$( encode_diff $mindiff )
-
-if test $isdone =  false
+if test $lnextprojects -eq 0
 then
 	datelog "${FILENAME}: == end disk '$LABEL', nothing to do =="
 	datelog ""
@@ -459,8 +511,8 @@ fi
 
 rm_notify_file $LABEL
 
-datelog "${FILENAME}:  next projects: ${nextprojects[*]}"
-datelog "${FILENAME}:  time limit for at least one project is reached"
+#datelog "${FILENAME}:  next projects: ${nextprojects[*]}"
+datelog "${FILENAME}:  time limit for at least one project is reached, projects: ${nextprojects[*]}"
 datelog "${FILENAME}:  continue with test of mount state of disk: '$LABEL'"
 datelog ""
 
@@ -541,23 +593,24 @@ declare -a unsuccesslist
 sucesstxt=""
 
 #for p in $PROJEKTLABELS
+# in 'nextprojects' are all projects where we need a backup
 for p in "${nextprojects[@]}"
 do
 
 	datelog "${FILENAME}: execute project: $p"
-	donekey=${LABEL}_${p}
-	# first check done interval for project
-	DISKDONE=$(check_disk_done $LABEL $p )
-	ispre=$( check_pre_host $LABEL $p )
+	lpkey=${LABEL}_${p}
+	# second check, first was in first loop
+	# is already checked, see above
+	DISKDONE=0 # $(check_disk_done $LABEL $p )
+	ispre=0   # $( check_pre_host $LABEL $p )
 
-	#pdiff=${a_interval[${donekey}]}
-	pdiff=$( decode_diff ${donekey} )
+	pdiff=$( decode_pdiff ${lpkey} )
 
 	# check current time
 	tcurrent=`date +%Y-%m-%dT%H:%M`
 	# set lastline to 01.01.1980
         LASTLINE=$maxLASTDATE
-	DONE_FILE="./done/${donekey}_done.log"
+	DONE_FILE="./done/${lpkey}_done.log"
 	# read last line fron done file
         if test -f $DONE_FILE
         then
@@ -572,7 +625,9 @@ do
 		then
 
 			datelog "${FILENAME}: === disk: '$LABEL', start of project '$p' ==="
+			# calls project.sh ###############################
 			./project.sh $LABEL $p
+			# ################################################
 			RET=$?
 			if test $RET -eq $RSYNCFAILS
 			then
@@ -600,6 +655,10 @@ do
 				var="${LABEL}:$p"
 				successlist=( "${successlist[@]}" "$var" )
 				datelog "${FILENAME}: successlist: $( echo ${successlist[@]} )"
+
+			        #echo "$__TODAY" > ./done/${LABEL}_${p}_done.log
+			        #datelog "${FILENAME}: write last date: ./done/${LABEL}_${p}_done.log"
+
 			else
 			        datelog "${FILENAME}:  error: '$LABEL', project '$p'"
 				sendlog "HD: $LABEL mit Projekt  $p hatte Fehler"
@@ -621,14 +680,14 @@ do
 done
 # end of disk
 
-# find min diff after backup ist done
+# find min diff after backup ist done, done file exists here
 mindiff=10000
 minp=""
 for p in $PROJEKTLABELS
 do
-	donekey=${LABEL}_${p}
+	lpkey=${LABEL}_${p}
         tcurrent=`date +%Y-%m-%dT%H:%M`
-        DONE_FILE="./done/${donekey}_done.log"
+        DONE_FILE="./done/${lpkey}_done.log"
 	#datelog "donefile: $DONE_FILE"
         LASTLINE=$maxLASTDATE
         if test -f $DONE_FILE
@@ -636,18 +695,22 @@ do
                 LASTLINE=$(cat $DONE_FILE | awk  'END {print }')
         fi
 
-        #pdiff=${a_interval[${donekey}]}
+        #pdiff=${a_interval[${done_key}]}
 	# get project delta time
-	pdiff=$(decode_diff ${donekey} )
+	pdiff=$(decode_pdiff ${lpkey} )
 	# get current delta after last done
         DIFF=$(time_diff_minutes  $LASTLINE  $tcurrent  )
         deltadiff=$(( pdiff - DIFF ))
+	#datelog "after b configured value $pdiff"
+	#datelog "after b lastline   value $DIFF"
+	#datelog "after b delta $deltadiff, mindiff: $mindiff"
         if ((deltadiff < mindiff ))
         then
                 mindiff=$deltadiff
 		minp=$p
         fi
-	#datelog "p: '$p', programmed diff: $pdiff, lastDIFF: $DIFF, mindiff: $mindiff, delta: $deltadiff"
+	#datelog "after b delta $deltadiff, mindiff: $mindiff"
+	#datelog "programmed diff: $pdiff, lastDIFF: $DIFF, mindiff: $mindiff, delta: $deltadiff"
 done
 
 
@@ -712,8 +775,8 @@ datelog ""
 #sendlog "$msg"
 
 _mind=$( encode_diff $mindiff )
-msg="HD mit Label '$LABEL', nächster Lauf eines Projektes ('$minp')  auf dieser HD ist in '${_mind}' Minuten"
-#datelog "${FILENAME}: $msg"
+msg="HD mit Label '$LABEL', nächster Lauf eines Projektes ('$minp')  auf dieser HD ist in '${_mind}' Tagen:Stunden:Minuten"
+datelog "${FILENAME}: $msg"
 sendlog "$msg"
 TODAY=`date +%Y%m%d-%H%M`
 sendlog "=======  $TODAY  ======="

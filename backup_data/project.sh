@@ -1,6 +1,8 @@
 #!/bin/bash
 
 # file: project.sh
+# version 18.08.1
+
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -22,6 +24,8 @@
 #   $1 = DISK, Backup-HD
 #   $2 = PROJECT,  Backup-Projekt auf dieser HD
 
+. ./cfg.working_folder
+. ./cfg.target_disk_list
 . ./cfg.exit_codes
 . ./lib.logger
 
@@ -56,6 +60,32 @@ function count_retains {
 }
 
 
+function final_func {
+
+	_DISK=$1
+	_PROJECT=$2
+	_RSNAPSHOT_ROOT=$3
+	_firstretain=$4
+
+	################################
+	# final stage for rleo3
+	# copy last backup to final disk,  
+
+	final_extern_disk=${FINAL_EXTERN_DISK}
+
+
+	finaldisk=${final_extern_disk}
+	if test -d /mnt/$finaldisk/rs_final/$_DISK/$_PROJECT
+	then
+        	#datelog "##    /mnt/$finaldisk/rs_final/$DISK/$PROJECT exists"
+	        datelog "final copy: rsync -avSAXH ${_RSNAPSHOT_ROOT}${_firstretain}.0/ /mnt/$finaldisk/rs_final/$_DISK/$_PROJECT"
+        	rsync -avSAXH ${_RSNAPSHOT_ROOT}${_firstretain}.0/ /mnt/$finaldisk/rs_final/$_DISK/$_PROJECT --delete
+	else
+        	datelog "####  /mnt/$finaldisk/rs_final/$_DISK/$_PROJECT doesn't exist"
+	fi
+
+}
+
 
 readonly TODAY_LOG=`date +%Y%m%d-%H%M`
 
@@ -80,10 +110,15 @@ line=$( cat ${CONFFOLDER}/${RSNAPSHOT_CONFIG} | grep ^snapshot_root )
 larray=( $line )
 snapshot_root=${larray[1]}
 
+# retain          eins    5
+# retain          zwei    4
+# retain          drei    4
+# retain          vier    4
 retainslist=$( cat ${CONFFOLDER}/${RSNAPSHOT_CONFIG} | grep ^retain )
 IFS='
 '
-# convert to array
+# convert to array of 'retain' lines
+# 0 = 'retain', 1 = level, 2 = count
 lines=($retainslist)
 datelog "${FILENAME}: # current status of retains in '${CONFFOLDER}/${RSNAPSHOT_CONFIG}' : ${#lines[@]}"
 
@@ -94,11 +129,21 @@ declare -A file_counter_filenames
 declare -A retains
 
 n=0
+firstretain="" 
 for i in "${lines[@]}"
 do
         # split to array with ()
 	line=($i)
+	# 0 = 'retain', 1 = level, 2 = count
+
 	_retain=${line[1]}
+#		datelog "########################## XXXXXXXXXXXX: '$_retain'"
+	if test "$firstretain" = ""
+	then
+		firstretain=${_retain}
+#		datelog "########################## first retain: '$firstretain'"
+	fi
+
 	retainscount[$n]=${line[2]}
         _file=retains_count/${DISK}_${PROJECT}_${_retain}
 	file_counter_filenames[$n]=$_file
@@ -106,7 +151,8 @@ do
 	#_counter=$( count_retains $RSNAPSHOT_ROOT ${_retain} )
 	datelog "${FILENAME}: retain $n:    ${_retain}\t${retainscount[$n]} ($_count)"
 	retains[$n]=$_retain
-        let n=n+1
+	(( n++ ))
+        #let n=n+1
 done
 
 
@@ -135,6 +181,7 @@ datelog "${FILENAME}: do retain '$currentretain': in '$PROJECT' at disk '$DISK'"
 # parameter $INTERVAL $DISK $PROJECT
 # do first !!!!!!!!!!!
 ./rs.sh $currentretain $DISK $PROJECT
+# ########################################
 RET=$?
 
 if test $RET -eq $NORSNAPSHOTROOT 
@@ -166,9 +213,9 @@ then
 	echo "($counter of $max_count) ${currentretain} at: $current" >> $intervaldonefolder/$intervaldonefile
 	#
 	# main done is written here
-	#
+	# moved to disk.sh, ??
 	echo "$current" > ./done/${DISK}_${PROJECT}_done.log
-	datelog "${FILENAME}: write last date: ./done/${DISK}_${PROJECT}_done.log"
+	datelog "${FILENAME}: write last date: '$current' to ./done/${DISK}_${PROJECT}_done.log"
 fi
 
 
@@ -189,7 +236,8 @@ datelog "${FILENAME}: '${currentretain}' max:   $max_count"
 
 # check rotates
 
-# if  index 0 count >= max, do index 1
+# if  index 0 filecounter >= max, do index 1
+# max = from conf file
 # too much first levels, shift to next level 
 if test $counter -ge  $max_count
 then
@@ -258,7 +306,7 @@ then
                 	# increment index 2 counter
 	             	echo "runs at: $current" >> ${_file}
 			counter=$( count_retain_lines $_file )
-			max_count=${retainscount[$_index]}
+			max_count=${retainscount[$index]}
 			echo "($counter of $max_count)    ${currentretain} at: $current" >> $intervaldonefolder/$intervaldonefile
         	        # remove index 1 counter, set count to 0, = interval zwei
 	                datelog "${FILENAME}: remove counter file for retain '${oldretain}', file ${_oldfile}"
@@ -300,7 +348,7 @@ then
                         	# increment index 3 counter
                                 echo "runs at: $current" >> ${file_counter_filenames[$index]}
 				counter=$( count_retain_lines $_file )
-				max_count=${retainscount[$_index]}
+				max_count=${retainscount[$index]}
 				echo "($counter of $max_count)      ${currentretain} at: $current" >> $intervaldonefolder/$intervaldonefile
                         	# remove index 2 counter, set count to 0, = interval drei
                         	datelog "${FILENAME}: remove counter file for retain '${oldretain}', file ${_oldfile}"
@@ -308,7 +356,7 @@ then
                 	fi
 
 			counter=$( count_retain_lines $_file )
-			max_count=${retainscount[$_index]}
+			max_count=${retainscount[$index]}
 			datelog "${FILENAME}: print intervals"
 	                #datelog "${FILENAME}: '_counter' :      $_counter"
 	                datelog "${FILENAME}: '${currentretain}' :      $counter"
@@ -339,6 +387,14 @@ then
 #else
 	#datelog "${FILENAME}: no retain max reached"
 fi
+
+########### final generic start #####################
+# final stage for rleo3
+# copy last backup to final disk,  
+# is now done in acer /usr/local/bin/back
+#final_func $DISK $PROJECT $RSNAPSHOT_ROOT $firstretain
+# end final stage rleo3
+########### final generic end  #####################
 
 sync
 

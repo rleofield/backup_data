@@ -35,7 +35,7 @@ mountdir=/mnt/$label
 if [[ "$label" == *luks ]]
 then
 #	datelog "${FILENAME}:  is luks"
-	LUKSKEYFILE=/root/luks1_keyfile
+	LUKSKEYFILE=/root/keyfile_${label}
 
 	UUID=`grep -w ${label} uuid.txt | awk '{print $2}'`
 	DEVICE="/dev/disk/by-uuid/${UUID}"
@@ -45,7 +45,7 @@ then
 	# test against block device
 	if test ! -b /dev/mapper/$label
 	then
- #       	datelog "${FILENAME}:   LUKS:  cryptsetup luksOpen --key-file $LUKSKEYFILE $DEVICE $label"
+       	datelog "${FILENAME}:   LUKS:  cryptsetup luksOpen --key-file $LUKSKEYFILE $DEVICE $label"
 	        cryptsetup luksOpen --key-file $LUKSKEYFILE $DEVICE $label
 #       RETURN CODES
 #              Cryptsetup returns 0 on success and a non-zero value on error.

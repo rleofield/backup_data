@@ -1,5 +1,6 @@
 
-DURATIONx="5"
+# loop in minutes
+DURATIONx="60"
 DURATION="${DURATIONx}m"
 
 

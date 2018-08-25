@@ -21,8 +21,8 @@
 
 
 
-echo "rsnapshot -c conf/backupHD_testBackup.conf configtest"
-rsnapshot -c conf/backupHD_testBackup.conf configtest
+echo "rsnapshot -c conf/tluks_testBackup.conf configtest"
+rsnapshot -c conf/tluks_testBackup.conf configtest
 
 
 
@@ -30,8 +30,8 @@ echo ""
 
 echo "test pre check "
 
-echo "pre/backupHD_testBackup.pre.sh" 
-RET=$( pre/backupHD_testBackup.pre.sh )
+echo "pre/tluks_testBackup.pre.sh" 
+RET=$( pre/tluks_testBackup.pre.sh )
 echo $?
 
 

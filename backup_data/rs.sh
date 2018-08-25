@@ -1,6 +1,8 @@
 #!/bin/bash
 
 # file: rs.sh
+# version 18.08.1
+
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -17,10 +19,12 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
 
+. ./cfg.working_folder
+
 
 # parameter
 # $1 = currentretain
-# $" = DISK 
+# $2 = DISK 
 # $3 = PROJECT
 
 
@@ -28,7 +32,6 @@ readonly INTERVAL=$1
 readonly DISK=$2 
 readonly PROJECT=$3 
 
-FILENAME=$(basename "$0" .sh)
 FILENAME="rs"
 FILENAME=${FILENAME}:${DISK}:$PROJECT
 
@@ -86,11 +89,12 @@ fi
 #echo "cat $CONFFOLDER/${RSNAPSHOT_CONFIG} | grep ^retain | grep $INTERVAL"
 WC=$(cat $CONFFOLDER/${RSNAPSHOT_CONFIG} | grep ^retain | grep $INTERVAL | wc -l)
 
-# only one retain line with interval can exist 
+# only one retain line with current interval can exist 
 if test $WC -eq  1 
 then
 
 	datelog "${FILENAME}: ==> execute -->: /usr/bin/rsnapshot -c $CONFFOLDER/${RSNAPSHOT_CONFIG} ${INTERVAL}"
+	# get first interval line, second entry is name of interval, eins, zwei or first second ...
 	FIRST_INTERVAL=$(cat $CONFFOLDER/${RSNAPSHOT_CONFIG} | grep ^retain | awk 'NR==1'| awk '{print $2}')
 	datelog "${FILENAME}: first retain value: ${FIRST_INTERVAL}" 
 	
@@ -111,6 +115,7 @@ then
 			datelog "${FILENAME}: ==> first interval with run sync   : /usr/bin/rsnapshot -c $CONFFOLDER/${RSNAPSHOT_CONFIG} sync"
 			TODAY_RSYNC_START=`date +%Y%m%d-%H%M`
 			rsynclog "${FILENAME}: start sync -- $TODAY_RSYNC_START" 
+			########### rsnapshot call, sync ######################
 			/usr/bin/rsnapshot -c $CONFFOLDER/${RSNAPSHOT_CONFIG} sync >> ${RSYNCLOG}
 			
 			RETSYNC=$?
@@ -136,6 +141,7 @@ then
                 #rsynclog "rotate starts at ${INTERVAL} -- $TODAY_RSYNC_START"
                 rsynclog "${FILENAME}: start ${INTERVAL} -- $TODAY_RSYNC2_START"
 		RETROTATE=1
+		########### rsnapshot call, rotate ######################
    		/usr/bin/rsnapshot -c $CONFFOLDER/${RSNAPSHOT_CONFIG} ${INTERVAL} >> ${RSYNCLOG}
 	        RETROTATE=$?
                 #datelog "${FILENAME}: rotate return: $RETROTATE"

@@ -1,6 +1,8 @@
 #!/bin/bash
 
 # file: excecute_all.sh
+# version 18.08.1
+
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -64,7 +66,7 @@ do
 	then
 		exit 1
 	fi
-	
+
 done
 
 # end

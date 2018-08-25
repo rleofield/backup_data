@@ -19,7 +19,7 @@
 # file backupHD_testBackup.conf*
 
 
-DISKLIST="backupHD"
+DISKLIST="tluks"
 
 SUCCESSLINEWIDTH=25
 

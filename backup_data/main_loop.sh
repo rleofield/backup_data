@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # file: main_loop.sh
+# version 18.08.1
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -17,6 +18,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
 
+. ./cfg.working_folder
 . ./cfg.loop_time_duration
 . ./cfg.target_disk_list
 . ./cfg.exit_codes
@@ -58,25 +60,15 @@ function sheader {
 
 }
 
-
+# parameter
+# 1 = list successlist[@] 
+# 2 = list unsuccesslist[@] 
+# 3 = string "ready"
 function successlog {
 
-	declare -a successline=( $SUCCESSLINE )
+        declare -a successline=( $SUCCESSLINE )
 
-	# use one of the entries in array for grep later
-	local first=${successline[2]}
-
-	#datelog "cat $successloglines | grep -v $first | wc -l "
-	local count=$( cat $successloglines | grep -v $first | wc -l )
-	#datelog "count: $count"
-	local divisor=20
-	local n=$(( count % divisor ))
-	if test $n -eq 0 
-	then
-   		sheader
-	fi
-
-        declare -a slist=("${!1}")
+	declare -a slist=("${!1}")
         declare -a unslist=("${!2}")
 	local _disk=$3
 
@@ -111,7 +103,23 @@ function successlog {
 	rsync $ff ${notifytargetsend}Backup_erfolgsliste.txt
 
 }
+function write_header(){
 
+	declare -a successline=( $SUCCESSLINE )
+
+	# use one of the entries in array for grep later
+	local first=${successline[0]}
+
+	datelog "cat $successloglines | grep -v $first | wc -l "
+	local count=$( cat $successloglines | grep -v $first | wc -l )
+	#datelog "count: $count"
+	local divisor=20
+	local n=$(( count % divisor ))
+	if test $n -eq 0 
+	then
+   		sheader
+	fi
+}
 
 
 # rotate log
@@ -121,7 +129,6 @@ _date=$(date +%Y-%m-%d)
 
 oldlogdir=oldlogs/$_date
 	
-datelog "${FILENAME}: rotate log"
 
 if [ ! -d "$oldlogdir" ]
 then
@@ -129,6 +136,7 @@ then
 	mkdir "$oldlogdir"
 	mv aa_* "$oldlogdir"
 	mv rsync_* "$oldlogdir"
+	mv rr_* "$oldlogdir"
 	mv $LOGFILE "$oldlogdir"
 	datelog "${FILENAME}: log rotated to '$oldlogdir'"
 fi
@@ -137,8 +145,12 @@ IFS=' '
 declare -a successlist
 declare -a unsuccesslist
 
-## loop over all disks with label ... (in ./cfg.target_disk_list )
+datelog "${FILENAME}"
+datelog "${FILENAME}: check all projects in all disks: '$DISKLIST'"
 	
+
+datelog ""
+datelog ""
 for _disk in $DISKLIST
 do
 	# clean up ssh messages
@@ -148,7 +160,9 @@ do
 	oldifs2=$IFS
 	IFS=','
 	RET=""
+	# call disk.sh ############################################
 	./disk.sh "$_disk"
+	###########################################################
         RET=$?
 	IFS=$oldifs2
 
@@ -223,6 +237,7 @@ if test "$_ls" -eq "0" -a "$_luns" -eq "0"
 then
 	datelog "${FILENAME}: successarrays are empty, no entry in: $successloglines"
 else
+	write_header
 	successlog  successlist[@] unsuccesslist[@] "ready"
 fi
 
@@ -230,28 +245,117 @@ fi
 
 IFS=$oldifs1
 
-datelog "${FILENAME}:"
-datelog "${FILENAME}: ====== sleep ${DURATION} ======"
+#datelog "${FILENAME}:"
+#datelog "${FILENAME}: ====== sleep ${DURATION} ======"
 datelog "${FILENAME}:"
 
-# check for file 'stop'
-COUNTER=0
-d=$DURATIONx
-d=$(( d * 60 )) 
-while [  $COUNTER -lt $d ] 
-do
-     	#echo The counter is $COUNTER
-	COUNTER=$(( COUNTER+1 )) 
-        sleep "1s"
-	 #               sleep "1m"
-        if test -f $stopfile
-        then
-        	datelog "${FILENAME}: stopped"
-        	rm $stopfile
-	        exit 1
-	fi
-done
+#datelog "$do_none"
+donone=$waittimeinterval
+oldifs=$IFS
+IFS='-'
 
+dononearray=($donone)
+startdonone="09"
+enddonone=$startdonone
+if [ ${#dononearray[@]} = 2 ]
+then
+        startdonone=${dononearray[0]}
+        enddonone=${dononearray[1]}
+fi
+$IFS=$oldifs
+#datelog "${FILENAME}: array: ${a[@]} "
+#datelog "${FILENAME}: array 0: $startdonone "
+#datelog "${FILENAME}: array 1: $enddonone "
+datelog "${FILENAME}: waittime interval:  $startdonone - $enddonone "
+
+
+#properties=${a_properties[$LABEL]}
+
+minute=$(date +%M)
+
+
+# if minute == 00, then loop 2 Minutes with counter
+if  [  "$minute" == "00" ] 
+then
+	COUNTER=0
+	d="2"
+	# wait 2 minutes = 2 * 6 * 10 seconds
+	d=$(( d * 6 )) 
+	while [  $COUNTER -lt $d ] 
+	do
+		minute=$(date +%M)
+		COUNTER=$(( COUNTER+1 )) 
+	        sleep "10s"
+        	if test -f $stopfile
+	        then
+        		datelog "${FILENAME}: backup stopped"
+        		rm $stopfile
+		        exit 1
+		fi
+	done
+fi
+# minute is 02 or more, but not 00
+
+# wait, until minute == 00, (next full hour reached)
+minute=$(date +%M)
+
+hour=$(date +%H) 
+if [ "$hour" -ge "$startdonone" ]
+then
+	#datelog "${FILENAME}: start waittime reached:  current '$hour' gt start wait '$startdonone'"
+	#datelog "${FILENAME}: end   waittime is:       current '$hour' lt end wait '$enddonone'"
+	count=0
+	while [  "$hour" -lt "$enddonone" ] 
+	do
+		#datelog "${FILENAME}: in enddonone: $hour lt  $enddonone "
+		# set minute to current full hour
+		minute="00"
+		hour=$(date +%H) 
+		#datelog "${FILENAME}: count $count, time $(date +%H:%M:%S)  "
+		# every 30 min display an status message
+		if [ "$count" -eq "180" ]
+		then
+			count=0
+		fi
+		if [ "$count" -eq "0" ]
+		then
+			datelog "${FILENAME}: time $(date +%H:%M:%S), wait until $enddonone"
+		fi
+		count=$(( count+1 )) 
+	        sleep "10s"
+        	if test -f $stopfile
+	        then
+        	        datelog "${FILENAME}: backup stopped"
+                	rm $stopfile
+	                exit 1
+		fi
+	done
+	
+else
+	datelog "${FILENAME}:  stop interval not reached, current: $hour, begin stop interval: $startdonone"
+fi
+
+
+
+if [ $minute -eq "00" ]
+then
+	datelog "${FILENAME}: waittime end, next check at $(date +%H):00"
+else
+	datelog "${FILENAME}: backup ready, next check at $(date +%H --date='-1 hours ago' ):00"
+	# wait until next full hour
+	while [  "$minute" != "00" ] 
+	do
+        	minute=$(date +%M)
+		# check every ten seonds for stop
+        	sleep "10s"
+	        if test -f $stopfile
+        	then
+                	datelog "${FILENAME}: backup stopped"
+	                rm $stopfile
+        	        exit 1
+	        fi
+	done
+fi
 exit 0
 
 
