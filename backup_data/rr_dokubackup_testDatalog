@@ -1,0 +1,56 @@
+2019/10/05 21:30:30 [2220] building file list
+2019/10/05 21:30:30 [2220] created directory /mnt/dokubackup/rs/testData/.sync/target
+2019/10/05 21:30:30 [2220] cd+++++++++ /home/
+2019/10/05 21:30:30 [2220] cd+++++++++ /home/rleo/
+2019/10/05 21:30:30 [2220] cd+++++++++ /home/rleo/backuptest/
+2019/10/05 21:30:30 [2220] cd+++++++++ /home/rleo/backuptest/test/
+2019/10/05 21:30:30 [2220] cd+++++++++ /home/rleo/backuptest/test/source/
+2019/10/05 21:30:30 [2220] cd+++++++++ /home/rleo/backuptest/test/source/color/
+2019/10/05 21:30:30 [2220] sent 478 bytes  received 127 bytes  1,210.00 bytes/sec
+2019/10/05 21:30:30 [2220] total size is 40,920,010  speedup is 67,636.38 (DRY RUN)
+2019/10/05 21:33:57 [2779] building file list
+2019/10/05 21:33:57 [2779] created directory /mnt/dokubackup/rs/testData/.sync/target
+2019/10/05 21:33:57 [2779] cd+++++++++ /home/
+2019/10/05 21:33:57 [2779] cd+++++++++ /home/rleo/
+2019/10/05 21:33:57 [2779] cd+++++++++ /home/rleo/backuptest/
+2019/10/05 21:33:57 [2779] cd+++++++++ /home/rleo/backuptest/test/
+2019/10/05 21:33:57 [2779] cd+++++++++ /home/rleo/backuptest/test/source/
+2019/10/05 21:33:57 [2779] cd+++++++++ /home/rleo/backuptest/test/source/color/
+2019/10/05 21:33:57 [2779] sent 477 bytes  received 127 bytes  1,208.00 bytes/sec
+2019/10/05 21:33:57 [2779] total size is 40,920,010  speedup is 67,748.36 (DRY RUN)
+2019/10/05 21:36:49 [3366] building file list
+2019/10/05 21:36:49 [3366] created directory /mnt/dokubackup/rs/testData/.sync/target
+2019/10/05 21:36:49 [3366] cd+++++++++ /home/
+2019/10/05 21:36:49 [3366] cd+++++++++ /home/rleo/
+2019/10/05 21:36:49 [3366] cd+++++++++ /home/rleo/backuptest/
+2019/10/05 21:36:49 [3366] cd+++++++++ /home/rleo/backuptest/test/
+2019/10/05 21:36:49 [3366] cd+++++++++ /home/rleo/backuptest/test/source/
+2019/10/05 21:36:49 [3366] >f+++++++++ /home/rleo/backuptest/test/source/0b_gray.bmp
+2019/10/05 21:36:49 [3366] >f+++++++++ /home/rleo/backuptest/test/source/0b_gray.tif
+2019/10/05 21:36:49 [3366] >f+++++++++ /home/rleo/backuptest/test/source/testsobel.tif
+2019/10/05 21:36:49 [3366] cd+++++++++ /home/rleo/backuptest/test/source/color/
+2019/10/05 21:36:49 [3366] >f+++++++++ /home/rleo/backuptest/test/source/color/0b.bmp
+2019/10/05 21:36:49 [3366] >f+++++++++ /home/rleo/backuptest/test/source/color/0b.tif
+2019/10/05 21:36:49 [3366] >f+++++++++ /home/rleo/backuptest/test/source/color/0b1.bmp
+2019/10/05 21:36:49 [3366] >f+++++++++ /home/rleo/backuptest/test/source/color/0b_pal.bmp
+2019/10/05 21:36:49 [3366] >f+++++++++ /home/rleo/backuptest/test/source/color/0b_pal.tif
+2019/10/05 21:36:49 [3366] sent 40,930,792 bytes  received 263 bytes  81,862,110.00 bytes/sec
+2019/10/05 21:36:49 [3366] total size is 40,920,010  speedup is 1.00
+2019/10/05 21:47:35 [4147] building file list
+2019/10/05 21:47:35 [4147] created directory /mnt/dokubackup/rs/testData/.sync/target
+2019/10/05 21:47:35 [4147] sent 436 bytes  received 85 bytes  1,042.00 bytes/sec
+2019/10/05 21:47:35 [4147] total size is 40,920,010  speedup is 78,541.29
+2019/10/05 21:56:53 [4648] building file list
+2019/10/05 21:56:53 [4648] created directory /mnt/dokubackup/rs/testData/.sync/target
+2019/10/05 21:56:53 [4648] cd..t...... /home/rleo/
+2019/10/05 21:56:53 [4648] sent 439 bytes  received 88 bytes  1,054.00 bytes/sec
+2019/10/05 21:56:53 [4648] total size is 40,920,010  speedup is 77,647.08
+2019/10/05 21:57:56 [5028] building file list
+2019/10/05 21:57:56 [5028] created directory /mnt/dokubackup/rs/testData/.sync/target
+2019/10/05 21:57:56 [5028] sent 436 bytes  received 85 bytes  1,042.00 bytes/sec
+2019/10/05 21:57:56 [5028] total size is 40,920,010  speedup is 78,541.29
+2019/10/05 22:14:08 [5660] building file list
+2019/10/05 22:14:08 [5660] created directory /mnt/dokubackup/rs/testData/.sync/target
+2019/10/05 22:14:08 [5660] cd..t...... /home/rleo/
+2019/10/05 22:14:08 [5660] sent 439 bytes  received 88 bytes  1,054.00 bytes/sec
+2019/10/05 22:14:08 [5660] total size is 40,920,010  speedup is 77,647.08

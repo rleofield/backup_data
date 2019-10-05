@@ -1,5 +1,7 @@
+#!/bin/bash
 
-# file exitcodes.sh 
+# file: connected_disks.sh
+# version 19.04.1
 
 
 # Copyright (C) 2017 Richard Albrecht
@@ -19,26 +21,28 @@
 
 
 
-ARRAYSNOK=1
-MEDIAMOUNTcouldn_t_unmounted=1
+temp=$(mktemp)
 
-SUCCESS=0
-DISKLABELNOTFOUND=3
-DISKNOTUNMOUNTED=4
-MOUNTDIRTNOTEXIST=5
-TIMELIMITNOTREACHED=6
-DISKNOTMOUNTED=7
-RSYNCFAILS=8
+if test -f $temp 
+then
+        rm $temp
+fi
 
-PRE_WAS_FALSE=10
-PRE_WAS_NOK=11
+for _d in $(ls -1 /dev/disk/by-uuid/)
+do
+		
+	g=$(grep  $_d uuid.txt) 
+	if ! [ -z "${g##*swap*}" ] && ! [ -z "${g##*boot*}" ]
+	then
+	        echo "disk:  $g " >> $temp
+	fi
+done
+cat $temp | sort -k2
 
-# no rsnapshotroot = NORSNAPSHOTROOT=12
-NORSNAPSHOTROOT=12
-TESTEXIT=10
-
-STOPEXIT=200
-
+if test -f $temp 
+then
+        rm $temp
+fi
 
 
 

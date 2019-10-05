@@ -1,4 +1,8 @@
-# file: log.sh
+#!/bin/bash
+
+# file: ping_host
+# version 19.04.1
+
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -17,30 +21,21 @@
 
 
 
-ERRORLOG="cc_error.log"
-LOGFILE="cc_log.log"
+. ./src_log.sh
+. ./src_ssh.sh
+
+FILENAME="ping"
+
+p=$( sshport )
+echo "do_ping_host ${sshlogin} ${sshhost} ${sshtargetfolder} ${p}"
+do_ping_host ${sshlogin} ${sshhost} ${sshtargetfolder} ${sshport}
+RET=$?
+if [ $RET -eq 0 ]
+then
+	echo "ok"
+else
+	echo "nok"
+fi
 
 
 
-function log {
-   local msg=$1
-   #echo "$msg" | tee -a $LOGFILE
-   echo -e "$msg" >> $LOGFILE
-}
-
-
-
-function datelog {
-        local _TODAY=`date +%Y%m%d-%H%M`
-        log "$_TODAY ==>  $1"
-}
-
-function errorlog {
-	local _TODAY=`date +%Y%m%d-%H%M`
-	msg=$( echo "$_TODAY err ==> '$1'" )
-	echo -e "$msg" >> $ERRORLOG
-}
-
-
-
-# EOF

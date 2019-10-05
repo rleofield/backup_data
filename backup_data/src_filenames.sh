@@ -1,7 +1,7 @@
-#!/bin/bash
+# file: filenames.sh
+# version 19.04.1
+# included with 'source'
 
-# file: start_excecute.sh
-# version 18.08.1
 
 
 # Copyright (C) 2017 Richard Albrecht
@@ -20,42 +20,9 @@
 #------------------------------------------------------------------------------
 
 
+# text file for success and unsuccess
+successarraytxt="successarray.txt"
+unsuccessarraytxt="unsuccessarray.txt"
+successloglines="successloglines.txt"
 
-
-# only place of STARTFOLDER
-
-STARTFOLDER=/home/test/backup_data 
-WORKINGFOLDER=$STARTFOLDER
-
-
-# for github
-echo "WORKINGFOLDER=$WORKINGFOLDER" > cfg.working_folder
-
-
-wc=$( ps aux | grep execute_all.sh | grep -v grep | wc -l )
-if [ $wc -gt 0 ]
-then
-       	echo "Backup is running, exit"	
-	echo "==  end == "
-	exit
-fi
-
-cd $STARTFOLDER
-pwd
-
-echo "Backup is not running, start in '$STARTFOLDER'"	
-#exit
-
-
-
-
-echo "nohup ./execute_all.sh  nohupexecute.out " 
-nohup ./execute_all.sh > nohupexecute.out &
-
-
-sync
-
-#sleep 1
-
-exit 0
 

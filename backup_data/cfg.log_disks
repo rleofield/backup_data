@@ -1,6 +1,10 @@
-#!/bin/bash
+# file: cfg.log_disks
+# version 19.01.1
+# included with 'source'
 
-# file: intervals.sh
+
+# version 19.04.1
+# included with 'source'
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -17,8 +21,12 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
 
-. ./lib.logger
 
 
-grep "print intervals" $LOGFILE -A 2
+####### host part #######
 
+# log connected disks to 'list_disks_log.log'·
+# only in pl
+#./show_disks.sh
+
+####### host part #######

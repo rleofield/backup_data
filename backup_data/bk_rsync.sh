@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# file: rs.sh
-# version 18.08.1
+# file: bk_rsnapshot.sh
+# version 19.04.1
 
 
 # Copyright (C) 2017 Richard Albrecht
@@ -21,19 +21,22 @@
 
 . ./cfg.working_folder
 
+. ./src_exitcodes.sh
+. ./src_global_strings.sh
+. ./src_folders.sh
+. ./src_log.sh
 
 # parameter
 # $1 = currentretain
 # $2 = DISK 
 # $3 = PROJECT
 
-
 readonly INTERVAL=$1 
 readonly DISK=$2 
 readonly PROJECT=$3 
 
-FILENAME="rs"
-FILENAME=${FILENAME}:${DISK}:$PROJECT
+
+readonly FILENAME="rsnapshot:${DISK}:$PROJECT"
 
  
 # rsnapshot exit values
@@ -41,13 +44,16 @@ FILENAME=${FILENAME}:${DISK}:$PROJECT
 # 1 A fatal error occurred
 # 2 Some warnings occurred, but the backup still finished
 
-. ./cfg.exit_codes
-. ./lib.logger
+
+function dlog2 {
+        datelog "${FILENAME}: $1"
+}
 
 
-
-readonly TODAY_LOG=`date +%Y-%m-%dT%H:%M:%S`
+#readonly TODAY_LOG=`date +%Y-%m-%dT%H:%M:%S`
+TODAY_LOG=`date +%Y-%m-%dT%H:%M`
 RSYNCLOG=""
+
 
 
 
@@ -56,8 +62,8 @@ function rsynclog {
 }
 
 
-datelog "${FILENAME}: == start rs.sh =="
-datelog "${FILENAME}: $TODAY_LOG -- $INTERVAL --"
+dlog "== start bk_rsnapshot.sh =="
+dlog "$TODAY_LOG -- $INTERVAL --"
 
 
 if [ "$INTERVAL" = "all" ]
@@ -65,43 +71,50 @@ then
 	exit 1
 fi
 
-readonly CONFFOLDER="./conf"
+dlog "in rsync"
+exit 0
+
+
+# now in src_folders.sh:22
+#readonly CONFFOLDER="./conf"
 
 rs_exitcode=0
 
-RSNAPSHOT_CFG=${DISK}_${PROJECT}
-RSNAPSHOT_CONFIG=${RSNAPSHOT_CFG}.conf
-RSNAPSHOT_ROOT=$(cat $CONFFOLDER/${RSNAPSHOT_CONFIG} | grep snapshot_root | grep -v '#' | awk '{print $2}')
+readonly projectkey=${DISK}_${PROJECT}
 
-RSYNCLOG="rsynclog/${RSNAPSHOT_CFG}.log"
 
-#datelog "${FILENAME}: root folder: $RSNAPSHOT_ROOT"
+readonly RSNAPSHOT_CFG=${projectkey}
+readonly RSNAPSHOT_CONFIG=${RSNAPSHOT_CFG}.conf
+readonly cfg_file=./${CONFFOLDER}/${RSNAPSHOT_CFG}.conf
+readonly RSNAPSHOT_ROOT=$(cat ${cfg_file} | grep snapshot_root | grep -v '#' | awk '{print $2}')
+
+readonly RSYNCLOG="rsynclog/${RSNAPSHOT_CFG}.log"
+
 
 
 if test ! -d $RSNAPSHOT_ROOT 
 then
-       	datelog "${FILENAME}: snapshot root folder '$RSNAPSHOT_ROOT' doesn't exist" 
-        datelog "${FILENAME}: give up, also don't do remaining rsnapshots"
+       	dlog "snapshot root folder '$RSNAPSHOT_ROOT' doesn't exist" 
+        dlog "give up, also don't do remaining rsnapshots"
 	exit $NORSNAPSHOTROOT
 fi
 
 #datelog "${FILENAME}: interval: ${INTERVAL}"
-#echo "cat $CONFFOLDER/${RSNAPSHOT_CONFIG} | grep ^retain | grep $INTERVAL"
-WC=$(cat $CONFFOLDER/${RSNAPSHOT_CONFIG} | grep ^retain | grep $INTERVAL | wc -l)
+#echo "cat ./$CONFFOLDER/${RSNAPSHOT_CONFIG} | grep ^retain | grep $INTERVAL"
+WC=$(cat ./$CONFFOLDER/${RSNAPSHOT_CONFIG} | grep ^retain | grep $INTERVAL | wc -l)
 
 # only one retain line with current interval can exist 
 if test $WC -eq  1 
 then
 
-	datelog "${FILENAME}: ==> execute -->: /usr/bin/rsnapshot -c $CONFFOLDER/${RSNAPSHOT_CONFIG} ${INTERVAL}"
+	dlog "==> execute -->: /usr/bin/rsnapshot -c ${cfg_file} ${INTERVAL}"
 	# get first interval line, second entry is name of interval, eins, zwei or first second ...
-	FIRST_INTERVAL=$(cat $CONFFOLDER/${RSNAPSHOT_CONFIG} | grep ^retain | awk 'NR==1'| awk '{print $2}')
-	datelog "${FILENAME}: first retain value: ${FIRST_INTERVAL}" 
+	FIRST_INTERVAL=$(cat ${cfg_file} | grep ^retain | awk 'NR==1'| awk '{print $2}')
 	
-	rsynclog "${FILENAME}: -----------  first: ${FIRST_INTERVAL}, interval: ${INTERVAL}"
+	rsynclog "${FILENAME}: -----------  first is: ${FIRST_INTERVAL}, interval: ${INTERVAL}"
 
 	# lookup sync_first entry
-	WC=$(cat $CONFFOLDER/${RSNAPSHOT_CONFIG} | grep ^sync_first |  wc -l)
+	WC=$(cat ${cfg_file} | grep ^sync_first |  wc -l)
 
 	# do rsync first
 	RETSYNC=0
@@ -112,56 +125,60 @@ then
 		if test  "${FIRST_INTERVAL}" =  "${INTERVAL}" 
 		then
 			# do sync 
-			datelog "${FILENAME}: ==> first interval with run sync   : /usr/bin/rsnapshot -c $CONFFOLDER/${RSNAPSHOT_CONFIG} sync"
+			dlog "first retain value: ${FIRST_INTERVAL}, use sync" 
+			dlog "==> first interval with run sync   : /usr/bin/rsnapshot -c ${cfg_file} sync"
 			TODAY_RSYNC_START=`date +%Y%m%d-%H%M`
 			rsynclog "${FILENAME}: start sync -- $TODAY_RSYNC_START" 
 			########### rsnapshot call, sync ######################
-			/usr/bin/rsnapshot -c $CONFFOLDER/${RSNAPSHOT_CONFIG} sync >> ${RSYNCLOG}
-			
+			/usr/bin/rsnapshot -c ${cfg_file} sync >> ${RSYNCLOG}
 			RETSYNC=$?
+			
+			TODAY_LOG=`date +%Y-%m-%dT%H:%M`
+			dlog "return from rsnapshot: '$RETSYNC'"
 			TODAY_RSYNC_END=`date +%Y%m%d-%H%M`
 			if test $RETSYNC -ne 0
 			then
 				rs_exitcode=$RSYNCFAILS
 			else		
 				# write marker file with date to backup folder .sync in rsnapshot root"
-				datelog "${FILENAME}: write: 'created at: ${TODAY_LOG}'"
+				runningnumber=$( printf "%05d"  $( get_loopcounter ) )
+				dlog "write: 'created at: ${TODAY_LOG} , loop: $runningnumber'"
 				# write control message to .sync
-				echo "created at: ${TODAY_LOG}" > $RSNAPSHOT_ROOT.sync/created_at_${TODAY_LOG}.txt
+				echo "${prefix_created_at}${TODAY_LOG}, loop: $runningnumber" > $RSNAPSHOT_ROOT.sync/created_at_${TODAY_LOG}_number_$runningnumber.txt
 			fi	
 			rsynclog "${FILENAME}: end   sync -- $TODAY_RSYNC_END"
 		fi
 	fi
-
-        # do rsnapshot rotate, in all cases, also if no sync was executed, then it is a simple rotate  
+	# sync is done or we have a simple rotate
+        # do rsnapshot rotate, in all cases, also, if no sync was executed, then it is a simple rotate  
         if test $RETSYNC -eq 0 
         then
-               	datelog "${FILENAME}: ==> run rotate: /usr/bin/rsnapshot -c $CONFFOLDER/${RSNAPSHOT_CONFIG} ${INTERVAL}"
+               	datelog "${FILENAME}: ==> run rotate: /usr/bin/rsnapshot -c ${cfg_file} ${INTERVAL}"
                 TODAY_RSYNC2_START=`date +%Y%m%d-%H%M`
                 #rsynclog "rotate starts at ${INTERVAL} -- $TODAY_RSYNC_START"
                 rsynclog "${FILENAME}: start ${INTERVAL} -- $TODAY_RSYNC2_START"
 		RETROTATE=1
 		########### rsnapshot call, rotate ######################
-   		/usr/bin/rsnapshot -c $CONFFOLDER/${RSNAPSHOT_CONFIG} ${INTERVAL} >> ${RSYNCLOG}
+   		/usr/bin/rsnapshot -c ${cfg_file} ${INTERVAL} >> ${RSYNCLOG}
 	        RETROTATE=$?
                 #datelog "${FILENAME}: rotate return: $RETROTATE"
                 TODAY_RSYNC2_END=`date +%Y%m%d-%H%M`
                 rsynclog "${FILENAME}: end   ${INTERVAL} -- $TODAY_RSYNC2_END"
                 if test $RETROTATE -ne 0 
                 then
-       			datelog "${FILENAME}: ==> error in rsnapshop, in '$CONFFOLDER/${RSNAPSHOT_CONFIG}' "
+       			datelog "${FILENAME}: ==> error in rsnapshop, in '${cfg_file}' "
                 fi
        	else
-               	datelog "${FILENAME}: ==> return in sync first was not ok, in '$CONFFOLDER/${RSNAPSHOT_CONFIG}' "
+               	datelog "${FILENAME}: ==> return in sync first was not ok, in '${cfg_file}' "
         fi
 		
 else
-	datelog "${FILENAME}: ==> can't execute -->: '${RSNAPSHOT_CFG}', interval '$INTERVAL' is not in '$CONFFOLDER/${RSNAPSHOT_CONFIG}' "
+	datelog "${FILENAME}: ==> can't execute -->: '${RSNAPSHOT_CFG}', interval '$INTERVAL' is not in '${cfg_file}' "
 fi
 
 sync
 
-datelog "${FILENAME}: == end rs.sh =="
+dlog "== end bk_rsnapshot.sh =="
 
 exit $rs_exitcode
 
