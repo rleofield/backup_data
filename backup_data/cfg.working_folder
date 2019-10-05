@@ -1,1 +1,3 @@
-WORKINGFOLDER=/home/test/backup_data
+# WORKINGFOLDER from /etc/rlf_backup_data_rc
+# version 19.04.1
+WORKINGFOLDER=/home/rleo/github/rleofield/backup_data/backup_data

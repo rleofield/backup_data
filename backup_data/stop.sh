@@ -2,6 +2,8 @@
 
 # file: stop.sh
 
+# version 19.04.1
+
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
 
@@ -16,6 +18,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
+#if [[ $(id -u) != 0 ]]
+#then
+#        echo "we are not root, use root for stop of backup"
+#        exit
+#fi
 
 
 touch stop

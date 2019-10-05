@@ -1,7 +1,8 @@
-
-
 # file: cfg.filenames
+# version 19.04.1
 # included with 'source'
+
+
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -19,10 +20,10 @@
 #------------------------------------------------------------------------------
 
 
-# intermediatae text file for success and unsuccess
-successarraytxt="successarray.txt"
-unsuccessarraytxt="unsuccessarray.txt"
-successloglines="successloglines.txt"
 
+####### host part #######
+# name of file send to 'backup_messages_test'local and ssh target remote 
+file_successloglines="Backuperfolgsliste_test.txt"
 
+####### host part #######
 

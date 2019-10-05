@@ -1,5 +1,8 @@
-#!/bin/bash
 
+
+# file: cfg.target_disk_list
+# version 19.04.1
+# included with 'source'
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -16,10 +19,30 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
 
-# file backupHD_testBackup.conf*
 
 
-DISKLIST="tluks"
 
-SUCCESSLINEWIDTH=25
+# controlled disks
+
+####### host part #######
+
+
+
+
+
+DISKLIST="dokubackup"
+
+
+
+# successarray
+# successful projects listed in this order in file 'successloglines.txt'
+
+SUCCESSLINE="dokubackup:testData"
+
+SUCCESSLINEWIDTH=15
+
+
+FINAL_EXTERN_DISK="fluks"
+
+####### host part #######
 

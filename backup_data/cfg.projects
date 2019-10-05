@@ -1,20 +1,43 @@
 
-# backup stops in this interval
-waittimeinterval=8-10
+
+# file: cfg.projects
+# version 19.10.1
+# included with 'source'
+
+# Copyright (C) 2017 Richard Albrecht
+# www.rleofield.de
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+#------------------------------------------------------------------------------
 
 
-# keys for control a disk
-# umount = disk is unmounted, for external USB
-# xumount = disk stays at system, for internal disks
+
+
+
+# keys for control projects at a disk
+
+####### host part #######
+
+# umount   = disk is mounted/unmounted by backup, for external USB
+# noumount = disk stays at system, for internal disks mountet at /mnt
+# local    = don't check uuid of backup disk, useful, if backup goes to local filesystem
 declare -A a_properties
-a_properties['tluks']="umount"
+a_properties['dokubackup']="umount"
+
 
 
 # sub projects per disk
-# disklabel: tluks
-# project at tluks: testBackup
 declare -A a_projects
-a_projects['tluks']="testBackup" 
+a_projects['dokubackup']="testData" 
 
 # backup interval in minutes
 # 1440 = 1 tag
@@ -22,13 +45,9 @@ declare -A a_interval
 # days:hours:minutes
 # hours:minutes
 # minutes
-a_interval['tluks_testBackup']=3:00
+a_interval['dokubackup_testData']=03:00
 
 
-# successarray
-# successful projects listed in this order in file 'successloglines.txt' 
-
-SUCCESSLINE="tluks:testBackup"
-
+####### host part #######
 
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: tt.sh
-
+# version 19.04.1
 
 
 # Copyright (C) 2017 Richard Albrecht
@@ -19,6 +19,9 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
 
-. ./lib.logger
+# show first 2000 lines of log
 
+. ./src_log.sh
+
+touch $LOGFILE
 tail -f $LOGFILE -n 2000

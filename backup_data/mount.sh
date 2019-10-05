@@ -2,6 +2,7 @@
 
 
 # file: mount.sh
+# bd_version 19.04.1
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -19,7 +20,14 @@
 #------------------------------------------------------------------------------
 
 
-. ./lib.logger
+if [[ $(id -u) != 0 ]]
+then
+        echo "we are not root, use root for mount backup disk"
+        exit
+fi
+
+
+. ./src_log.sh
 
 
 FILENAME=$(basename "$0" .sh)

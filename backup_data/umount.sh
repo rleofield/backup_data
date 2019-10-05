@@ -2,6 +2,7 @@
 
 
 # file: umount.sh
+# version 19.04.1
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -20,7 +21,7 @@
 
 
 
-. ./lib.logger
+. ./src_log.sh
 
 
 FILENAME=$(basename "$0" .sh)
@@ -37,7 +38,7 @@ then
 	RET=$?
 	if test $RET -eq 0
 	then
-		datelog "${FILENAME}:   LUKS: 'cryptsetup luksClose $label'"
+		dlog "LUKS: 'cryptsetup luksClose $label'"
 		cryptsetup luksClose $label
 		RET=$?
 		if test $RET -ne 0
@@ -46,7 +47,7 @@ then
 			exit 1
 		fi
 	else
-		datelog "${FILENAME}:   LUKS: 'umount /mnt/$label' fails"
+		dlog "LUKS: 'umount /mnt/$label' fails"
 		exit 1
 	fi
 
@@ -60,7 +61,7 @@ else
 	RET=$?
 	if test $RET -ne 0
 	then
-		datelog "${FILENAME}: 'umount /mnt/$label' fails"
+		dlog "'umount /mnt/$label' fails"
 		exit 1
 	fi
 fi
