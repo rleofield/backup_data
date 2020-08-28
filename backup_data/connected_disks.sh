@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: connected_disks.sh
-# version 19.04.1
+# version 20.08.1
 
 
 # Copyright (C) 2017 Richard Albrecht

@@ -30,19 +30,19 @@
 
 
 
-DISKLIST="dokubackup"
+DISKLIST="bbackup"
 
 
 
 # successarray
 # successful projects listed in this order in file 'successloglines.txt'
 
-SUCCESSLINE="dokubackup:testData"
+SUCCESSLINE="bbackup:testData"
 
 SUCCESSLINEWIDTH=15
 
 
-FINAL_EXTERN_DISK="fluks"
+FINAL_EXTERN_DISK="none"
 
 ####### host part #######
 

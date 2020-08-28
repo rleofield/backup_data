@@ -2,7 +2,7 @@
 
 
 # file: mount.sh
-# bd_version 19.04.1
+# bd_version 20.08.1
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -46,6 +46,8 @@ then
 	LUKSKEYFILE=/root/keyfile_${label}
 
 	UUID=`grep -w ${label} uuid.txt | awk '{print $2}'`
+	#UUID=$( gawk -v pattern="$label" '$1 ~ pattern  {print $NF}' uuid.txt )
+
 	DEVICE="/dev/disk/by-uuid/${UUID}"
 	datelog "${FILENAME}:   LUKS device: $DEVICE"
 

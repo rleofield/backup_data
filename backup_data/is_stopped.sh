@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: is_stopped.sh
-# version 19.04.1
+# version 20.08.1
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -36,7 +36,8 @@ fi
 
 if test -f $LOGFILE 
 then
-        var=$(cat $LOGFILE | awk  'END {print }')
+#        var=$(cat $LOGFILE | awk  'END {print }')
+	var=$( awk  'END { print }'  cc_log.log )
         test="$text_ready"
         if [[ $var = *"$test"* ]]
         then

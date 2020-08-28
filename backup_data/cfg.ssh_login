@@ -22,7 +22,16 @@
 # ssh login for notify message
 
 ####### personal part #######
-readonly sshhost="host"
+# if 'localhost' or '127.0.0.1'  then only local copy to Desktop
+# used in
+# bk_disks.sh:220:                if [ "${sshhost}" == "localhost" ] || [ "${sshhost}" == "127.0.0.1" ]
+# bk_loop.sh:153:         if [ "${sshhost}" == "localhost" ] || [ "${sshhost}" == "127.0.0.1" ]
+# bk_loop.sh:208:         if [ "${sshhost}" == "localhost" ] || [ "${sshhost}" == "127.0.0.1" ]
+
+
+
+
+readonly sshhost="localhost"
 # if sshlogin = "", then resultfile is not copied to host
 readonly sshlogin=""
 # if sshport = "", then sshport=22

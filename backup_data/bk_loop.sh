@@ -2,7 +2,7 @@
 
 
 # file: bk_loop.sh
-# version 19.10.1
+# version 20.08.1
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -19,6 +19,8 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
 
+#   caller    ./bk_disks.sh,   all disks
+#             ./bk_loop.sh     all projects in disk
 
 
 # comment: delete 
@@ -49,15 +51,17 @@ fi
 # use media mount '/media/user/label' instead of '/mnt/label'
 # 0 = use
 # 1 = don't use, use /mnt
+# default=1, don't use
+# 1, if PL
+# 1, if HS
 readonly use_mediamount=1
 
 arrays_ok=0
-readonly FILENAME="loop:$LABEL"
+readonly OPERATION="loop"
+readonly FILENAME="${OPERATION}:$LABEL"
 
-function dlog2 {
-        datelog "${FILENAME}: $1"
-}
 
+tlog "start: '$LABEL'"
 
 
 if test ${#a_properties[@]} -eq 0 
@@ -80,11 +84,12 @@ then
 	exit $ARRAYSNOK
 fi
 
-# changed later, if use_mediamount=0
+# changed later, if use_mediamount=0,  = use 
 MOUNTDIR=/mnt/$LABEL
 MARKERDIR=$MOUNTDIR/marker
 
-
+# set. if rsync fails with '$RSYNCFAILS' 
+error_in_rsync=0
 
 readonly properties=${a_properties[$LABEL]}
 
@@ -96,7 +101,8 @@ IFS=','
 parray=($properties)
 IFS=$oldifs
 readonly ausgabe=$( echo ${parray[@]} )
-readonly local_in_array=$(echo ${parray[@]} | grep -w -o "local" | wc -l )
+#readonly local_in_array=$(echo ${parray[@]} | grep -w -o "local" | wc -l )
+local_in_array=0
 # arrays can't be a parameter to functions, use 'echo' 
 if test $local_in_array -eq 1
 then
@@ -109,7 +115,7 @@ readonly NOTIFYSENDLOG="notifysend.log"
 readonly notifybasefile="Backup-HD"
 
 readonly successlogtxt="successlog.txt"
-readonly maxLASTDATE="2018-10-01T00:00"
+readonly maxLASTDATE="2020-03-01T00:00"
 
 	
 function sendlogclear {
@@ -142,33 +148,47 @@ function sshnotifysend {
 
 	if [ ! -z $sshlogin ]
 	then
-		# func is in ssh.sh
-		ssh_port=$( sshport )
-		dlog "sshnotifysend : ${sshlogin} ${sshhost} ${sshtargetfolder} ${ssh_port}"
-                do_ping_host ${sshlogin} ${sshhost} ${sshtargetfolder} ${sshport}
-                RET=$?
-                if [ $RET -eq  0 ]
-                then
-			ssh_port=$( sshport )
-	        	dlog "send notify via ssh to '$sshlogin@$sshhost:$sshtargetfolder', file: '$temp'"
-			dlog "rsync $temp -e 'ssh -p $ssh_port' $sshlogin@$sshhost:$sshtargetfolder"
+		dlog "host: $sshhost"
+		dlog "login: $sshlogin"
+		if [ "${sshhost}" == "localhost" ] || [ "${sshhost}" == "127.0.0.1" ]
+		then
+			# copy to local Desktop
+        		COMMAND="cp $temp ${sshtargetfolder}"
+		        dlog "copy notify file to local Desktop: $COMMAND"
+        		eval $COMMAND
+			dlog "chown $sshlogin:$sshlogin ${sshtargetfolder}$temp"
+			chown $sshlogin:$sshlogin ${sshtargetfolder}$temp
+		else
 			# func is in ssh.sh
-			do_sshnotifysend $temp
-			RET=$?
-	        	if [ $RET -gt 0 ]
-		       	then
-                		dlog "rsync failed, target for log message down !!! "
-				COMMAND="rsync $temp -e 'ssh -p $ssh_port' $sshlogin@$sshhost:$sshtargetfolder"
-	                	dlog "COMMAND:  $COMMAND"
-	        	        dlog ""
-		        fi
-                else
-                        dlog "host $sshlogin@$sshhost is not up, $temp is not copied"
+			ssh_port=$( sshport )
+			dlog "sshnotifysend : ${sshlogin} ${sshhost} ${sshtargetfolder} ${ssh_port}"
+	                # in 'sshnotifysend': do_ping_host 
+			do_ping_host ${sshlogin} ${sshhost} ${sshtargetfolder} ${sshport}
+                	RET=$?
+			if [ $RET -eq  0 ]
+			then
+				ssh_port=$( sshport )
+	        		dlog "send notify via ssh to '$sshlogin@$sshhost:$sshtargetfolder', file: '$temp'"
+				dlog "rsync $temp -e 'ssh -p $ssh_port' $sshlogin@$sshhost:$sshtargetfolder"
+				# func is in ssh.sh
+				do_sshnotifysend $temp
+				RET=$?
+		        	if [ $RET -gt 0 ]
+				then
+                			dlog "rsync failed, target for log message down !!! "
+					COMMAND="rsync $temp -e 'ssh -p $ssh_port' $sshlogin@$sshhost:$sshtargetfolder"
+					dlog "COMMAND:  $COMMAND"
+					dlog ""
+				fi
+			fi
 		fi
+        else
+		dlog "host $sshlogin@$sshhost is not up, $temp is not copied"
 	fi
+	
 
         # local
-        
+
         # default,  copy to local folder
         COMMAND="cp $temp backup_messages_test/"
         dlog "copy notify file to local folder: $COMMAND"
@@ -184,26 +204,37 @@ function rm_notify_file {
 
         if [ ! -z $sshlogin ]
         then        
-		ssh_port=$( sshport )
-		dlog "rm_notify_file : ${sshlogin} ${sshhost} ${sshtargetfolder} p: ${ssh_port}"
-                do_ping_host ${sshlogin} ${sshhost} ${sshtargetfolder} ${ssh_port}
-                RET=$?
-                if [ $RET -eq  0 ]
-                then
-			local temp="ssh -p $ssh_port $sshlogin@$sshhost 'rm ${sshtargetfolder}${f}_*'"
-	        	dlog "rm notify:      $temp"
 
-			# func is in ssh.sh
-			do_rm_notify_file_for_disk $f
-			RET=$?
-	        	if [ $RET -gt 0 ]
-        		then
-                		dlog "ssh failed, target down!! "
-                		dlog "COMMAND:  $temp"
-	                	dlog ""
-        		fi
+		if [ "${sshhost}" == "localhost" ] || [ "${sshhost}" == "127.0.0.1" ]
+		then
+			temp="'rm ${sshtargetfolder}${f}_*'"
+        		COMMAND="rm ${sshtargetfolder}${f}_*"
+			dlog "rm_notify_file local: ${temp}"
+			#dlog "ok"
+        		eval $COMMAND
 		else
-                        dlog "host $sshlogin@$sshhost is not up, $temp is not removed"
+			ssh_port=$( sshport )
+			dlog "rm_notify_file : ${sshlogin} ${sshhost} ${sshtargetfolder} p: ${ssh_port}"
+                	# in 'rm_notify_file' do_ping_host 
+			do_ping_host ${sshlogin} ${sshhost} ${sshtargetfolder} ${ssh_port}
+			RET=$?
+	                if [ $RET -eq  0 ]
+        	        then
+				temp="ssh -p $ssh_port $sshlogin@$sshhost 'rm ${sshtargetfolder}${f}_*'"
+	        		dlog "rm notify: '$temp'"
+
+				# func is in src_ssh.sh
+				do_rm_notify_file_for_disk $f
+				RET=$?
+				if [ $RET -gt 0 ]
+				then
+					dlog "ssh failed, may be '${sshtargetfolder}${f}_*' doesn't exist ... "
+					dlog "COMMAND:  $temp"
+					dlog ""
+				fi
+			else
+				dlog "host $sshlogin@$sshhost is not up, ${f} is not removed"
+			fi
 		fi
 	fi
 	
@@ -241,24 +272,28 @@ function time_diff_minutes() {
 
 # parameter: disklabel
 # 0 = success
-# 1 = error
+# 1 = error, disk not in uuid list
 function check_disk_label {
         local _LABEL=$1
         if test $local_in_array -eq 1
 	then
+	#		dlog "return 1, array"
         	return 0
 	else
 		local uuid=$( cat "uuid.txt" | grep -w $_LABEL | awk '{print $2}' )
-		#datelog "uuid.txt | grep $_LABEL | awk '{print $2}'"
-		#local label=$( cat "uuid.txt" | grep $_LABEL | awk '{print $1}' )
-        	#disklink="/dev/disk/by-label/$_LABEL"
-	        local disklink="/dev/disk/by-uuid/$uuid"
+		# local uuid=$( gawk -v pattern="$_LABEL" '$1 ~ pattern  {print $NF}' uuid.txt )
+		# better
+		# uuid=$( gawk -v pattern="$_LABEL" '$1 ~ "(^|[[:blank:]])" pattern "([[:blank:]]|$)"  {print $NF}' uuid.txt )
+		# echo "uuid: $uuid"
 	        # test, if symbolic link
-        	if test -L ${disklink} 
+        #	dlog "if test -L /dev/disk/by-uuid/$uuid"
+        	if test -L "/dev/disk/by-uuid/$uuid"
 	        then
+	#		dlog "return 0"
 			return 0
 	        fi
 	fi
+	#		dlog "return 1"
         return 1
 }
 
@@ -305,7 +340,8 @@ function decode_pdiff {
         #echo $bb
 }
 
-
+encode_diff_var=""
+encode_state=""
 
 function encode_diff {
 
@@ -336,11 +372,14 @@ function encode_diff {
     	  	if test $hours -eq 0
         	then
                         ret=$minutes
+			encode_state="minutes"
 		else
 			ret=$( printf "%02d:%02d"  $hours $minutes )
+			encode_state="hours"
 		fi
 	else
 		ret=$( printf "%02d:%02d:%02d"  $days $hours $minutes )
+		encode_state="days"
 	fi
 
 	# add minus sign, if negative 
@@ -349,8 +388,7 @@ function encode_diff {
 		ret="-$ret"
 	fi	
 	#dlog "bb:  $bb"
-	#dlog "ret: $ret"
-        echo "$ret"
+        encode_diff_var="$ret"
 }
 
 # parameter
@@ -402,10 +440,12 @@ function check_disk_done_last_done {
         fi
 	if [ $no_check_disk_done -eq 1 ]
 	then
+		dlog "  === test mode 'no_check_disk_done = 1'===, done is not checked"
 		_DONEINTERVAL=$DONE_REACHED
 	fi
 	if [ $do_once -eq 1 ]
 	then
+		dlog "  === test mode 'do_once= 1'===, done is not checked"
 		_DONEINTERVAL=$DONE_REACHED
 	fi
 
@@ -466,7 +506,6 @@ function check_pre_host {
 
 
 
-
 # defined in filenames.sh
 if test -f $successarraytxt
 then
@@ -477,36 +516,29 @@ then
 	rm $unsuccessarraytxt
 fi
 
-sendlogclear 
+sendlogclear
 
 dlog " check by UUID, if HD '$LABEL' is connected to the PC" 
+
+# call 'check_disk_label'
 check_disk_label $LABEL
 goodlink=$?
+
+uuid=$( cat "uuid.txt" | grep -w $LABEL | awk '{print $2}' )
+label_not_found_file="label_not_found.log"
+label_not_found_date=`date +%Y%m%d-%H%M`
 if [[ $goodlink -eq 0 ]]
 then
-	uuid=$( cat "uuid.txt" | grep -w $LABEL | awk '{print $2}' )
-	dlog "disk with UUID '$uuid'  found in /dev/disk/by-uuid" 
+	dlog " disk '$LABEL' with UUID '$uuid' found in /dev/disk/by-uuid" 
+	tlog "disk '$LABEL' with UUID '$uuid' found" 
+	echo "$label_not_found_date: disk '$LABEL' with UUID '$uuid' found in '/dev/disk/by-uuid'" >> $label_not_found_file
 else
-	uuid=$( cat "uuid.txt" | grep -w $LABEL | awk '{print $2}' )
-	dlog "disk with UUID '$uuid' not found in /dev/disk/by-uuid" 
-fi
-
-
-LABELFILE="./label/${LABEL}_label_not_present.txt"
-if test $goodlink -ne 0
-then
-	# disk label in uuid not found, write label file
-	dlog "disk '$LABEL' wasn't found in '/dev/disk/by-uuid'"
-	current=`date +%Y-%m-%dT%H:%M`
-        echo "$current : disk $LABEL not present" > $LABELFILE
+	dlog " disk '$LABEL' with UUID '$uuid' not found in /dev/disk/by-uuid, exit '$DISKLABELNOTFOUND'" 
+	tlog " disk '$LABEL' with UUID '$uuid' not found " 
+	echo "$label_not_found_date: disk '$LABEL' with UUID '$uuid' not found in '/dev/disk/by-uuid', exit '$DISKLABELNOTFOUND'" >> $label_not_found_file
         exit $DISKLABELNOTFOUND
-else
-	# disk label in uuid found, remove label file
-	if test -f $LABELFILE
-	then
-		rm $LABELFILE
-	fi
 fi
+
 
 
 PROJEKTLABELS=${a_projects[$LABEL]}
@@ -518,10 +550,12 @@ datelog "${FILENAME}: -- disk '$LABEL', check projects: '$PROJEKTLABELS'"
 # find, if interval is reached, if not exit
 
 ispre=1
-declare -A nextprojects
+declare -a nextprojects
 
-
+# build list of last times for backup per projekt in disk
+# don't check the disk, this is later
 datelog "                            dd:hh:mm                 dd:hh:mm               dd:hh:mm"
+pcount=0
 for p in $PROJEKTLABELS
 do
 	lpkey=${LABEL}_${p}
@@ -557,49 +591,56 @@ do
 	pdiff_print=$( printf "%5s\n"  $pdiff )
 	ndelta=$( printf "%6s\n"  $deltadiff )
 
-	fndelta=$( encode_diff $ndelta )
+	encode_diff $ndelta
+	fndelta=$encode_diff_var 
 	fndelta=$( printf "%8s\n"  $fndelta )
-	fn0=$( encode_diff  $n0 )
+	encode_diff  $n0
+	fn0=$encode_diff_var
 	fn0=$( printf "%8s"  $fn0 )
-	pdiff_minutes_print=$( encode_diff  $pdiff_print )
+	encode_diff  $pdiff_print 
+	pdiff_minutes_print=$encode_diff_var
 	pdiff_minutes_print=$( printf "%8s"  $pdiff_minutes_print )
 
 	#dlog "if test DISKDONE -eq DONE_REACHED"
 	#dlog "if test $DISKDONE -eq $DONE_REACHED"
+	timeline=$( echo "$txt   $fn0 last, next in $fndelta,  programmed  $pdiff_minutes_print," )
 	if test $DISKDONE -eq $DONE_REACHED
 	then
 		check_pre_host $LABEL $p 
 		ispre=$?
 		if test $ispre -eq 0
 		then
+			tlog "    in time: $p"
 			# all is ok,  do backup	
-			dlog "$txt   $fn0 last, next in $fndelta,  programmed  $pdiff_minutes_print,  reached, source is ok"
-			nextprojects["$p"]=$p
+			dlog "$timeline reached, source is ok"
+			nextprojects[pcount]=$p
+			pcount=$(( pcount + 1 ))
 		#	isdone=true
-
 		else
-			datelog "${FILENAME}: $txt   $fn0 last, next in $fndelta,  programmed  $pdiff_minutes_print,  reached, but source is not available"
+			tlog "    in time: $p, but unavailable"
+			dlog "${timeline} reached, but source is not available"
 		fi
 	fi
-	
 	if test "$DISKDONE" -eq $DONE_NOT_REACHED
 	then
-		diskdonetext="not"
-		datelog "${FILENAME}: $txt   $fn0 last, next in $fndelta,  programmed  $pdiff_minutes_print,  do nothing"
+		tlog "not in time: $p"
+		dlog "$timeline do nothing"
 	fi
 
 done
 
 # in 'nextprojects' are all projects where we need a backup
+# if no project needs backup, return
 lnextprojects=${#nextprojects[@]}
 
 if test $lnextprojects -eq 0
 then
 	datelog "${FILENAME}: == end disk '$LABEL', nothing to do =="
 	datelog ""
-        exit $TIMELIMITNOTREACHED
+	 exit $TIMELIMITNOTREACHED
 fi
 
+# ======== check mount, do backup if ok ====
 # start of backup
 # - mount disk
 # - do rsnapshot with bk_project.sh and bk_rsnapshot.sh
@@ -610,42 +651,86 @@ rm_notify_file $LABEL
 
 #datelog "${FILENAME}:  next projects: ${nextprojects[*]}"
 dlog "time limit for at least one project is reached, projects: ${nextprojects[*]}"
-datelog "${FILENAME}:  continue with test of mount state of disk: '$LABEL'"
-datelog "${FILENAME}:"
+dlog " continue with test of mount state of disk: '$LABEL'"
+dlog ""
 
-# no 'local' in a_properties 
+# no 'local' in a_properties check disk against uuid and mount 
 if test $local_in_array -eq 0
 then
 
 	# check mountdir at /mnt
+	dlog "check mountdir"
+
 
 	# first, check mount at /media/user
-	MEDIAMOUNT=$(df  | grep media | grep $LABEL  | awk '{ print $6 }')
-	dlog "mediamount exists: $MEDIAMOUNT"
+	dlog "cat /etc/mtab  | grep media | grep $LABEL  | awk '{ print $2 }'"
+
+	MEDIAMOUNT=$( cat /etc/mtab  | grep media | grep $LABEL  | awk '{ print $2 }')
 	if test  "$MEDIAMOUNT" != ""
 	then
+		dlog "mediamount exists: $MEDIAMOUNT"
+
 		# use media mount instead of /mnt
 		# 0 = use
-		# 1 = don't use, use /mnt
+		# 1 = don't use, eg. gt 0, use /mnt
 		if test $use_mediamount -gt 0  
 		then
-			if test -d $MEDIAMOUNT 
+			# try to umount media folder
+			mmuuid=$( cat "uuid.txt" | grep -w $LABEL | awk '{print $2}' )
+			mmMTAB=$( cat /etc/mtab  |  grep media | grep $LABEL )
+			if [ ! -z "$mmMTAB" ]
 			then
-        			datelog "${FILENAME}: umount media mount  at: '$MEDIAMOUNT'" 
-				umount $MEDIAMOUNT
-				MEDIAMOUNT=$(df  | grep media | grep $LABEL  | awk '{ print $6 }')
-				if test  "$MEDIAMOUNT" != ""
-				then 
-					datelog "${FILENAME}: media mount couldn't be unmounted: '$MEDIAMOUNT'"
-					exit $MEDIAMOUNTcouldn_t_unmounted
+				dlog "is mounted at media: $mmMTAB"
+				mmMOUNT=$( echo "$mmMTAB" | awk '{ print $2 }' )
+				dlog "try umount: $mmMOUNT"
+				umount $mmMOUNT
+			»       mountRET=$?
+				if [ "$mountRET" -ne 0 ]
+				then
+					dlog "umount fails: 'umount $mmMOUNT'"
+					exit $DISKNOTUNMOUNTED
+				fi
+
+				mmLUKSLABEL="$LABEL"
+				mmMAPPERLABEL="/dev/mapper/$mmLUKSLABEL"
+				dlog "try mapper with HD label: $mmMAPPERLABEL"
+				if [  -L "$mmMAPPERLABEL" ]
+				then
+					dlog "luks mapper exists: $mmMAPPERLABEL"
+					dlog "do luksClose:   cryptsetup luksClose $mmLUKSLABEL"
+					cryptsetup luksClose $mmLUKSLABEL
+				else
+					dlog "luks mapper doesn't exist: $mmMAPPERLABEL"
+
+				fi
+				mmLUKSLABEL="luks-$mmuuid"
+				mmMAPPERLABEL="/dev/mapper/$mmLUKSLABEL"
+				dlog "try mapper with uuid: $mmMAPPERLABEL"
+				if [  -L "$mmMAPPERLABEL" ]
+				then
+					dlog "luks mapper exists: $mmMAPPERLABEL"
+					dlog "do luksClose:   cryptsetup luksClose $mmLUKSLABEL"
+					cryptsetup luksClose $mmLUKSLABEL
+				fi
+			else
+				# check mount at /mnt
+				mmMTAB=$( cat /etc/mtab  |  grep mnt | grep $LABEL )
+				if [ ! -z "$mmMTAB" ]
+				then
+					mmMOUNT=$( echo "$mmMTAB" | awk '{ print $2 }' )
+					dlog "no mediamount with '$LABEL', mountpoint ia at: $MOUNT"
 				fi
 			fi
 		else
+			# ok use media folder
 			datelog "media mount '$MEDIAMOUNT' exists"
 			MOUNTDIR=$MEDIAMOUNT
 			MARKERDIR=$MOUNTDIR/marker
 		fi
 	fi
+
+	# is /mnt, if media folder not found
+	tlog "mount: '$MOUNTDIR'"
 	dlog "mount folder   '$MOUNTDIR'" 
 	dlog "marker folder  '$MARKERDIR'" 
 
@@ -658,6 +743,7 @@ then
 	# mount HD
 	if test -d $MARKERDIR 
 	then
+		# is fixed disk
         	datelog "${FILENAME}: HD '$LABEL' is mounted at '$MOUNTDIR'"
 	else
         	datelog "${FILENAME}: marker folder '$MARKERDIR' doesn't exist, try mount" 
@@ -678,6 +764,7 @@ then
 	datelog "${FILENAME}: disk '$LABEL' is mounted, marker folder '$MARKERDIR' exists"
 else
 	# if test $local_in_array -ne 0
+	dlog " test $local_in_array -ne 0"
 	datelog "${FILENAME}: disk '$LABEL' not checked, ist marked with 'local' in properties, this is ok"
 fi
 
@@ -729,14 +816,22 @@ do
         if test "$DISKDONE" -eq 0
         then
 		datelog "${FILENAME}: === disk: '$LABEL', start of project '$p' ==="
-		# calls bk_project.sh ###############################
+		tlog "do: '$p'"
+		# calls bk_project.sh #########################################################
 		./bk_project.sh $LABEL $p 
-		# ################################################
+		# #############################################################################
 		RET=$?
 		if test $RET -eq $RSYNCFAILS
 		then
 			projecterrors[${p}]="rsync Fehler, pruefe Konfiguration oder Datenquelle: $LABEL $p"
 			datelog "${FILENAME}:  !! rsync error, check configuration !! ($LABEL $p)"
+			datelog "${FILENAME}:  !! rsync error, check file 'rr_${LABEL}_${p}.log'  !! "
+		fi
+		if test $RET -eq $ERRORINCOUNTERS
+		then
+			projecterrors[${p}]="retain Fehler, ein Wert ist < 2, pruefe Konfiguration der retain Werte: $LABEL $p"
+			datelog "${FILENAME}:  !! retain error, check configuration !! ($LABEL $p)"
+			datelog "${FILENAME}:  !! retain error, check file 'rr_${LABEL}_${p}.log'  !! "
 		fi
 
 		done=true
@@ -748,7 +843,7 @@ do
 		__TODAY=`date +%Y%m%d-%H%M`
 		if test "$done" = true
 		then
-		       	# set current at last line to done file
+			# set current at last line to done file
 			# done entry is written in bk_project.sh, 131
 		        datelog "${FILENAME}:  all ok, disk: '$LABEL', project '$p'"
 			sendlog "HD: '$LABEL' mit Projekt '$p' gelaufen, keine Fehler"
@@ -775,8 +870,11 @@ do
 		        #datelog "${FILENAME}: write last date: ./done/${LABEL}_${p}_done.log"
 
 		else
+			# error in rsync
+			error_in_rsync=$RSYNCFAILS
 		        datelog "${FILENAME}:  error: '$LABEL', project '$p'"
 			sendlog "HD: $LABEL mit Projekt  $p hatte Fehler"
+			sendlog "siehe File: 'rr_${LABEL}_$p.log' im Backup-Server"
 			errorlog "HD: $LABEL mit Projekt  $p hatte Fehler" 
 			# write unsuccess to a single file 
 			echo "$__TODAY ==> '$LABEL' mit '$p' not ok" >> $successlogtxt
@@ -834,7 +932,7 @@ do
 done
 
 free_space=$( df -h | grep -w $LABEL | awk '{print $4}')
-free_spacc_percent=$( df -h | grep -w $LABEL | awk '{print $5}')
+free_space_percent=$( df -h | grep -w $LABEL | awk '{print $5}')
 
 # clean up
 notifyfilepostfix="keine_Fehler_alles_ok"
@@ -842,7 +940,6 @@ notifyfilepostfix="keine_Fehler_alles_ok"
 if test -d $MARKERDIR 
 then
 	#ucommand=$( grep -e properties cfg.projects | grep fluks | cut -d '=' -f 2 | sed 's/"//' | sed 's/"$//' )
-	#dlog "XXXXXXXXXXXXXXXXXXXXX  ucommand: $ucommand"
 	umount_is_inarray=$(echo ${parray[@]} | grep -w -o "umount" | wc -l )
 	RET=1
         if test $umount_is_inarray -eq 1 
@@ -868,7 +965,8 @@ then
 			then
 			        nextdiff=$mindiff
 			fi
-			_nextdiff=$( encode_diff $nextdiff )
+			encode_diff $nextdiff 
+			_nextdiff=$encode_diff_var
 			sendlog "HD mit Label '$LABEL' kann in den nächsten '${_nextdiff}' Minuten vom Server entfernt werden "
 		fi
 		if [ -d $MARKERDIR ]
@@ -895,14 +993,38 @@ fi
 
 datelog "${FILENAME}: == end disk with '$LABEL' =="
 datelog ""
+encode_state="empty"
+encode_diff_var="empty"
 
-_mind=$( encode_diff $mindiff )
-msg="HD mit Label '$LABEL', nächster Lauf eines Projektes ('$minp')  auf dieser HD ist in '${_mind}' Tagen:Stunden:Minuten"
-datelog "${FILENAME}: $msg"
+# don't call with $(  ), the subshell cant't change 'encode_state' 
+encode_diff $mindiff 
+_mind=$encode_diff_var
+
+Tagen_Stunden_Minuten="nichts"
+
+
+if test $encode_state = "minutes" 
+then
+	Tagen_Stunden_Minuten="Minuten"
+fi
+if test $encode_state = "hours" 
+then
+	Tagen_Stunden_Minuten="Stunden:Minuten"
+
+fi
+if test $encode_state = "days" 
+then
+	Tagen_Stunden_Minuten="Tagen:Stunden:Minuten"
+fi
+
+msg="HD mit Label '$LABEL', nächster Lauf eines Projektes ('$minp')  auf dieser HD ist in '${_mind}' $Tagen_Stunden_Minuten"
+dlog "====================================================================================================="
+dlog "$msg"
 sendlog "$msg"
 
-msg="freier Platz auf HD '$LABEL': $free_space, $free_spacc_percent"
-datelog "${FILENAME}: $msg"
+msg="freier Platz auf HD '$LABEL': $free_space, belegt: $free_space_percent"
+dlog "$msg"
+dlog "====================================================================================================="
 sendlog "$msg"
 
 sendlog "waittime interval:  $waittimeinterval "
@@ -927,7 +1049,13 @@ sshnotifysend $LABEL $notifyfilepostfix
 echo ${successlist[@]} > $successarraytxt
 echo ${unsuccesslist[@]} > $unsuccessarraytxt
 
-
-exit $SUCCESS
+if [[ $error_in_rsync = $RSYNCFAILS ]]
+then
+	tlog "end: fails, '$LABEL'"
+	exit $RSYNCFAILS
+else
+	tlog "end: ok,    '$LABEL'"
+	exit $SUCCESS
+fi
 
 

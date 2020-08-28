@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_disk.sh
-# version 19.04.1
+# version 20.08.1
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -18,7 +18,9 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
 
-# shellcheck disable=SC2155
+# caller ./bk_main.sh
+#        ./bk_disks.sh,   all disks
+
 
 . ./cfg.working_folder
 . ./cfg.loop_time_duration
@@ -33,13 +35,14 @@
 . ./src_log.sh
 . ./src_ssh.sh
 
-readonly FILENAME="disks"
+readonly OPERATION="disks"
+readonly FILENAME="$OPERATION"
 
 readonly stopfile="stop"
 SECONDS=0
 
 readonly _waittimeinterval=$waittimeinterval
-oldifs=$IFS
+readonly oldifs=$IFS
 IFS='-'
 
 readonly dononearray=($_waittimeinterval)
@@ -53,11 +56,13 @@ then
         enddonone=${dononearray[1]}
 fi
 
+tlog "start"
+
 IFS=$oldifs
 
-function dlog2 {
-	datelog "${FILENAME}: $1"
-}
+#LLLUSER="rleo"
+#DESKTOP_DIR=$( su -s /bin/sh $LLLUSER -c 'echo "$(xdg-user-dir DESKTOP)"' )
+
 
 # parameter
 function stop_exit(){
@@ -84,7 +89,7 @@ function check_stop(){
 dlog "=== disks start ==="
 check_stop  "at start of loop through disklist (bk_disks.sh)"
 
-function is_number (){
+is_number(){
 	local _input=$1	
 	if [[ -z $_input ]]
 	then
@@ -104,7 +109,7 @@ function loop_minutes (){
         local _RET=$?
         if [ $_RET -eq 1 ]
         then
-                stop_exit "minute '$_minutes' is not a string"
+                stop_exit "minute '$_minutes' is not a string with numbers"
         fi
 	local _seconds=$(( _minutes * 60 ))
         local _sleeptime="10"
@@ -132,11 +137,12 @@ function loop_minutes (){
 # par1 = target minute 00 < par1 < 59
 function loop_until_minute  {
         local _endminute=$1
+	#dlog "end minute $1"
 	is_number $_endminute 
 	RET=$?
 	if [ $RET -eq 1 ]
 	then
-		stop_exit "minute '$_endminute' is not a string"
+		stop_exit "minute '$_endminute' is not a stringi with numbers"
 	fi
         local _sleeptime="2"
         local _minute=$(date +%M)
@@ -157,9 +163,10 @@ function loop_until_minute  {
 # waittime 2 < t < 1 hour
 function loop_to_full_next_hour {
         local _minute=$(date +%M)
+	#  if [ $_minute == "00"  ] | $_minute == "15" | $_minute == "30" | $_minute == "45"  
         if [ $_minute == "00" ]
         then
-		# if full hour, then wait 2 minutes
+		# if full hour, then wait 1 minute
                 loop_until_minute "01"
         fi
 	# wait until next full hour
@@ -186,6 +193,7 @@ function successlog {
 		value="-"
 		for item in "${slist[@]}" 
 		do
+	        	#dlog "item in slist:  $item, s: $_s" 
 		    	if test "$_s" = "$item" 
 		    	then
 		    		value="ok"
@@ -193,6 +201,7 @@ function successlog {
 		done    
 		for item in "${unslist[@]}" 
 		do
+        		#dlog "item in unslist:  $item, s: $_s" 
 		    	if test "$_s" = "$item" 
 		    	then
 		    		value="nok"
@@ -204,28 +213,39 @@ function successlog {
 
         local ff=$successloglines
         local _TODAY=`date +%Y%m%d-%H%M`
-        datelog "${FILENAME}:  $_TODAY: $line" 
-        echo "$_TODAY: $line" >> $ff
+	datelog "${FILENAME}:  $_TODAY: $line" 
+	echo "$_TODAY: $line" >> $ff
 	if [ ! -z $sshlogin ] 
 	then
-		# is in cfg.ssh_login
-		do_ping_host ${sshlogin} ${sshhost} ${sshtargetfolder}
-		RET=$?
-		if [ $RET -eq  0 ]
+		if [ "${sshhost}" == "localhost" ] || [ "${sshhost}" == "127.0.0.1" ]
 		then
-			ssh_port=$( sshport )
-			COMMAND="rsync $ff -e 'ssh -p $ssh_port'  $sshlogin@$sshhost:${sshtargetfolder}${file_successloglines}"
-			dlog "$COMMAND"
+			dlog "local"
+			COMMAND="cp ${ff} ${sshtargetfolder}${file_successloglines}"
+			dlog "copy successfile to local Desktop: $COMMAND"
 			eval $COMMAND
-			RET=$?
-			if [ $RET -gt 0 ]
-			then
-				dlog "rsync failed, target for log messages down!  "
-				dlog "COMMAND:  $COMMAND"
-				dlog ""	
-			fi
+			dlog "chown $sshlogin:$sshlogin ${sshtargetfolder}$ff"
+			chown $sshlogin:$sshlogin ${sshtargetfolder}${file_successloglines}
 		else
-			dlog "host $sshlogin@$sshhost is not up, successfile is not copied"
+			# is in cfg.ssh_login
+			# in 'successlog' do_ping_host 
+			do_ping_host ${sshlogin} ${sshhost} ${sshtargetfolder}
+			RET=$?
+			if [ $RET -eq  0 ]
+			then
+				ssh_port=$( sshport )
+				COMMAND="rsync $ff -e 'ssh -p $ssh_port'  $sshlogin@$sshhost:${sshtargetfolder}${file_successloglines}"
+				dlog "$COMMAND"
+				eval $COMMAND
+				RET=$?
+				if [ $RET -gt 0 ]
+				then
+					dlog "rsync failed, target for log messages down!  "
+					dlog "COMMAND:  $COMMAND"
+					dlog ""	
+				fi
+			else
+				dlog "host $sshlogin@$sshhost is not up, successfile is not copied"
+			fi
 		fi
 	fi
 	cp $ff  backup_messages_test/${file_successloglines}
@@ -271,12 +291,16 @@ if [ ! -d "$oldlogdir" ]
 then
 	if [ $daily_rotate -eq 1 ]
 	then
-		dlog "rotate log"
+		dlog "rotate log to '$oldlogdir'"
 		mkdir "$oldlogdir"
 		mv aa_* "$oldlogdir"
-		#mv rsync_* "$oldlogdir"
 		mv rr_* "$oldlogdir"
 		mv $LOGFILE "$oldlogdir"
+		mv trace.log "$oldlogdir"
+		mv label_not_found.log "$oldlogdir"
+		# and create new and empty files
+		touch $LOGFILE 
+		touch trace.log 
 		dlog "log rotated to '$oldlogdir'"
 	fi
 fi
@@ -293,21 +317,22 @@ dlog "check all projects in disks: '$DISKLIST'"
 # do_once=1	
 if [ $do_once -eq 1 ]
 then
-	touch $stopfile
+	_wd=$WORKINGFOLDER
+	touch ${_wd}/${stopfile}
 fi
 
 # loop disk list
+tlog "execute list: $DISKLIST"
 for _disk in $DISKLIST
 do
-	# clean up ssh messages
 	datelog ""
 	dlog "==== next disk: '$_disk' ===="
 	oldifs2=$IFS
 	IFS=','
 	RET=""
-	# call disk.sh ############################################
-	./bk_loop.sh "$_disk" 
-	###########################################################
+	# call loop.sh to loop one disk ############################################
+	./bk_loop.sh "$_disk"
+	############################################################################
         RET=$?
 	IFS=$oldifs2
 
@@ -324,6 +349,10 @@ do
         then
         	datelog "${FILENAME}: mountpoint for HD with label: '$_disk' not found: '/mnt/$_disk' "
         fi
+        if [[ $RET = "$DISKNOTUNMOUNTED" ]]
+        then
+        	datelog "${FILENAME}: HD with label: '$_disk' couldn't be unmounted" 
+        fi
 
 
         if [[ $RET = "$DISKNOTMOUNTED" ]]
@@ -335,10 +364,15 @@ do
         then
           	datelog "${FILENAME}: HD with label: '$_disk' couldn't be unmounted" 
         fi
-
-        if [[ ${RET} == "$SUCCESS" ]]
+	if [[ ${RET} == "$RSYNCFAILS" ]]
 	then
-        	datelog   "${FILENAME}: '$_disk' sucessfully done"
+		datelog "${FILENAME}: rsync error in disk: '$_disk' " 
+		RET=$SUCCESS
+	fi
+
+	if [[ ${RET} == "$SUCCESS" ]]
+	then
+        	datelog   "${FILENAME}: '$_disk' successfully done"
 #		datelog   "${FILENAME}: cat successarraytxt: $( cat $successarraytxt )"
 		# defined in  filenames.sh
 		if test -f "$successarraytxt"
@@ -347,7 +381,7 @@ do
 			IFS=' '
 			successlist=( ${successlist[@]} $(cat $successarraytxt) )
 			IFS=$oldifs3
-		       	rm $successarraytxt	
+			rm $successarraytxt
 		fi
 		if test -f "$unsuccessarraytxt"
 		then
@@ -355,46 +389,44 @@ do
 			IFS=' '
 			unsuccesslist=( ${unsuccesslist[@]} $(cat $unsuccessarraytxt) )
 			IFS=$oldifs3
-		       	rm $unsuccessarraytxt	
+			rm $unsuccessarraytxt
 		fi
-
-
-        else
-        	if [[ "${RET}" == "$TIMELIMITNOTREACHED" ]]
-                then
+	else
+		if [[ "${RET}" == "$TIMELIMITNOTREACHED" ]]
+		then
                 	datelog "${FILENAME}: '$_disk' time limit not reached, wait for next loop"
                 else
-
                 	if [[ "${RET}" == "$DISKLABELNOTFOUND" ]]
-                        then
-                        	datelog "${FILENAME}: '$_disk' is not connected with the server"
-                        else
-                                datelog  "${FILENAME}: '$_disk' returns with errors, see log"
-                        fi
-                fi
-        fi
-        sync
+			then
+				datelog "${FILENAME}: '$_disk' is not connected with the server"
+			else
+				datelog  "${FILENAME}: '$_disk' returns with errors, see log"
+			fi
+		fi
+	fi
+	sync
 done
 # end loop disk list
 datelog "${FILENAME}: "
-datelog "${FILENAME}: -- end loop disk list --"
+datelog "${FILENAME}: -- end disk list --"
 datelog "${FILENAME}: "
+tlog "end list"
 
 
 #datelog "${FILENAME}: write success disk: $_disk"
-_ls=${#successlist[@]}
-_luns=${#unsuccesslist[@]}
+_length_successlist=${#successlist[@]}
+_length_unsuccesslist=${#unsuccesslist[@]}
 
-if test "$_ls" -eq "0" -a "$_luns" -eq "0"  
+if test "$_length_successlist" -eq "0" -a "$_length_unsuccesslist" -eq "0"  
 then
-	datelog "${FILENAME}: successarrays are empty, no entry in: $successloglines"
+	datelog "${FILENAME}: successarrays are empty, don't write an entry to: $successloglines"
 else
-	datelog "${FILENAME}: successarrays are not empty"
+	datelog "${FILENAME}: successarrays are not empty, write entry to: $successloglines"
 	write_header
 	successlog  successlist[@] unsuccesslist[@] 
 fi
 
-	
+
 # SECONDS in bash hat die Zeit in Sekunden
 dlog "-- used time: $SECONDS seconds"
 
@@ -412,7 +444,7 @@ hour=$(date +%H)
 
 
 # check for waiting in stop interval
-dlog "if  $hour >= $startdonone  && $hour  < $enddonone &&  use_minute_loop = 0 , then wait to end of interval"
+#dlog "if  $hour >= $startdonone  && $hour  < $enddonone &&  use_minute_loop = 0 , then wait to end of interval"
 if [ "$hour" -ge "$startdonone" ] && [ "$hour" -lt "$enddonone"  ] && [ $use_minute_loop -eq 0 ] 
 then
        	datelog "${FILENAME}: $text_marker $text_interval, current: $hour, begin wait interval: $startdonone, end wait interval: $enddonone"
@@ -446,9 +478,11 @@ then
 	#loop_to_full_next_hour
 
 else
-	# not in wait interval
-	hour=$(date +%H)
-        datelog "${FILENAME}: stop interval not reached, hour: $hour"
+	# not in waittime intervali or minute loop used
+	hour=$(date +%H:%M)
+#        datelog "${FILENAME}: waittime interval not reached, current time: $hour"
+        datelog "${FILENAME}: time '$hour' not in waittime interval: '$startdonone - $enddonone'"
+
 	# add 1 to current hour
     	#_minute2=$(date +%M)
 	#datelog "${FILENAME}: value of minute, after stop interval: $_minute2"
@@ -464,16 +498,18 @@ else
 			m=10
 		fi
 
-		dlog "wait until next minute $m"
+		dlog "'use_minute_loop' is set, wait until next minute '$m'"
 		loop_minutes $m 
 	else
         	#datelog "${FILENAME}: wait until next full hour"
 	        # wait until next full hour
+		tlog "wait 1 hour"
 		loop_to_full_next_hour
 	fi
 
 fi
 dlog "=== disks end  ==="
+tlog "end"
 
 exit 0
 

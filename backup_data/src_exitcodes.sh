@@ -1,6 +1,6 @@
 
 # file exitcodes.sh 
-# version 19.04.1
+# version 20.08.1
 # included with 'source'
 
 # Copyright (C) 2017 Richard Albrecht

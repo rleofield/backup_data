@@ -3,7 +3,7 @@
 
 # file: show_times_disk.sh
 
-# version 19.04.1
+# version 20.08.1
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -38,7 +38,7 @@ readonly LABEL=$1
 . ./src_exitcodes.sh
 . ./src_filenames.sh
 
-readonly maxLASTDATE="2018-02-01T00:00"
+readonly maxLASTDATE="2019-10-01T00:00"
 
 if [ -z $LABEL  ]
 then
@@ -48,7 +48,7 @@ fi
 
 
 LOGFILE=$SHOWTIMES_LOGFILE
- 
+
 
 function log {
    local msg=$1
@@ -147,9 +147,10 @@ function check_disk_label {
         # 0 = success
         # 1 = error
         local goodlink=1
-	local uuid=$( cat "$WORKINGFOLDER/uuid.txt" | grep $_LABEL | awk '{print $2}' )
-	#local label=$( cat "uuid.txt" | grep $_LABEL | awk '{print $1}' )
-        disklink="/dev/disk/by-label/$_LABEL"
+	local uuid=$( cat "uuid.txt" | grep -w $_LABEL | awk '{print $2}' )
+	#local uuid=$( gawk -v pattern="$_LABEL" '$1 ~ pattern  {print $NF}' $WORKINGFOLDER/uuid.txt )
+
+        #disklink="/dev/disk/by-label/$_LABEL"
         local disklink="/dev/disk/by-uuid/$uuid"
         # test, if symbolic link
         if test -L ${disklink} 
@@ -267,12 +268,14 @@ function check_disk_done {
 
         if test -f $_DONEFILE
         then
-                _LASTLINE=$(cat $_DONEFILE | awk  'END {print }')
+                # last line in done file
+		_LASTLINE=$(awk NF  $_DONEFILE | awk  'END {print }' -)
+
         fi
         local _DIFF=$(time_diff_minutes  $_LASTLINE  $_current  )
         #local _pdiff=${a_interval[${_key}]}
 	local _pdiff=$( decode_pdiff ${_key} )
-	
+	#echo "if test $_DIFF -ge $_pdiff"
 	if test $_DIFF -ge $_pdiff
         then
 #        	echo "diff was greater then reference, take as success"
@@ -341,7 +344,8 @@ do
         if [ -f $DONE_FILE  ]
         then
                 # last line in done file
-                LASTLINE=$(cat $DONE_FILE | awk  'END {print }')  
+		LASTLINE=$(awk NF  $DONE_FILE | awk  'END {print }' -)
+
         fi
         pdiff=$(  decode_pdiff ${lpkey} )
         done_diff_minutes=$(   time_diff_minutes  "$LASTLINE"  "$tcurrent"  )
@@ -362,7 +366,6 @@ do
         pdiff_minutes_print=$( encode_diff  $pdiff_print )
         pdiff_minutes_print=$( printf "%8s"  $pdiff_minutes_print )
 
-        #echo "if test $DISKDONE -eq $DONE_REACHED"
         if test "$DISKDONE" -eq $DONE_REACHED
         then
                 diskdonetext="ok"

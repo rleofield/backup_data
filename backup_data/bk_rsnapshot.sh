@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_rsnapshot.sh
-# version 19.04.1
+# version 20.08.1
 
 
 # Copyright (C) 2017 Richard Albrecht
@@ -18,6 +18,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
+
+#  caller   ./bk_project.sh, one project with 1-n folder trees
+#           ./bk_rsnapshot.sh,  
+#	    do rsnapshot
+
 
 . ./cfg.working_folder
 
@@ -36,7 +41,9 @@ readonly DISK=$2
 readonly PROJECT=$3 
 
 
-readonly FILENAME="rsnapshot:${DISK}:$PROJECT"
+readonly OPERATION="rsnapshot"
+readonly FILENAME="${OPERATION}:${DISK}:$PROJECT"
+readonly projectkey=${DISK}_${PROJECT}
 
  
 # rsnapshot exit values
@@ -44,10 +51,7 @@ readonly FILENAME="rsnapshot:${DISK}:$PROJECT"
 # 1 A fatal error occurred
 # 2 Some warnings occurred, but the backup still finished
 
-
-function dlog2 {
-        datelog "${FILENAME}: $1"
-}
+tlog "start: $projectkey"
 
 
 #readonly TODAY_LOG=`date +%Y-%m-%dT%H:%M:%S`
@@ -76,14 +80,11 @@ fi
 
 rs_exitcode=0
 
-readonly projectkey=${DISK}_${PROJECT}
 
 
 readonly RSNAPSHOT_CFG=${projectkey}
-readonly RSNAPSHOT_CONFIG=${RSNAPSHOT_CFG}.conf
 readonly cfg_file=./${CONFFOLDER}/${RSNAPSHOT_CFG}.conf
 readonly RSNAPSHOT_ROOT=$(cat ${cfg_file} | grep snapshot_root | grep -v '#' | awk '{print $2}')
-
 readonly RSYNCLOG="rsynclog/${RSNAPSHOT_CFG}.log"
 
 
@@ -95,9 +96,9 @@ then
 	exit $NORSNAPSHOTROOT
 fi
 
-#datelog "${FILENAME}: interval: ${INTERVAL}"
-#echo "cat ./$CONFFOLDER/${RSNAPSHOT_CONFIG} | grep ^retain | grep $INTERVAL"
-WC=$(cat ./$CONFFOLDER/${RSNAPSHOT_CONFIG} | grep ^retain | grep $INTERVAL | wc -l)
+
+
+WC=$(cat ${cfg_file} | grep ^retain | grep $INTERVAL | wc -l)
 
 # only one retain line with current interval can exist 
 if test $WC -eq  1 
@@ -123,6 +124,7 @@ then
 			# do sync 
 			dlog "first retain value: ${FIRST_INTERVAL}, use sync" 
 			dlog "==> first interval with run sync   : /usr/bin/rsnapshot -c ${cfg_file} sync"
+			tlog "rsync"
 			TODAY_RSYNC_START=`date +%Y%m%d-%H%M`
 			rsynclog "${FILENAME}: start sync -- $TODAY_RSYNC_START" 
 			########### rsnapshot call, sync ######################
@@ -134,6 +136,7 @@ then
 			TODAY_RSYNC_END=`date +%Y%m%d-%H%M`
 			if test $RETSYNC -ne 0
 			then
+				# set own exitcode = 'RSYNCFAILS=8'	
 				rs_exitcode=$RSYNCFAILS
 			else		
 				# write marker file with date to backup folder .sync in rsnapshot root"
@@ -154,6 +157,7 @@ then
                 TODAY_RSYNC2_START=`date +%Y%m%d-%H%M`
                 #rsynclog "rotate starts at ${INTERVAL} -- $TODAY_RSYNC_START"
                 rsynclog "${FILENAME}: start ${INTERVAL} -- $TODAY_RSYNC2_START"
+		tlog "rotate: ${INTERVAL}"
 		RETROTATE=1
 		########### rsnapshot call, rotate ######################
    		/usr/bin/rsnapshot -c ${cfg_file} ${INTERVAL} >> ${RSYNCLOG}
@@ -176,6 +180,7 @@ fi
 sync
 
 dlog "== end bk_rsnapshot.sh =="
+tlog "end, code: $rs_exitcode"
 
 exit $rs_exitcode
 

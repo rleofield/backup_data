@@ -1,8 +1,9 @@
 #!/bin/bash
 
-# no test for host, demo only
+# no test for local host, demo only
 exit  0
 
+# adapt for remote backup
 HOST="host"
 USER="root"
 

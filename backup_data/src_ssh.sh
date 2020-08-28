@@ -1,5 +1,5 @@
 # file: ssh.sh
-# version 19.04.1
+# version 20.08.1
 # included with 'source'
 
 # Copyright (C) 2017 Richard Albrecht
@@ -17,12 +17,12 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
 
-pwd
+#pwd
 . ./cfg.ssh_login
 
 
 # ssh functions for notify message
-	echo "pport $sshport" 
+#	echo "pport $sshport" 
 
 function sshport {
 	local p="22"
@@ -79,7 +79,7 @@ function do_rm_notify_file_for_disk {
 	local _f=$1
 	local p=$( sshport )
         local _temp="ssh -p $p $sshlogin@${sshhost} 'rm ${sshtargetfolder}${_f}_*'"
-	# ssh -p 4194 richard@kvm 'rm /home/richard/Desktop/backup_messages/Backup-HD_dluks_*'
+	# ssh -p 4194 xxxxxx@hhhh 'rm /home/xxxxx/Desktop/backup_messages/Backup-HD_dluks_*'
         eval $_temp
         local _RET=$?
 	return $_RET

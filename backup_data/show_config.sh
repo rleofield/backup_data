@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: show_config.sh
-# version 19.04.1
+# version 20.08.1
 
 
 # Copyright (C) 2017 Richard Albrecht
@@ -114,6 +114,8 @@ function encode_diff {
 }
 
 RSNAPSHOTS="${!a_interval[*]}"
+
+
 echo "$RSNAPSHOTS"
 
 WORKINGDIR=$WORKINGFOLDER
@@ -126,69 +128,86 @@ CONFFOLDER="${WORKINGDIR}/conf"
 for RSNAPSHOT in ${RSNAPSHOTS}
 do
 
+
+
 	#echo "retainslist= cat ${CONFFOLDER}/${RSNAPSHOT}.conf "
-	retainslist=$( cat ${CONFFOLDER}/${RSNAPSHOT}.conf | grep ^retain )
-	#echo "$retainslist"
-	OIFS=$IFS
+	if [ -f ${CONFFOLDER}/${RSNAPSHOT}.conf ]
+	then
+		retainslist=$( cat ${CONFFOLDER}/${RSNAPSHOT}.conf | grep ^retain )
+		#echo "$retainslist"
+		OIFS=$IFS
 IFS='
 '
-	lines=($retainslist)
-	declare -A retainscount
-	declare -A retains
+		lines=($retainslist)
+		declare -A retainscount
+		declare -A retains
 
 
-	echo ""
-	echo "======"
-	echo "Project: $RSNAPSHOT"
-	cfg="$CONFFOLDER/${RSNAPSHOT}.conf"
-	RSNAPSHOT_ROOT=$(cat ${cfg} | grep ^snapshot_root | awk '{print $2}')
-	echo "root folder: $RSNAPSHOT_ROOT"
-	# 0 = keyword 'retain', 1 = level= e.g. eins,zwei,drei, 2 = count
-	n=0
-	IFS=$OIFS
-	for i in "${lines[@]}"
-	do
-		# split to array with ()
-		_line=($i)
+		echo ""
+		echo "======"
+		echo "Project: $RSNAPSHOT"
+		cfg="$CONFFOLDER/${RSNAPSHOT}.conf"
+		#RSNAPSHOT_ROOT=$(cat ${cfg} | grep ^snapshot_root | awk '{print $2}')
+		RSNAPSHOT_ROOT=$(awk  '/^snapshot_root/&&!/^'#'/  {print $2}' ${cfg})
+
+
+		echo "root folder: $RSNAPSHOT_ROOT"
 		# 0 = keyword 'retain', 1 = level= e.g. eins,zwei,drei, 2 = count
-		retainscount[$n]=${_line[2]}
-		retains[$n]=${_line[1]}
-		(( n++ ))
-	done
-	echo "-----------------"
-	pdiff=$( decode_pdiff ${RSNAPSHOT})
-	echo "retain 0 (${retains[0]}), ${retainscount[0]} mal alle dd:hh:mm: $(encode_diff $pdiff)"
-	rr=$(( pdiff * retainscount[0] ))
-	echo "retain 1 (${retains[1]}), ${retainscount[1]} mal alle dd:hh:mm: $( encode_diff $rr)"
-	rr=$(( rr * retainscount[1] ))
-	echo "retain 2 (${retains[2]}), ${retainscount[2]} mal alle dd:hh:mm: $( encode_diff $rr)"
-	rr=$(( rr * retainscount[2] ))
-	echo "retain 3 (${retains[3]}), ${retainscount[3]} mal alle dd:hh:mm: $( encode_diff $rr)"
-	rr=$(( rr * retainscount[3] ))
-	echo "letzte kopie nach:        dd:hh:mm         $( encode_diff $rr)"
-	echo "-----------------"
+		n=0
+		IFS=$OIFS
+		for i in "${lines[@]}"
+		do
+			# split to array with ()
+			_line=($i)
+			# 0 = keyword 'retain', 1 = level= e.g. eins,zwei,drei, 2 = count
+			retainscount[$n]=${_line[2]}
+			retains[$n]=${_line[1]}
+			(( n++ ))
+		done
+		echo "-----------------"
+		pdiff=$( decode_pdiff ${RSNAPSHOT})
+		echo "retain 0 (${retains[0]}), ${retainscount[0]} mal alle dd:hh:mm: $(encode_diff $pdiff)"
+		rr=$(( pdiff * retainscount[0] ))
+		echo "retain 1 (${retains[1]}), ${retainscount[1]} mal alle dd:hh:mm: $( encode_diff $rr)"
+		rr=$(( rr * retainscount[1] ))
+		echo "retain 2 (${retains[2]}), ${retainscount[2]} mal alle dd:hh:mm: $( encode_diff $rr)"
+		rr=$(( rr * retainscount[2] ))
+		echo "retain 3 (${retains[3]}), ${retainscount[3]} mal alle dd:hh:mm: $( encode_diff $rr)"
+		rr=$(( rr * retainscount[3] ))
+		echo "letzte kopie nach:        dd:hh:mm         $( encode_diff $rr)"
+		echo "-----------------"
 
-	cat ${cfg} | grep ^retain 
-	cat ${cfg} | grep ^logfile 
-	cat ${cfg} | grep ^rsync_short_args 
-	cat ${cfg} | grep ^rsync_long_args 
-	cat ${cfg} | grep ^exclude_file 
-	cat ${cfg} | grep ^ssh_args 
-	cat ${cfg} | grep ^backup 
-	echo "======"
+		cat ${cfg} | grep ^retain 
+		cat ${cfg} | grep ^logfile 
+		cat ${cfg} | grep ^rsync_short_args 
+		cat ${cfg} | grep ^rsync_long_args 
+		cat ${cfg} | grep ^exclude_file 
+		cat ${cfg} | grep ^ssh_args 
+		cat ${cfg} | grep ^backup 
+		echo "======"
+	else
+		echo ""
+		echo "======"
+		echo "Project: $RSNAPSHOT"
+		echo "${RSNAPSHOT}.conf does not exist, is archive?"
+		echo "======"
+
+	fi
 		
 done
 
 #exit
 
-echo ""
-echo "DISKLIST"
-cat cfg.target_disk_list | grep -v '#' | grep DISKLIST
-echo "a_projects"
-cat cfg.projects | grep -v declare | grep a_projects
-echo "a_interval"
-cat cfg.projects | grep -v declare | grep -v pdiff | grep a_interval
 
+echo ""
+echo "all disks"
+cat cfg.target_disk_list | grep -v '#' | grep DISKLIST
+echo ""
+echo "all Projects"
+cat cfg.projects | grep -v declare | grep a_projects
+echo ""
+echo "all intervals"
+cat cfg.projects | grep -v declare | grep -v pdiff | grep a_interval
 	
 
 

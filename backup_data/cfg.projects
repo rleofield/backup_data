@@ -31,13 +31,13 @@
 # noumount = disk stays at system, for internal disks mountet at /mnt
 # local    = don't check uuid of backup disk, useful, if backup goes to local filesystem
 declare -A a_properties
-a_properties['dokubackup']="umount"
+a_properties['bbackup']="xumount"
 
 
 
 # sub projects per disk
 declare -A a_projects
-a_projects['dokubackup']="testData" 
+a_projects['bbackup']="testData" 
 
 # backup interval in minutes
 # 1440 = 1 tag
@@ -45,7 +45,7 @@ declare -A a_interval
 # days:hours:minutes
 # hours:minutes
 # minutes
-a_interval['dokubackup_testData']=03:00
+a_interval['bbackup_testData']=03:00
 
 
 ####### host part #######

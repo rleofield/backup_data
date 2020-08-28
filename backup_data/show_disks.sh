@@ -3,7 +3,7 @@
 
 # file: show_disks.sh
 
-# version 19.04.1
+# version 20.08.1
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -23,8 +23,6 @@
 
 
 . ./cfg.working_folder
-. ./cfg.target_disk_list
-. ./cfg.projects
 . ./cfg.target_disk_list
 . ./cfg.projects
 
@@ -76,6 +74,7 @@ function check_disk_label {
         local goodlink=1
 
         local uuid=$( cat "uuid.txt" | grep -w $_LABEL | awk '{print $2}' )
+#	local uuid=$( gawk -v pattern="$_LABEL" '$1 ~ pattern  {print $NF}' uuid.txt )
 	#datelog "/dev/disk/by-uuid/$uuid"
         local disklink="/dev/disk/by-uuid/$uuid"
         # test, if symbolic link

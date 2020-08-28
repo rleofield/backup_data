@@ -7,3 +7,6 @@
 /aa_kvm_PC/
 /cc_error.log
 *.log
+*.
+/main_lock
+/rr_dokubackup_testDatalog

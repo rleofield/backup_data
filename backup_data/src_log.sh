@@ -1,5 +1,5 @@
 # file: src_log.sh
-# version 19.04.1
+# version 20.08.1
 # included with 'source'
 
 
@@ -23,8 +23,67 @@
 
 ERRORLOG="cc_error.log"
 LOGFILE="cc_log.log"
+TRACEFILE="trace.log"
 
 
+#bk_main.sh:33:readonly OPERATION="main"
+#bk_disks.sh:36:readonly OPERATION="disks"
+#bk_loop.sh:57:readonly OPERATION="loop"
+#bk_project.sh:45:readonly OPERATION="project"
+#bk_archive.sh:34:readonly OPERATION="archive"
+#bk_rsnapshot.sh:39:readonly OPERATION="rsnapshot"
+
+
+# ./bk_main.sh·
+#	./bk_disks.sh,   all disks
+#		./bk_loop.sh.   all projects in disk
+#			./bk_project.sh, one project with 1-n folder trees
+#				./bk_rsnapshot.sh,  do rsnapshot
+#				./bk_archive,       no snapshot, rsync only, files accumulated
+
+
+
+ltrace() {
+        if [  -z ${TRACEFILE} ]
+	then
+		echo "tracefilename is empty "
+		return 1
+	fi
+	space=""
+	if [ $OPERATION == "disks" ]
+	then
+		space="  "
+	fi
+	if [ $OPERATION == "loop" ]
+	then
+		space="    "
+	fi
+	if [ $OPERATION == "project" ]
+	then
+		space="      "
+	fi
+	if [ $OPERATION == "archive" ]
+	then
+		space="        "
+	fi
+	if [ $OPERATION == "rsnapshot" ]
+	then
+		space="        "
+	fi
+	local _TODAY=`date +%Y%m%d-%H%M`
+	local _msg="$_TODAY ${space}--» $1"
+	echo -e "$_msg" >> $TRACEFILE
+	return 0
+}
+
+tlog() {
+        if [  -z ${OPERATION} ]
+        then 
+		echo "${OPERATION} is empty in trace"
+                exit
+        fi
+        ltrace "${OPERATION}: $1"
+}
 
 
 # param = message
@@ -40,24 +99,27 @@ function errorlog {
 	echo -e "$msg" >> $ERRORLOG
 }
 
-function get_loopcounter {
-	local ret=""
-#	datelog "${FILENAME}: if [ -f loop_counter.log ]"
-	if [ -f "loop_counter.log" ] 
-	then
-		ret=$(cat loop_counter.log |  awk  'END {print}' | cut -d ':' -f 2 |  sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+# param = message
+# insert FILENAME 
+dlog() {
+	if [  -z ${FILENAME} ]
+	then 
+		echo "${FILENAME} is empty"
+		exit
 	fi
-#	datelog "${FILENAME}: loop_counter = $ret"
-	echo $ret
+	local _msg="${FILENAME}: $1"
+        datelog "$_msg"
 }
 
-function dlog {
-        if [  -z ${FILENAME} ]
-        then 
-		echo "${FILENAME} is empty"
-                exit
-        fi
-        datelog "${FILENAME}: $1"
+#        get_loopcounter
+function get_loopcounter {
+	local ret=""
+	if [ -f "loop_counter.log" ] 
+	then
+		#ret=$(cat loop_counter.log |  awk  'END {print}' | cut -d ':' -f 2 |  sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+		ret=$( gawk -F":" '{gsub(/ */,"",$2); print $2}' loop_counter.log )
+	fi
+	echo $ret
 }
 
 # EOF
