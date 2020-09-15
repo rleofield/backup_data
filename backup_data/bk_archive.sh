@@ -79,6 +79,7 @@ readonly RSYNC_ARGS=$(cat ./$CONFFOLDER/${ARCHIVE_CONFIG} | grep ^rsync_args | g
 # exclude_file as arg2
 readonly EXCLUDE_FILE=$(cat ./$CONFFOLDER/${ARCHIVE_CONFIG} | grep ^exclude_file | grep -v '#' | awk '{ print $2}')
 
+# no pre file for archive
 dlog "archive root:  $ARCHIVE_ROOT"
 dlog "rsync logfile: $RSYNC_LOGFILE"
 dlog "rsync log:     $RSYNC_LOG"

@@ -42,7 +42,6 @@ echo ""
 if [[ $(id -u) != 0 ]]
 then
         echo "we are not root, use root for backup"
-	echo "HD mount needs root"
         exit
 fi
 
@@ -57,13 +56,9 @@ fi
 
 readonly rlf_backup_data_rc="rlf_backup_data.rc"
 
-path_rlf_backup_data_rc="/etc/$rlf_backup_data_rc"
-# for github demo
-path_rlf_backup_data_rc="$rlf_backup_data_rc"
-
-if [ ! -f $path_rlf_backup_data_rc ]
+if [ ! -f /etc/$rlf_backup_data_rc ]
 then
-	echo "'$path_rlf_backup_data_rc/' not found, exit "	
+	echo "'/etc/$rlf_backup_data_rc' not found, exit "	
 	echo "create file '/etc/$rlf_backup_data_rc' with used working folder"
 	echo "Example line: WORKINGFOLDER=\"/home/rleo/bin/backup_data\"" 
 	echo "" 
@@ -74,7 +69,7 @@ fi
 
 # ok, source rlf_backup_data.rc
 
-. $path_rlf_backup_data_rc
+. /etc/$rlf_backup_data_rc
 
 STARTFOLDER=$WORKINGFOLDER
 _size=${#STARTFOLDER}
@@ -85,7 +80,7 @@ then
 	echo "content of file '/etc/rlf_backup_data.rc':"	
 	echo ""	
 	echo "cat '/etc/$rlf_backup_data_rc'"
-	cat $path_rlf_backup_data_rc
+	cat /etc/$rlf_backup_data_rc
 	echo "== end == "
 	exit 1
 fi
@@ -109,8 +104,6 @@ echo "# version 20.08.1" >> cfg.working_folder
 echo "WORKINGFOLDER=$WORKINGFOLDER" >> cfg.working_folder
 echo "export WORKINGFOLDER" >> cfg.working_folder
 
-
-#cat cfg.working_folder
 
 
 

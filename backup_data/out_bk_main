@@ -1,4 +1,13 @@
 in main
-20200828-2336
+20200915-1918
 create main_lock
-00036, start bk_disk: 20200828-2336
+00045, start bk_disk: 20200915-1918
+mv: Aufruf von stat für 'aa_*' nicht möglich: Datei oder Verzeichnis nicht gefunden
+mv: Aufruf von stat für 'rr_*' nicht möglich: Datei oder Verzeichnis nicht gefunden
+mv: Aufruf von stat für 'label_not_found.log' nicht möglich: Datei oder Verzeichnis nicht gefunden
+./bk_loop.sh: Zeile 699: »: Befehl nicht gefunden
+./bk_loop.sh: Zeile 700: [: : Ganzzahliger Ausdruck erwartet.
+remove main_lock
+loop counter: 46
+STOPPED is value 101
+last loop counter: '46', RET=101 

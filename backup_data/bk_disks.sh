@@ -215,15 +215,17 @@ function successlog {
         local _TODAY=`date +%Y%m%d-%H%M`
 	datelog "${FILENAME}:  $_TODAY: $line" 
 	echo "$_TODAY: $line" >> $ff
+	#if [ ! -z $sshlogin ] # in successlog
 	if [ ! -z $sshlogin ] 
 	then
+		ssh_port=$( func_sshport )
+		dlog "successlog : login: '${sshlogin}', host: '${sshhost}', target: '${sshtargetfolder}', port: '${ssh_port}'"
 		if [ "${sshhost}" == "localhost" ] || [ "${sshhost}" == "127.0.0.1" ]
 		then
-			dlog "local"
 			COMMAND="cp ${ff} ${sshtargetfolder}${file_successloglines}"
 			dlog "copy successfile to local Desktop: $COMMAND"
 			eval $COMMAND
-			dlog "chown $sshlogin:$sshlogin ${sshtargetfolder}$ff"
+			#dlog "chown $sshlogin:$sshlogin ${sshtargetfolder}$ff"
 			chown $sshlogin:$sshlogin ${sshtargetfolder}${file_successloglines}
 		else
 			# is in cfg.ssh_login
@@ -232,8 +234,7 @@ function successlog {
 			RET=$?
 			if [ $RET -eq  0 ]
 			then
-				ssh_port=$( sshport )
-				COMMAND="rsync $ff -e 'ssh -p $ssh_port'  $sshlogin@$sshhost:${sshtargetfolder}${file_successloglines}"
+				COMMAND="rsync $ff -e 'ssh -p ${ssh_port}'  $sshlogin@$sshhost:${sshtargetfolder}${file_successloglines}"
 				dlog "$COMMAND"
 				eval $COMMAND
 				RET=$?
@@ -248,6 +249,9 @@ function successlog {
 			fi
 		fi
 	fi
+
+	# copy to local folder
+	dlog "cp $ff  backup_messages_test/${file_successloglines}"
 	cp $ff  backup_messages_test/${file_successloglines}
 
 }

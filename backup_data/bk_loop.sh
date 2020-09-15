@@ -115,9 +115,9 @@ readonly NOTIFYSENDLOG="notifysend.log"
 readonly notifybasefile="Backup-HD"
 
 readonly successlogtxt="successlog.txt"
-readonly maxLASTDATE="2020-03-01T00:00"
+readonly maxLASTDATE="2020-07-01T00:00"
 
-	
+
 function sendlogclear {
         if test -f $NOTIFYSENDLOG
         then
@@ -146,28 +146,26 @@ function sshnotifysend {
         $( cat $NOTIFYSENDLOG > $temp )
         sendlogclear
 
+	# if [ ! -z $sshlogin ] # in sshnotifysend
 	if [ ! -z $sshlogin ]
 	then
-		dlog "host: $sshhost"
-		dlog "login: $sshlogin"
+		ssh_port=$( func_sshport )
+		dlog "sshnotifysend : login: '${sshlogin}', host: '${sshhost}', target: '${sshtargetfolder}', port: '${ssh_port}'"
 		if [ "${sshhost}" == "localhost" ] || [ "${sshhost}" == "127.0.0.1" ]
 		then
 			# copy to local Desktop
         		COMMAND="cp $temp ${sshtargetfolder}"
 		        dlog "copy notify file to local Desktop: $COMMAND"
         		eval $COMMAND
-			dlog "chown $sshlogin:$sshlogin ${sshtargetfolder}$temp"
+			#dlog "chown $sshlogin:$sshlogin ${sshtargetfolder}$temp"
 			chown $sshlogin:$sshlogin ${sshtargetfolder}$temp
 		else
 			# func is in ssh.sh
-			ssh_port=$( sshport )
-			dlog "sshnotifysend : ${sshlogin} ${sshhost} ${sshtargetfolder} ${ssh_port}"
 	                # in 'sshnotifysend': do_ping_host 
-			do_ping_host ${sshlogin} ${sshhost} ${sshtargetfolder} ${sshport}
+			do_ping_host ${sshlogin} ${sshhost} ${sshtargetfolder} ${ssh_port}
                 	RET=$?
 			if [ $RET -eq  0 ]
 			then
-				ssh_port=$( sshport )
 	        		dlog "send notify via ssh to '$sshlogin@$sshhost:$sshtargetfolder', file: '$temp'"
 				dlog "rsync $temp -e 'ssh -p $ssh_port' $sshlogin@$sshhost:$sshtargetfolder"
 				# func is in ssh.sh
@@ -180,16 +178,14 @@ function sshnotifysend {
 					dlog "COMMAND:  $COMMAND"
 					dlog ""
 				fi
+			else
+				dlog "host $sshlogin@$sshhost is not up, '${temp}' is not sent"
 			fi
 		fi
-        else
-		dlog "host $sshlogin@$sshhost is not up, $temp is not copied"
 	fi
 	
 
-        # local
-
-        # default,  copy to local folder
+	# default,  copy to local folder
         COMMAND="cp $temp backup_messages_test/"
         dlog "copy notify file to local folder: $COMMAND"
         eval $COMMAND
@@ -202,9 +198,12 @@ function rm_notify_file {
 
         local f="${notifybasefile}_${_disk}"
 
+        # if [ ! -z $sshlogin ] # in rm_notify_file
         if [ ! -z $sshlogin ]
         then        
 
+		ssh_port=$( func_sshport )
+		dlog "rm_notify_file : login: '${sshlogin}', host: '${sshhost}', target: '${sshtargetfolder}', port: '${ssh_port}'"
 		if [ "${sshhost}" == "localhost" ] || [ "${sshhost}" == "127.0.0.1" ]
 		then
 			temp="'rm ${sshtargetfolder}${f}_*'"
@@ -213,7 +212,6 @@ function rm_notify_file {
 			#dlog "ok"
         		eval $COMMAND
 		else
-			ssh_port=$( sshport )
 			dlog "rm_notify_file : ${sshlogin} ${sshhost} ${sshtargetfolder} p: ${ssh_port}"
                 	# in 'rm_notify_file' do_ping_host 
 			do_ping_host ${sshlogin} ${sshhost} ${sshtargetfolder} ${ssh_port}
@@ -224,6 +222,7 @@ function rm_notify_file {
 	        		dlog "rm notify: '$temp'"
 
 				# func is in src_ssh.sh
+        			# f="${notifybasefile}_${_disk}"
 				do_rm_notify_file_for_disk $f
 				RET=$?
 				if [ $RET -gt 0 ]
@@ -233,7 +232,7 @@ function rm_notify_file {
 					dlog ""
 				fi
 			else
-				dlog "host $sshlogin@$sshhost is not up, ${f} is not removed"
+				dlog "host $sshlogin@$sshhost is not up, '${f}_*' is not removed"
 			fi
 		fi
 	fi
@@ -260,6 +259,8 @@ function time_diff_minutes() {
         # "1980-01-01 00:00"
         local sec_old=$(date +%s -d $old)
         local sec_new=$(date +%s -d $new)
+	#dlog "sec old: $sec_old"
+	#dlog "sec new: $sec_new"
 	# convert to minutes
 	ret=$(( (sec_new - sec_old) / 60 ))
 	if test $ret -lt 0 
@@ -424,7 +425,13 @@ function check_disk_done_last_done {
         if test -f $_DONEFILE
         then
                 _LASTLINE=$(cat $_DONEFILE | awk  'END {print }')
-        fi
+	fi
+
+	#dlog "_LASTLINE: '$_LASTLINE'"
+	if [ -z "$_LASTLINE" ]
+	then
+        	_LASTLINE="$maxLASTDATE"
+	fi
 	#dlog "_LASTLINE: '$_LASTLINE'"
         local _DIFF=$(time_diff_minutes  $_LASTLINE  $_current  )
 	local _pdiff=$( decode_pdiff ${_key} )
@@ -575,6 +582,11 @@ do
 		# last line in done file
 		LASTLINE=$(cat $DONE_FILE | awk  'END {print }')  	
 	fi
+	#dlog "_LASTLINE 2222: '$_LASTLINE'"
+	if [ -z "$_LASTLINE" ]
+	then
+        	_LASTLINE="$maxLASTDATE"
+	fi
 
 	pdiff=$(  decode_pdiff ${lpkey} )
 	done_diff_minutes=$(   time_diff_minutes  "$LASTLINE"  "$tcurrent"  )
@@ -585,7 +597,7 @@ do
 	RET=$?
 	DISKDONE=$RET
 	# test only
-
+	#dlog "PROJECT: ${p}"
 	txt=$( printf "%-12s\n"  $( echo "${p}," ) )
 	n0=$( printf "%5s\n"  $done_diff_minutes )
 	pdiff_print=$( printf "%5s\n"  $pdiff )

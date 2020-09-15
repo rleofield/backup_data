@@ -22,16 +22,7 @@
 
 
 # ssh functions for notify message
-#	echo "pport $sshport" 
 
-function sshport {
-	local p="22"
-	if [[ -n $sshport ]]
-	then
-		p=$sshport
-	fi
-  	echo $p
-}
 
 function do_ping_host {
 
@@ -64,9 +55,18 @@ function do_ping_host {
 
 }
 
+function func_sshport {
+	local p="22"
+	if [[ -n $sshport ]]
+	then
+		p=$sshport
+	fi
+  	echo $p
+}
+
 function do_sshnotifysend {
 	local _temp=$1
-	local p=$( sshport )
+	local p=$( func_sshport )
 	local _temp2="rsync $_temp -e 'ssh -p $p' $sshlogin@$sshhost:$sshtargetfolder"
 	eval ${_temp2}
 	local _RET=$?
@@ -77,7 +77,7 @@ function do_sshnotifysend {
 
 function do_rm_notify_file_for_disk {
 	local _f=$1
-	local p=$( sshport )
+	local p=$( func_sshport )
         local _temp="ssh -p $p $sshlogin@${sshhost} 'rm ${sshtargetfolder}${_f}_*'"
 	# ssh -p 4194 xxxxxx@hhhh 'rm /home/xxxxx/Desktop/backup_messages/Backup-HD_dluks_*'
         eval $_temp

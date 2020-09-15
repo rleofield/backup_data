@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_project.sh
-# version 20.04.1
+# version 20.08.1
 
 
 # Copyright (C) 2017 Richard Albrecht
@@ -81,6 +81,7 @@ then
 	./bk_archive.sh  $projectkey
 	# #############################################################################
 	RET=$?
+	#dlog "RET archive: $RET"
 	if test $RET -eq $NORSNAPSHOTROOT
 	then
 		dlog "error in 'bk_archive.sh': archive root not found for '$PROJECT'"
@@ -95,7 +96,7 @@ then
 	if test $RET -eq 0 
 	then
 		# write current time to done file
-		dlog "write current time to done file: ./${DONE}/${projectkey}_done.log"
+		dlog "write last date: ./${DONE}/${projectkey}_done.log"
 		_currenttime_=`date +%Y-%m-%dT%H:%M`
 		echo "$_currenttime_" > ./${DONE}/${projectkey}_done.log
 	fi
@@ -411,9 +412,9 @@ function do_rs_first {
         	# increment index 0 counter
 		# counter file doesn't exist ??
 		update_counter $_index
-	        # main done is written here
+		# main done is written here
 		local _currenttime=`date +%Y-%m-%dT%H:%M`
-        	echo "$_currenttime" > ./${DONE}/${projectkey}_done.log
+		echo "$_currenttime" > ./${DONE}/${projectkey}_done.log
 		dlog "write last date: '$_currenttime' to ./done/${projectkey}_done.log"
 
 	fi
