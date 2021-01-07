@@ -23,7 +23,7 @@
 
 ####### host part #######
 # name of file send to 'backup_messages_test'local and ssh target remote 
-file_successloglines="Backuperfolgsliste_test.txt"
+file_successloglines="Backuperfolgsliste_bbackup.txt"
 
 ####### host part #######
 

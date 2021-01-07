@@ -38,18 +38,17 @@ readonly sshhost="localhost"
 #    if sshhost = "hostname"   
 #        copy with ssh to sshhost, 'sshlogin@sshhosti -p sshport''
 #        then message is copied to folder at remote desktop
-#        chown to "name" after writng the file do local Desktop
 #        uses 'sshtargetfolder'  as target folder
 #
 # in all cases, copy to folder 'backup_messages' in 'WORKINGFOLDER' 
-# sshlogin can be empty ( = only copy to 'backup_messages' in 'WORKINGFOLDER' )
+# sshlogin can be empty ( = only copy to 'backup_messages_test' in 'WORKINGFOLDER' )
 
-readonly sshlogin=""
+readonly sshlogin="user"
 # if sshport = "", then sshport=22
 readonly sshport="22"
 
 # folder for local/remote copy, slash at end
-readonly sshtargetfolder="/home/rleo/github/rleofield/backup_data/backup_data/backup_messages_test/"
+readonly sshtargetfolder="/home/user/Desktop/backup_messages_bbackup/"
 ####### personal part #######
 
 

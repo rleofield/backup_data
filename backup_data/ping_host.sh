@@ -26,8 +26,8 @@
 
 FILENAME="ping"
 
-p=$( sshport )
-echo "do_ping_host ${sshlogin} ${sshhost} ${sshtargetfolder} ${p}"
+p=$( func_sshport )
+echo "do_ping_host, login: ${sshlogin}, host: ${sshhost}, folder: ${sshtargetfolder} ${p}"
 do_ping_host ${sshlogin} ${sshhost} ${sshtargetfolder} ${sshport}
 RET=$?
 if [ $RET -eq 0 ]

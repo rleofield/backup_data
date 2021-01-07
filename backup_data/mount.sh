@@ -37,7 +37,8 @@ FILENAME=$(basename "$0" .sh)
 
 
 label=$1
-FILENAME="mount:$label"
+#FILENAME="mount:$label"
+FILENAME="$label:mount"
 mountdir=/mnt/$label
 
 if [[ "$label" == *luks ]]
@@ -56,7 +57,7 @@ then
 	if test ! -b /dev/mapper/$label
 	then
        	datelog "${FILENAME}:   LUKS:  cryptsetup luksOpen --key-file $LUKSKEYFILE $DEVICE $label"
-	        cryptsetup luksOpen --key-file $LUKSKEYFILE $DEVICE $label
+	cryptsetup luksOpen --key-file $LUKSKEYFILE $DEVICE $label
 #       RETURN CODES
 #              Cryptsetup returns 0 on success and a non-zero value on error.
 #              Error codes are: 

@@ -19,9 +19,12 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
 
-#  caller   ./bk_project.sh, one project with 1-n folder trees
-#           ./bk_rsnapshot.sh,  
-#	    do rsnapshot
+
+#   caller    ./bk_main.sh
+#   caller    ./bk_disks.sh,      all disks
+#   caller    ./bk_loop.sh        all projects in disk
+#   caller    ./bk_project.sh,    one project with 1-n folder trees
+#             ./bk_rsnapshot.sh,  do rsnapshot with rsync
 
 
 . ./cfg.working_folder
@@ -42,7 +45,8 @@ readonly PROJECT=$3
 
 
 readonly OPERATION="rsnapshot"
-readonly FILENAME="${OPERATION}:${DISK}:$PROJECT"
+#readonly FILENAME="${OPERATION}:${DISK}:$PROJECT"
+readonly FILENAME="${DISK}:$PROJECT:${OPERATION}"
 readonly projectkey=${DISK}_${PROJECT}
 
  
@@ -137,6 +141,7 @@ then
 			if test $RETSYNC -ne 0
 			then
 				# set own exitcode = 'RSYNCFAILS=8'	
+				dlog "rsync fails: retsync: $RETSYNC "
 				rs_exitcode=$RSYNCFAILS
 			else		
 				# write marker file with date to backup folder .sync in rsnapshot root"
@@ -151,6 +156,10 @@ then
 	fi
 	# sync is done or we have a simple rotate
         # do rsnapshot rotate, in all cases, also, if no sync was executed, then it is a simple rotate  
+	
+	#rs_exitcode=$RSYNCFAILS
+
+        #RETSYNC=1 
         if test $RETSYNC -eq 0 
         then
                	datelog "${FILENAME}: ==> run rotate: /usr/bin/rsnapshot -c ${cfg_file} ${INTERVAL}"
@@ -179,10 +188,13 @@ fi
 
 sync
 
-dlog "== end bk_rsnapshot.sh =="
+dlog "== end bk_rsnapshot.sh: $rs_exitcode =="
 tlog "end, code: $rs_exitcode"
 
 exit $rs_exitcode
+
+
+
 
 
 

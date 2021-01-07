@@ -60,10 +60,10 @@ if [ ! -f /etc/$rlf_backup_data_rc ]
 then
 	echo "'/etc/$rlf_backup_data_rc' not found, exit "	
 	echo "create file '/etc/$rlf_backup_data_rc' with used working folder"
-	echo "Example line: WORKINGFOLDER=\"/home/rleo/bin/backup_data\"" 
+	echo "Example line: WORKINGFOLDER=\"/home/user/bin/backup_data\"" 
 	echo "" 
 	echo "COMMAND:" 
-	echo "echo \"WORKINGFOLDER=/home/rleo/bin/backup_data\" > /etc/$rlf_backup_data_rc"
+	echo "echo \"WORKINGFOLDER=/home/user/bin/backup_data\" > /etc/$rlf_backup_data_rc"
 	exit 1
 fi
 

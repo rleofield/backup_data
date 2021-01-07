@@ -1,13 +1,16 @@
 in main
-20200915-1918
+20210107-1810
 create main_lock
-00045, start bk_disk: 20200915-1918
-mv: Aufruf von stat für 'aa_*' nicht möglich: Datei oder Verzeichnis nicht gefunden
-mv: Aufruf von stat für 'rr_*' nicht möglich: Datei oder Verzeichnis nicht gefunden
-mv: Aufruf von stat für 'label_not_found.log' nicht möglich: Datei oder Verzeichnis nicht gefunden
-./bk_loop.sh: Zeile 699: »: Befehl nicht gefunden
-./bk_loop.sh: Zeile 700: [: : Ganzzahliger Ausdruck erwartet.
+00063, start bk_disk: 20210107-1810
+sending incremental file list
+deleting Backup-HD_bbackup_20210107-1808_keine_Fehler_alles_ok.log
+./
+Backup-HD_bbackup_20210107-1810_keine_Fehler_alles_ok.log
+Backuperfolgsliste_bbackup.txt
+
+sent 1,203 bytes  received 118 bytes  2,642.00 bytes/sec
+total size is 1,134  speedup is 0.86
 remove main_lock
-loop counter: 46
+loop counter: 64
 STOPPED is value 101
-last loop counter: '46', RET=101 
+last loop counter: '64', RET=101 

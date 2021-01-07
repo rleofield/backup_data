@@ -23,6 +23,8 @@
 # text file for success and unsuccess
 successarraytxt="successarray.txt"
 unsuccessarraytxt="unsuccessarray.txt"
-successloglines="successloglines.txt"
+
+# now in bk_disks.sh
+#successloglinestxt="successloglines.txt"
 
 

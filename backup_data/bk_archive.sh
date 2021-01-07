@@ -21,8 +21,11 @@
 #------------------------------------------------------------------------------
 
 
-#  caller   ./bk_project.sh, one project with 1-n folder trees
-#           ./bk_archive.sh,  do rsync, accumulate, no --delete
+#   caller    ./bk_main.sh
+#   caller    ./bk_disks.sh,      all disks
+#   caller    ./bk_loop.sh        all projects in disk
+#   caller    ./bk_project.sh,    one project with 1-n folder trees
+#             ./bk_archive.sh,    do rsync 
 
 . ./cfg.working_folder
 
@@ -36,7 +39,8 @@
 
 readonly projectkey=$1 
 readonly OPERATION="archive"
-readonly FILENAME="${OPERATION}:${projectkey}"
+#readonly FILENAME="${OPERATION}:${projectkey}"
+readonly FILENAME="${projectkey}:${OPERATION}"
 
 
 tlog "start: $projectkey"

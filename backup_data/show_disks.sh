@@ -89,7 +89,7 @@ function check_disk_label {
 
 datelog ""
 datelog "== Liste der verbundenen Disks == "
-datelog "= Test: '$DISKLIST' = "
+datelog "= Disks: '$DISKLIST' = "
 for _disk in $DISKLIST
 do
         LABEL=$_disk
@@ -99,13 +99,17 @@ do
         if [ $goodlink -ne 0 ]
         then
                 RET="${RET} ist nicht verbunden"
+		aw="awk '{ print $1 }'"
+#		echo "find oldlogs -name "cc_log*" | grep -v save | xargs grep $_disk | grep 'is mounted' | sort | $aw | cut -d '/' -f 2 | tail -f -n1"
+		F=$( find oldlogs -name "cc_log*" | grep -v save | xargs grep $_disk | grep 'is mounted' | sort | awk '{ print $1 }'| cut -d '/' -f 2 | tail -f -n1 )
+        	datelog "$RET, letztes Backup war: $F "
         else
                 RET="${RET} ist verbunden"
+        	datelog "$RET"
         fi
-        datelog "$RET"
 done
 
-tail  list_disks_log.log -n 13
+tail  list_disks_log.log -n 12
 
 
 exit 0

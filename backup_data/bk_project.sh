@@ -20,10 +20,12 @@
 #------------------------------------------------------------------------------
 
 
-#  caller  ./bk_loop.sh    all projects in disk
-#          ./bk_project.sh, one project with n folder trees
-#  calls   ./bk_archive    simple rsync, no delete
-#  calls   ./bk_rsnapshot
+#   caller    ./bk_main.sh
+#   caller    ./bk_disks.sh,    all disks
+#   caller    ./bk_loop.sh      all projects in disk
+#             ./bk_project.sh,  one project with n folder trees
+#   calls     ./bk_archive      simple rsync 
+#   calls     ./bk_rsnapshot    rsnapshot rsync
 
 
 # parameter:
@@ -49,7 +51,8 @@ fi
 
 readonly OPERATION="project"
 readonly projectkey=${DISK}_${PROJECT}
-readonly FILENAME="${OPERATION}:${DISK}:$PROJECT"
+#readonly FILENAME="${OPERATION}:${DISK}:$PROJECT"
+readonly FILENAME="${DISK}:$PROJECT:${OPERATION}"
 
 
 tlog "start:  '$projectkey'"
@@ -78,6 +81,9 @@ then
 	# parameter $projectkey
 	# do achive of files, no history, no delete, accumulate files
 	# ###########    calls ./bk_archive.sh $projectkey ############################
+	#readonly DISK=$1
+	#readonly PROJECT=$2
+
 	./bk_archive.sh  $projectkey
 	# #############################################################################
 	RET=$?
@@ -90,7 +96,7 @@ then
 	# 'RSYNCFAILS=8' was set in bk_archive.sh
 	if test $RET -eq $RSYNCFAILS
 	then
-        	dlog "error in 'bk_archive.sh': rsync to achive fails '$PROJECT'"
+        	dlog "error in 'bk_archive.sh': rsync to archive fails '$PROJECT'"
 		exit $RSYNCFAILS
 	fi
 	if test $RET -eq 0 
@@ -393,6 +399,7 @@ function do_rs_123 {
 #	dlog "after sync"
 	dlog "'${retains[$_index]}'    : $_counter"
 	dlog "'${retains[$_index]}' max: $_max_count"
+	return $RET
 
 }
 
@@ -422,6 +429,7 @@ function do_rs_first {
 	local _max_count=${retainscount[$_index]}
 	dlog "'${retains[$_index]}'    :   $_counter"
 	dlog "'${retains[$_index]}' max:   $_max_count"
+	return $RET
 
 }
 

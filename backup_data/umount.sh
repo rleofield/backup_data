@@ -27,7 +27,8 @@
 FILENAME=$(basename "$0" .sh)
 
 label=$1
-FILENAME="umount:$label"
+#FILENAME="umount:$label"
+FILENAME="$label:umount"
 
 
 if [[ "$label" == *luks ]]

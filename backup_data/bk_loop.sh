@@ -2,7 +2,7 @@
 
 
 # file: bk_loop.sh
-# version 20.08.1
+# version 21.01.1
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -19,6 +19,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
 
+#   caller    ./bk_main.sh
 #   caller    ./bk_disks.sh,   all disks
 #             ./bk_loop.sh     all projects in disk
 
@@ -58,7 +59,10 @@ readonly use_mediamount=1
 
 arrays_ok=0
 readonly OPERATION="loop"
-readonly FILENAME="${OPERATION}:$LABEL"
+#readonly FILENAME="${OPERATION}:$LABEL"
+readonly FILENAME="$LABEL:${OPERATION}"
+
+
 
 
 tlog "start: '$LABEL'"
@@ -101,7 +105,6 @@ IFS=','
 parray=($properties)
 IFS=$oldifs
 readonly ausgabe=$( echo ${parray[@]} )
-#readonly local_in_array=$(echo ${parray[@]} | grep -w -o "local" | wc -l )
 local_in_array=0
 # arrays can't be a parameter to functions, use 'echo' 
 if test $local_in_array -eq 1
@@ -118,12 +121,6 @@ readonly successlogtxt="successlog.txt"
 readonly maxLASTDATE="2020-07-01T00:00"
 
 
-function sendlogclear {
-        if test -f $NOTIFYSENDLOG
-        then
-                rm $NOTIFYSENDLOG
-        fi
-}
 function sendlog {
         local msg=$1
         echo -e "$_TODAY  == Notiz: $msg" >> $NOTIFYSENDLOG
@@ -144,46 +141,7 @@ function sshnotifysend {
         dlog "    send message of disk: '$_disk'"
         dlog "tempfile: ${temp}"
         $( cat $NOTIFYSENDLOG > $temp )
-        sendlogclear
 
-	# if [ ! -z $sshlogin ] # in sshnotifysend
-	if [ ! -z $sshlogin ]
-	then
-		ssh_port=$( func_sshport )
-		dlog "sshnotifysend : login: '${sshlogin}', host: '${sshhost}', target: '${sshtargetfolder}', port: '${ssh_port}'"
-		if [ "${sshhost}" == "localhost" ] || [ "${sshhost}" == "127.0.0.1" ]
-		then
-			# copy to local Desktop
-        		COMMAND="cp $temp ${sshtargetfolder}"
-		        dlog "copy notify file to local Desktop: $COMMAND"
-        		eval $COMMAND
-			#dlog "chown $sshlogin:$sshlogin ${sshtargetfolder}$temp"
-			chown $sshlogin:$sshlogin ${sshtargetfolder}$temp
-		else
-			# func is in ssh.sh
-	                # in 'sshnotifysend': do_ping_host 
-			do_ping_host ${sshlogin} ${sshhost} ${sshtargetfolder} ${ssh_port}
-                	RET=$?
-			if [ $RET -eq  0 ]
-			then
-	        		dlog "send notify via ssh to '$sshlogin@$sshhost:$sshtargetfolder', file: '$temp'"
-				dlog "rsync $temp -e 'ssh -p $ssh_port' $sshlogin@$sshhost:$sshtargetfolder"
-				# func is in ssh.sh
-				do_sshnotifysend $temp
-				RET=$?
-		        	if [ $RET -gt 0 ]
-				then
-                			dlog "rsync failed, target for log message down !!! "
-					COMMAND="rsync $temp -e 'ssh -p $ssh_port' $sshlogin@$sshhost:$sshtargetfolder"
-					dlog "COMMAND:  $COMMAND"
-					dlog ""
-				fi
-			else
-				dlog "host $sshlogin@$sshhost is not up, '${temp}' is not sent"
-			fi
-		fi
-	fi
-	
 
 	# default,  copy to local folder
         COMMAND="cp $temp backup_messages_test/"
@@ -192,56 +150,6 @@ function sshnotifysend {
         rm $temp
 
 }
-
-function rm_notify_file {
-        local _disk=$1
-
-        local f="${notifybasefile}_${_disk}"
-
-        # if [ ! -z $sshlogin ] # in rm_notify_file
-        if [ ! -z $sshlogin ]
-        then        
-
-		ssh_port=$( func_sshport )
-		dlog "rm_notify_file : login: '${sshlogin}', host: '${sshhost}', target: '${sshtargetfolder}', port: '${ssh_port}'"
-		if [ "${sshhost}" == "localhost" ] || [ "${sshhost}" == "127.0.0.1" ]
-		then
-			temp="'rm ${sshtargetfolder}${f}_*'"
-        		COMMAND="rm ${sshtargetfolder}${f}_*"
-			dlog "rm_notify_file local: ${temp}"
-			#dlog "ok"
-        		eval $COMMAND
-		else
-			dlog "rm_notify_file : ${sshlogin} ${sshhost} ${sshtargetfolder} p: ${ssh_port}"
-                	# in 'rm_notify_file' do_ping_host 
-			do_ping_host ${sshlogin} ${sshhost} ${sshtargetfolder} ${ssh_port}
-			RET=$?
-	                if [ $RET -eq  0 ]
-        	        then
-				temp="ssh -p $ssh_port $sshlogin@$sshhost 'rm ${sshtargetfolder}${f}_*'"
-	        		dlog "rm notify: '$temp'"
-
-				# func is in src_ssh.sh
-        			# f="${notifybasefile}_${_disk}"
-				do_rm_notify_file_for_disk $f
-				RET=$?
-				if [ $RET -gt 0 ]
-				then
-					dlog "ssh failed, may be '${sshtargetfolder}${f}_*' doesn't exist ... "
-					dlog "COMMAND:  $temp"
-					dlog ""
-				fi
-			else
-				dlog "host $sshlogin@$sshhost is not up, '${f}_*' is not removed"
-			fi
-		fi
-	fi
-	
-	# remove notify file local
-        dlog "rm backup_messages_test/${f}_*"
-        rm backup_messages_test/${f}_*
-}
-
 
 
 # par1 = old   (yyyy-mm-ddThh:mm) or (yyyy-mm-ddThh:mm:ss)
@@ -278,7 +186,7 @@ function check_disk_label {
         local _LABEL=$1
         if test $local_in_array -eq 1
 	then
-	#		dlog "return 1, array"
+	#	dlog "return 0, array"
         	return 0
 	else
 		local uuid=$( cat "uuid.txt" | grep -w $_LABEL | awk '{print $2}' )
@@ -513,17 +421,13 @@ function check_pre_host {
 
 
 
-# defined in filenames.sh
-if test -f $successarraytxt
+# remove intermediate files
+# readonly NOTIFYSENDLOG="notifysend.log"
+if test -f $NOTIFYSENDLOG
 then
-	rm $successarraytxt
-fi
-if test -f $unsuccessarraytxt
-then
-	rm $unsuccessarraytxt
+	rm $NOTIFYSENDLOG
 fi
 
-sendlogclear
 
 dlog " check by UUID, if HD '$LABEL' is connected to the PC" 
 
@@ -591,7 +495,7 @@ do
 	pdiff=$(  decode_pdiff ${lpkey} )
 	done_diff_minutes=$(   time_diff_minutes  "$LASTLINE"  "$tcurrent"  )
 	deltadiff=$(( pdiff - done_diff_minutes ))
-        
+
 	# ret , 0 = do backup, 1 = interval not reached, 2 = daytime not reached
 	check_disk_done $LABEL $p 
 	RET=$?
@@ -648,7 +552,7 @@ lnextprojects=${#nextprojects[@]}
 if test $lnextprojects -eq 0
 then
 	datelog "${FILENAME}: == end disk '$LABEL', nothing to do =="
-	datelog ""
+	datelog "${FILENAME}:"
 	 exit $TIMELIMITNOTREACHED
 fi
 
@@ -657,9 +561,13 @@ fi
 # - mount disk
 # - do rsnapshot with bk_project.sh and bk_rsnapshot.sh
 # - umount, if programmmed or no /media/user disk 
-# 
+#
 
-rm_notify_file $LABEL
+# remove old notifyfiles in backup_messages_test
+dlog "rm backup_messages_test/${notifybasefile}_${LABEL}_*"
+rm backup_messages_test/${notifybasefile}_${LABEL}_*
+
+
 
 #datelog "${FILENAME}:  next projects: ${nextprojects[*]}"
 dlog "time limit for at least one project is reached, projects: ${nextprojects[*]}"
@@ -696,7 +604,7 @@ then
 				mmMOUNT=$( echo "$mmMTAB" | awk '{ print $2 }' )
 				dlog "try umount: $mmMOUNT"
 				umount $mmMOUNT
-			»       mountRET=$?
+				mountRET=$?
 				if [ "$mountRET" -ne 0 ]
 				then
 					dlog "umount fails: 'umount $mmMOUNT'"
@@ -780,7 +688,7 @@ else
 	datelog "${FILENAME}: disk '$LABEL' not checked, ist marked with 'local' in properties, this is ok"
 fi
 
-
+# disk is mounted an ok
 
 
 # done to false
@@ -788,18 +696,15 @@ done=false
 
 datelog "${FILENAME}: execute projects in time and with valid pre check"
 
-#sendlog "HD '$LABEL' nächstes Backup, mind. eines der Projekte auf der HD hat das Zeitlimit erreicht"
-#sendlog "Projekte, die gesichert werden: ${nextprojects[*]}"
 
 declare -A projecterrors
 declare -a successlist
 declare -a unsuccesslist
 
 
-#successtxt=""
 
-#for p in $PROJEKTLABELS
-# in 'nextprojects' are all projects where we need a backup
+# in 'nextprojects' are all projects to backup
+# call bk_project for each
 for p in "${nextprojects[@]}"
 do
 
@@ -864,6 +769,8 @@ do
 
 			# collect success for report at end of main loop
 			ll="${LABEL}"
+
+			# shorten label, if label ends with luks or disk
 			if [[ "$ll" = *"disk"* ]]; 
 			then
 				tt=${ll::-4} 
@@ -909,6 +816,7 @@ do
 		fi
 	fi
 done
+# all backups are done
 # end of disk
 
 # find min diff after backup ist done, done file exists here
@@ -1055,19 +963,29 @@ then
 	done
 	sendlog "---"
 fi
+
+# send to local folder 'backup_messages_test'
+# create temp file with postfix in name
 sshnotifysend $LABEL $notifyfilepostfix 
 
+# end of loop, remove NOTIFYSENDLOG
+rm $NOTIFYSENDLOG
+
 # write collected success labels to disk
+# don't delete files, is > redirection
+# files are used in bk_disks
 echo ${successlist[@]} > $successarraytxt
 echo ${unsuccesslist[@]} > $unsuccessarraytxt
 
 if [[ $error_in_rsync = $RSYNCFAILS ]]
 then
 	tlog "end: fails, '$LABEL'"
+	dlog "end: fails, '$LABEL'"
 	exit $RSYNCFAILS
-else
-	tlog "end: ok,    '$LABEL'"
-	exit $SUCCESS
 fi
+
+tlog "end: ok,    '$LABEL'"
+dlog "end: ok,    '$LABEL'"
+exit $SUCCESS
 
 

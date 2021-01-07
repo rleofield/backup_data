@@ -31,7 +31,7 @@
 # noumount = disk stays at system, for internal disks mountet at /mnt
 # local    = don't check uuid of backup disk, useful, if backup goes to local filesystem
 declare -A a_properties
-a_properties['bbackup']="xumount"
+a_properties['bbackup']="umount"
 
 
 

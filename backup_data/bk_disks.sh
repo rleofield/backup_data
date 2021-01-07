@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_disk.sh
-# version 20.08.1
+# version 21.01.1
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -20,6 +20,7 @@
 
 # caller ./bk_main.sh
 #        ./bk_disks.sh,   all disks
+# calls  ./bk_loop.sh     for each disk
 
 
 . ./cfg.working_folder
@@ -36,10 +37,13 @@
 . ./src_ssh.sh
 
 readonly OPERATION="disks"
-readonly FILENAME="$OPERATION"
+FILENAME="$OPERATION"
 
 readonly stopfile="stop"
 SECONDS=0
+
+readonly successloglinestxt="successloglines.txt"
+
 
 readonly _waittimeinterval=$waittimeinterval
 readonly oldifs=$IFS
@@ -211,48 +215,76 @@ function successlog {
                 line=$line$txt
 	done
 
-        local ff=$successloglines
+
+        local ff=$successloglinestxt
         local _TODAY=`date +%Y%m%d-%H%M`
-	datelog "${FILENAME}:  $_TODAY: $line" 
+	#datelog "${FILENAME}:  $_TODAY: $line" 
+
+	# add line to successloglinestxt
 	echo "$_TODAY: $line" >> $ff
+
+	# copy succesloglinestxt to local folde, in any case, also if sshlogin is emptyr
+	dlog "cp $successloglinestxt  backup_messages_test/${file_successloglines}"
+	cp $successloglinestxt  backup_messages_test/${file_successloglines}
+
+
 	#if [ ! -z $sshlogin ] # in successlog
+	# if sshlogin is not empty, send successloglinestxt to remote Desktop
+
 	if [ ! -z $sshlogin ] 
 	then
 		ssh_port=$( func_sshport )
-		dlog "successlog : login: '${sshlogin}', host: '${sshhost}', target: '${sshtargetfolder}', port: '${ssh_port}'"
+#		dlog "successlog : login: '${sshlogin}', host: '${sshhost}', target: '${sshtargetfolder}', port: '${ssh_port}'"
 		if [ "${sshhost}" == "localhost" ] || [ "${sshhost}" == "127.0.0.1" ]
 		then
 			COMMAND="cp ${ff} ${sshtargetfolder}${file_successloglines}"
-			dlog "copy successfile to local Desktop: $COMMAND"
-			eval $COMMAND
+			dlog "copy logs to local Desktop: $COMMAND"
+			#eval $COMMAND
 			#dlog "chown $sshlogin:$sshlogin ${sshtargetfolder}$ff"
-			chown $sshlogin:$sshlogin ${sshtargetfolder}${file_successloglines}
+			COMMAND="rsync -av --delete backup_messages_test/ ${sshtargetfolder}"
+			dlog "rsync command; $COMMAND"
+			eval $COMMAND
+			dlog "chown -R $sshlogin:$sshlogin ${sshtargetfolder}"
+			chown -R $sshlogin:$sshlogin ${sshtargetfolder}
 		else
 			# is in cfg.ssh_login
 			# in 'successlog' do_ping_host 
+			# check, if host is available
+			dlog "do_ping_host ${sshlogin}@${sshhost}:${sshtargetfolder}"
 			do_ping_host ${sshlogin} ${sshhost} ${sshtargetfolder}
 			RET=$?
+#			dlog "ping, RET: $RET"
 			if [ $RET -eq  0 ]
 			then
-				COMMAND="rsync $ff -e 'ssh -p ${ssh_port}'  $sshlogin@$sshhost:${sshtargetfolder}${file_successloglines}"
-				dlog "$COMMAND"
-				eval $COMMAND
+				# copy to remote target folder
+				#COMMAND="rsync $ff -e 'ssh -p ${ssh_port}'  $sshlogin@$sshhost:${sshtargetfolder}${file_successloglines}"
+				#dlog "$COMMAND"
+				#eval $COMMAND
+				#RET=$?
+				#if [ $RET -gt 0 ]
+				#then
+				#	dlog "rsync failed, target for log messages down!  "
+				#	dlog "COMMAND:  $COMMAND"
+				#	dlog ""	
+				#fi
+				# copy message folder to remote target, with --delete 
+				dlog "rsync -av --delete -e ssh -4 -p 4194 backup_messages_test/ $sshlogin@$sshhost:${sshtargetfolder} -P"
+				rsync -av --delete -e 'ssh -4 -p 4194' backup_messages_test/ $sshlogin@$sshhost:${sshtargetfolder} -P
 				RET=$?
 				if [ $RET -gt 0 ]
 				then
-					dlog "rsync failed, target for log messages down!  "
-					dlog "COMMAND:  $COMMAND"
-					dlog ""	
+					dlog "rsync failed, target for log messages is not available  "
+					dlog "COMMAND:  rsync -av --delete -e ssh -4 -p 4194 backup_messages_test/ $sshlogin@$sshhost:${sshtargetfolder}"
+					dlog ""
+				else
+					dlog "rsync was ok"
 				fi
 			else
-				dlog "host $sshlogin@$sshhost is not up, successfile is not copied"
+				dlog "host $sshlogin@$sshhost is not up, is not copied"
 			fi
 		fi
 	fi
 
-	# copy to local folder
-	dlog "cp $ff  backup_messages_test/${file_successloglines}"
-	cp $ff  backup_messages_test/${file_successloglines}
 
 }
 function write_header(){
@@ -262,8 +294,8 @@ function write_header(){
 	# use one of the entries in header array for grep 
 	local first=${successline[0]}
 
-	#datelog "cat $successloglines | grep -v $first | wc -l "
-	local count=$( cat $successloglines | grep -v $first | wc -l )
+	#datelog "cat $successloglinestxt | grep -v $first | wc -l "
+	local count=$( cat $successloglinestxt | grep -v $first | wc -l )
 	#datelog "count: $count"
 	local divisor=20
 	local n=$(( count % divisor ))
@@ -276,7 +308,7 @@ function write_header(){
                 	txt=$( printf "%${SUCCESSLINEWIDTH}s" $_s )
 	                line1=${line1}${txt}
         	done
-	        ff=$successloglines
+	        ff=$successloglinestxt
         	_TODAY=`date +%Y%m%d-%H%M`
 	        echo "$_TODAY: $line1" >> $ff
 	fi
@@ -331,6 +363,10 @@ for _disk in $DISKLIST
 do
 	datelog ""
 	dlog "==== next disk: '$_disk' ===="
+	_FNOLD=$FILENAME
+	FILENAME="$_disk"
+	dlog ""
+	dlog ""
 	oldifs2=$IFS
 	IFS=','
 	RET=""
@@ -339,7 +375,8 @@ do
 	############################################################################
         RET=$?
 	IFS=$oldifs2
-
+	dlog ""
+	FILENAME=$_FNOLD
 	if [[ $RET = "$NOINTERVALSET" ]]
 	then
 		datelog "${FILENAME}: for one project of disk '$_disk' time interval is not set"
@@ -379,6 +416,8 @@ do
         	datelog   "${FILENAME}: '$_disk' successfully done"
 #		datelog   "${FILENAME}: cat successarraytxt: $( cat $successarraytxt )"
 		# defined in  filenames.sh
+		# successarraytxt and unsuccessarraytxt contain 
+		# shortened names, like in header in var SUCCESSLINE="c:dserver ...."
 		if test -f "$successarraytxt"
 		then
 			oldifs3=$IFS
@@ -423,9 +462,9 @@ _length_unsuccesslist=${#unsuccesslist[@]}
 
 if test "$_length_successlist" -eq "0" -a "$_length_unsuccesslist" -eq "0"  
 then
-	datelog "${FILENAME}: successarrays are empty, don't write an entry to: $successloglines"
+	datelog "${FILENAME}: successarrays are empty, don't write an entry to: $successloglinestxt"
 else
-	datelog "${FILENAME}: successarrays are not empty, write entry to: $successloglines"
+	datelog "${FILENAME}: successarrays are not empty, write success/error entry to: $successloglinestxt"
 	write_header
 	successlog  successlist[@] unsuccesslist[@] 
 fi

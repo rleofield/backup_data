@@ -70,10 +70,10 @@ if [ ! -f /etc/$rlf_backup_data_rc ]
 then
 	dlog "'/etc/$rlf_backup_data_rc' not found, exit "	
 	dlog "create file '/etc/$rlf_backup_data_rc' with used working folder"
-	dlog "Example line: WORKINGFOLDER=\"/home/rleo/bin/backup_data\"" 
+	dlog "Example line: WORKINGFOLDER=\"/home/user/bin/backup_data\"" 
 	dlog "" 
 	dlog "COMMAND:" 
-	dlog "echo \"WORKINGFOLDER=/home/rleo/bin/backup_data\" > /etc/$rlf_backup_data_rc"
+	dlog "echo \"WORKINGFOLDER=/home/user/bin/backup_data\" > /etc/$rlf_backup_data_rc"
 	exit 1
 fi
 
@@ -153,6 +153,7 @@ then
 		dlog "main_lock removed"
 	fi
 	
+	echo "$_TODAY"
 	dlog "$_TODAY"
 	dlog "sleep 10m"
 	sleep 1m
