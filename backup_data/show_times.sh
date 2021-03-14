@@ -2,7 +2,7 @@
 
 # file: show_times.sh
 
-# version 20.08.1
+# bk_version 21.05.1
 
 
 # Copyright (C) 2017 Richard Albrecht

@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # file: is_stopped.sh
-# version 20.08.1
+
+# bk_version 21.05.1
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -16,6 +17,16 @@
 # You should have received a copy of the GNU General Public License 
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------       
+
+
+# bei hs
+# WAITING=100
+# STOPPED=101
+# WAITINTERVAL=102
+# RUNNING=105  
+# FATAL=255
+
+# if [ ! $RET -eq $RUNNING  ] is ok
 
 
 
@@ -34,41 +45,73 @@ then
 fi
 
 
+# WAITING=100  
+# STOPPED=101
+
+# WAITING=100
+# STOPPED=101
+# EXECONCESTOPPED=102
+# WAITINTERVAL=103
+
+
+# only used if rsync is running
+# RUNNING=105
+
+
+
 if test -f $LOGFILE 
 then
-#        var=$(cat $LOGFILE | awk  'END {print }')
-	var=$( awk  'END { print }'  cc_log.log )
-        test="$text_ready"
-        if [[ $var = *"$test"* ]]
+	lastlogline=$( awk  'END { print }'  $LOGFILE )
+
+	# waiting, backup ready, normal waiting for next hour
+	vtest="$text_marker_waiting"
+        if [[ $lastlogline == *"$vtest"* ]]
         then
-                echo "log contains '$test' at end, exit $WAITING"
+                echo "log contains '$vtest' at end, exit 'waiting': $WAITING"
                 exit $WAITING
-        else
-                test="$text_stopped"
-                if [[ $var = *"$test"* ]]
-                then
-                        echo "log contains '$test' at end, exit $STOPPED"
-                        exit $STOPPED
-                else
-                	test="$text_interval"
-	                if [[ $var = *"$test"* ]]
-        	        then
-                	        echo "log contains '$test' at end, exit $WAITINTERVAL"
-				exit $WAITINTERVAL
-			else
-                		test="$text_waittime_end"
-		                if [[ $var = *"$test"* ]]
-        		        then
-                		        echo "log contains '$test' at end, exit $WAITEND"
-					exit $WAITEND
-				else
-		                        echo "log shows no stop marker, backup is running, exit $RUNNING"
-        		                exit $RUNNING
-				fi
-			fi
-                fi
-        fi
+	fi
+
+	# stopped, backup stopped by hand './stop.sh', 
+        vtest="$text_marker_stop"
+        if [[ $lastlogline == *"$vtest"* ]]
+        then
+		echo "log contains '$vtest' at end, exit 'stopped': $STOPPED"
+                exit $STOPPED
+	fi
+
+
+	# wait interval
+        vtest="$text_wait_interval_reached"
+        if [[ $lastlogline == *"$vtest"* ]]
+        then
+		echo "log contains '$vtest' at end, in interval waiting, exit 'waitinterval': $WAITINTERVAL"
+                exit $WAITINTERVAL
+	fi
+
+
+	# waiting error
+        vtest="$text_marker_error_in_waiting"
+        if [[ $lastlogline  = *"$vtest"* ]]
+        then
+		echo "log contains '$vtest' at end, errors in projekt, exit 'rsyncfails': $RSYNCFAILS"
+                exit $RSYNCFAILS
+	fi
+	# stop with error
+        vtest="$text_marker_error_in_stop"
+        if [[ $lastlogline  = *"$vtest"* ]]
+        then
+		echo "log contains '$vtest' at end, stopped, errors in projekt, exit 'rsyncfails': $RSYNCFAILS"
+                exit $RSYNCFAILS
+	fi
+	
+	
+	echo "log shows no stop marker, backup is running, exit 'running': $RUNNING"
+        exit $RUNNING
+			
+
+
 fi
+
 exit 0
 
 

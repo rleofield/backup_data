@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_main.sh
-# version 20.08.1
+# bk_version 21.05.1
 
 
 # Copyright (C) 2020 Richard Albrecht
@@ -19,23 +19,31 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
 
-# caller ./start_backup.sh
-#        ./bk_main.sh main loop, runs forever
+# call chain:
+# ./bk_main.sh, runs forever, <- this file 
+#	./bk_disks.sh,   all disks
+#		./bk_loop.sh	all projects in disk
+#			./bk_project.sh, one project with 1-n folder trees
+#				./bk_rsnapshot.sh,  do rsnapshot
+#				./bk_archive.sh,    no history, rsync only
 
 
 . ./cfg.working_folder
-. ./cfg.test_vars
 
+. ./src_test_vars.sh
+. ./src_filenames.sh
 . ./src_exitcodes.sh
 . ./src_log.sh
+. ./src_folders.sh
 
 
-echo "in main"
+echo " pwd $PWD"
 
+readonly iscron=$1
 
 readonly OPERATION="main"
 readonly FILENAME="$OPERATION"
-
+SECONDS=0
 tlog "start"
 
 _TODAY=`date +%Y%m%d-%H%M`
@@ -47,13 +55,24 @@ then
 	dlog ""
 	dlog "========================"
 	dlog "===  start of backup ==="
+	dlog "===  version 21.05.1 ==="
 	dlog "========================"
+
+	if [ $iscron == "cron" ]
+	then
+		dlog "------  is cron start    ------"
+	else
+		dlog "------  is manual start  ------"
+	fi
+
 	dlog ""
 	dlog "--> WORKINGFOLDER: $WORKINGFOLDER"
 else
 	dlog "WORKINGFOLDER '$WORKINGFOLDER' is wrong, stop, exit 1 "
 	exit 1
 fi
+
+
 
 
 dlog "pgrep -u $USER   bk_main.sh "
@@ -77,68 +96,220 @@ then
 fi
 
 
-# loop, until 'main_loop.sh' returns  not 0
+# empty '$internalerrorstxt'
+# do not empty in loop
+# errors must be present until solved
+dlog " == "
+dlog " == truncate -s 0 $internalerrorstxt   ==" 
+truncate -s 0 $internalerrorstxt
+dlog " == "
+
+
+dlog " ==  list test flags and variables =="
+dlog "maxfillbackupdiskpercent (90):    $maxfillbackupdiskpercent"
+dlog "no_check_disk_done (0):           $no_check_disk_done"
+dlog "check_looptimes (1):              $check_looptimes"
+dlog "execute_once (0):                 $execute_once"
+dlog "do_once_count (0):                $do_once_count"
+dlog "use_minute_loop (0):              $use_minute_loop"
+dlog "short_minute_loop (0):            $short_minute_loop"
+dlog "short_minute_loop_seconds_10 (0): $short_minute_loop_seconds_10"
+dlog "minute_loop_duration (2):         $minute_loop_duration"
+dlog "daily_rotate (1):                 $daily_rotate"
+dlog " == "
+
+# folder for rsnapshot configuration files
+folderlist="$CONFFOLDER $intervaldonefolder $retainscountfolder $rsynclogfolder $backup_messages_test $done $exclude $oldlogs $pre $retains_count"
+for ff in $folderlist
+do
+	dlog "check folder: '$ff'"
+	if  ! test -d $ff 
+	then
+		dlog "folder: '$ff' doesn't exist, exit 1"
+		dlog "===================="
+		exit 1
+	fi
+
+done
+
+
+# loop, until 'bk_disks.sh' returns  not 0
+
+do_once_counter=0
 
 while true
 do
-	# set lock
 	dlog "" 
 	counter=$( get_loopcounter )
 	runningnumber=$( printf "%05d"  $( get_loopcounter ) )
 	tlog "counter $counter"
 	dlog " ===== start main loop ($runningnumber) =====" 
-	echo "create main_lock"
+
+	# rotate log
+	# daily rotate
+	_date=$(date +%Y-%m-%d)
+	oldlogdir=oldlogs/$_date
+	if [ ! -d "$oldlogdir" ]
+	then
+		if [ $daily_rotate -eq 1 ]
+		then
+			dlog "rotate log to '$oldlogdir'"
+			mkdir "$oldlogdir"
+			mv aa_* "$oldlogdir"
+			mv rr_* "$oldlogdir"
+			mv $LOGFILE "$oldlogdir"
+			mv $ERRORLOG "$oldlogdir"
+			mv $TRACEFILE "$oldlogdir"
+			mv label_not_found.log "$oldlogdir"
+			# and create new and empty files
+			touch $LOGFILE
+			touch $ERRORLOG
+			touch $TRACEFILE
+			dlog "log rotated to '$oldlogdir'"
+#			dlog "date:  '$_date'"
+			_date01=$(date +%Y-%m-01)
+#			dlog "date01:  '$_date01'"
+			if [[ ${_date01} == ${_date} ]]
+			then
+				dlog "rotate monthly at '$_date'"
+				mv successlog.txt "$oldlogdir"
+				touch successlog.txt 
+				mv successloglines.txt "$oldlogdir"
+				touch successloglines.txt 
+				mv $rsynclogfolder "$oldlogdir"
+				if [ ! -d "$rsynclogfolder" ]
+				then
+					mkdir $rsynclogfolder
+				fi
+			fi
+		fi
+	fi
+
+	dlog ""
+	
+	# set lock
+	LOCK_DATE=`date +%Y%m%d-%H%M%S`
+	echo "$LOCK_DATE: create file 'main_lock'"
 	touch main_lock
 	echo "$runningnumber" > main_lock
-	if [ $no_check_disk_done -eq 1 ]
-	then
-		dlog "  === test mode ===, no times checked"
 
-	fi
-	if [ $do_once -eq 1 ]
-	then
-		dlog "  === test mode ===, run once and stop"
-
-	fi
-	if [ $daily_rotate -eq 1 ]
-	then
-		dlog "  === daily log rotate is on ==="
-	else	
-		dlog "  === daily log rotate is off ===, set daily_rotate in cfg.test_vars to 1"
-	fi
-	dlog ""
-	# call disks.sh to loop over all backup disks ############################################
+	# call 'bk_disks.sh' to loop over all backup disks ############################################
 	_TODAY1=`date +%Y%m%d-%H%M`
-	echo "$runningnumber, start bk_disk: $_TODAY1"
-	./bk_disks.sh 
+	dlog "$runningnumber, start 'bk_disks.sh': $_TODAY1"
+	./bk_disks.sh $iscron
 	##########################################################################################
 	RET=$?
+
+	# release lock
 	if [ -f main_lock ]
 	then
-		echo "remove main_lock"
+
+		LOCK_DATE=`date +%Y%m%d-%H%M%S`
+		echo "$LOCK_DATE: remove file 'main_lock'"
 		rm main_lock
 	fi
-
 
 	# increment counter after main_loop.sh and before exit
 	counter=$( get_loopcounter )
 	counter=$(( counter + 1 ))
+	TODAY2=`date +%Y%m%d-%H%M`
 	echo "loop counter: $counter" > loop_counter.log   
-	echo "loop counter: $counter" 
-	if [ $RET -gt 0 ] 
+	#echo "loop counter: $counter" 
+
+
+#       RET = NORMALDISKLOOPEND,  if all is ok and normal loop
+#       RET = STOPPED,            if stop ist executed by hand and execute_once = 0
+#       RET = EXECONCESTOPPED,    if stop ist executed by execute_once = 1
+
+
+	dlog "---  last return was: '$RET'"
+	dlog "---    values are: normal loop (99), manually stopped (101), run once only (102)"
+	sleep 0.5
+	
+	#  all was ok, check for next loop
+	if [ $RET -eq $NORMALDISKLOOPEND ] 
 	then
-		# STOPPED=101 in src_exitcodes.sh
-		echo "STOPPED is value 101"
-		echo "last loop counter: '$counter', RET=$RET " 
+		if [ -s $internalerrorstxt ]
+		then
+			dlog "" 
+			dlog "errors in backup loop: "
+			dlog "" 
+			dlog "errors:" 
+			dlog "$( cat $internalerrorstxt )"
+			dlog "" 
+			dlog "$text_marker_error, last loop counter: '$counter'"
+			dlog "" 
+		fi
+	fi	
+
+	# STOPPED, exit
+	if [ $RET -eq $STOPPED ]
+	then
+		if [ -s $internalerrorstxt ]
+		then
+			dlog "" 
+			dlog "--- stop was set, errors in backup: "
+			dlog "" 
+			dlog "errors:" 
+			dlog "$( cat $internalerrorstxt )" 
+			dlog "" 
+			dlog "$text_marker_error_in_stop, last loop counter: '$counter', RET=$RET "
+		else
+			dlog "$text_marker_stop, end reached, start backup again with './start_backup.sh"
+		fi
+		# normal stop via stop.sh
+		# no 'do_once_count' is set in 'src_test_vars.sh'
+		#dlog "stopped with 'stop' file"
 		tlog "end, return from bk_disks: $RET"
 		sync
 		exit 1
 	fi
-	
-	dlog "loop counter for next loop: '$counter' " 
-	tlog "next, $counter"
-        dlog "" 
-	
+
+	if [ $RET -eq $EXECONCESTOPPED ]
+	then
+		if [ -s $internalerrorstxt ]
+		then
+			dlog "" 
+			dlog "'execute_once' was set, errors in backup: "
+			dlog "" 
+			dlog "errors:" 
+			dlog "$( cat $internalerrorstxt )" 
+			dlog "" 
+			dlog "$text_marker_error, last loop counter: '$counter', RET=$RET "
+		fi
+
+
+		# check, if _'do_once_count' is set
+		if [ $do_once_count -gt 0 ]
+		then
+			# increment 'do_once_counter' and check nr of counts
+			((do_once_counter=do_once_counter+1))
+			dlog "do_once_counter = $do_once_counter"
+			if [ $do_once_counter -lt $do_once_count ]
+			then
+				# 'do_once_count' is not reached, start new loop
+				dlog "$text_marker_test_counter, count loops not reached, '$do_once_counter -lt $do_once_count' "
+				sleep 5
+			else
+				# 'do_once_count' is reached, exit
+				dlog "$text_marker_stop, end, do_once_count loops reached, '$do_once_counter -eq $do_once_count' "
+				sync
+				exit 1
+			fi
+		else
+			# 'execute_once' is set, exit
+			dlog "$text_marker_stop, end reached, 'execute_once', RET: '$RET', exit 1 "
+			tlog "end, 'execute_once', return from bk_disks: $RET"
+			sync
+			exit 1
+		fi
+	fi
+
+	# no stop set
+	dlog " ----> goto next loop  <----"
+#	tlog " ----> goto next loop  <----"
+	sleep 10
+
 done
 
 # end

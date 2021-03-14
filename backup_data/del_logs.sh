@@ -2,7 +2,8 @@
 
 
 # file: del_logs.sh
-# version 20.08.1
+
+# bk_version 21.05.1
 
 
 # Copyright (C) 2017 Richard Albrecht
@@ -21,10 +22,11 @@
 #------------------------------------------------------------------------------
 
 
-. cfg.working_folder 
-. cfg.loop_time_duration
-. cfg.target_disk_list
-. cfg.projects
+. ./cfg.working_folder 
+. ./cfg.loop_time_duration
+. ./cfg.target_disk_list
+. ./cfg.projects
+. ./src_folders.sh
 
 
 rm cc_log.log
@@ -41,7 +43,7 @@ do
 		rm aa_${lpkey}.log
 		rm rr_${lpkey}.log
 		rm retains_count/${lpkey}_*
-		rm done/${lpkey}_done.log
+		rm $donefolder/${lpkey}_done.log
 		rm interval_done/${lpkey}_done.txt
 
                 echo "--------"

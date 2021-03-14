@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: start_backup.sh
-# version 20.08.1
+# bk_version 21.05.1
 
 
 # Copyright (C) 2017 Richard Albrecht
@@ -28,14 +28,11 @@
 #				./bk_rsnapshot.sh,  do rsnapshot
 
 
-echo "name: $0"
+#echo "name: $0"
 callfilename=$(basename "$0")
 echo "name: $callfilename"
 
 
-echo ""
-echo ""
-echo ""
 echo ""
 
 
@@ -60,10 +57,10 @@ if [ ! -f /etc/$rlf_backup_data_rc ]
 then
 	echo "'/etc/$rlf_backup_data_rc' not found, exit "	
 	echo "create file '/etc/$rlf_backup_data_rc' with used working folder"
-	echo "Example line: WORKINGFOLDER=\"/home/user/bin/backup_data\"" 
+	echo "Example line: WORKINGFOLDER=\"/home/rleo/bin/backup_data\"" 
 	echo "" 
 	echo "COMMAND:" 
-	echo "echo \"WORKINGFOLDER=/home/user/bin/backup_data\" > /etc/$rlf_backup_data_rc"
+	echo "echo \"WORKINGFOLDER=/home/rleo/bin/backup_data\" > /etc/$rlf_backup_data_rc"
 	exit 1
 fi
 
@@ -87,36 +84,21 @@ fi
 
 if [ ! -d $STARTFOLDER ]
 then
-	echo "'WORKINGFOLDER'  in '/etc/rlf_backup_data.rc' not found '$STARTFOLDER', exit 1"	
+	echo "'WORKINGFOLDER' set in '/etc/rlf_backup_data.rc' not found: '$STARTFOLDER', exit 1"	
 	exit 1
 fi
 
-echo "'$STARTFOLDER' exists, change, and write new file .cfg" 
-#echo "all backupfolders have chmod 700 and owned by root, this prevents vom deleting, with user rights"
-
+echo "'$STARTFOLDER' exists, change" 
+#echo "all backupfolders have chmod 700 and owned by root, this prevents from deleting, with user rights"
 
 cd $STARTFOLDER 
-echo "write WORKINGFOLDER from '/etc/rlf_backup_data_rc' to file 'cfg.working_folder'" 
-
-# create file 'cfg.working_folder'
-echo "# WORKINGFOLDER from /etc/rlf_backup_data_rc" > cfg.working_folder
-echo "# version 20.08.1" >> cfg.working_folder
-echo "WORKINGFOLDER=$WORKINGFOLDER" >> cfg.working_folder
-echo "export WORKINGFOLDER" >> cfg.working_folder
-
-
-
-
 
 #  start 'bk_main.sh' in background and returns
 #   if 'bk_main.sh' is running, display a message and exit
-
-
 # check, if already running, look for process 'bk_main.sh'
-echo "ps aux | grep bk_main.sh | grep -v grep | wc -l "
-wc=$( ps aux | grep bk_main.sh | grep -v grep | wc -l )
-
-
+echo "ps aux | grep bk_main.sh | grep -v grep | grep -v vim | wc -l "
+wc=$( ps aux | grep bk_main.sh | grep -v grep | grep -v vim | wc -l )
+echo "wc=$wc"
 if [ $wc -gt 0  ]
 then
 	echo "count of 'bk_main.sh' in 'ps aux' is > 0 : $wc"	
@@ -125,32 +107,25 @@ then
 	exit 1
 fi
 
+echo "Backup is not running, start in '$STARTFOLDER'"
+echo "write WORKINGFOLDER, set in '/etc/rlf_backup_data_rc', to file 'cfg.working_folder'" 
+
+# create file 'cfg.working_folder'
+echo "write new file 'cfg.working_folder'"
+echo "# WORKINGFOLDER from /etc/rlf_backup_data_rc" > cfg.working_folder
+echo "# bk_version 21.05.1" >> cfg.working_folder
+echo "WORKINGFOLDER=$WORKINGFOLDER" >> cfg.working_folder
+echo "export WORKINGFOLDER" >> cfg.working_folder
 echo ""
 echo "working folder is: '$(pwd)'"
-echo ""
-
-echo "Backup is not running, start in '$STARTFOLDER'"
-
-echo ""
-
-if [ $callfilename == "cron_start_backup.sh" ]
-then
-	echo "try to remove 'main_lock'"
-	if [ -f main_lock ]
-	then
-		echo "remove main_lock"
-		rm main_lock
-	fi
-fi
+echo "start command: nohup ./bk_main.sh 'manual' > out_bk_main"
+nohup ./bk_main.sh "manual" > out_bk_main &
 
 
-echo "nohup ./bk_main.sh out_bk_main"
-nohup ./bk_main.sh > out_bk_main &
-
-
-# wait a little bit
+# wait for sync
 sync
-sleep 0.5
+sleep 0.1
+echo "started"
 
 
 exit 0

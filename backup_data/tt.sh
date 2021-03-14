@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: tt.sh
-# version 20.08.1
+# bk_version 21.05.1
 
 
 # Copyright (C) 2017 Richard Albrecht
@@ -25,3 +25,6 @@
 
 touch $LOGFILE
 tail -f $LOGFILE -n 2000
+
+# EOF
+

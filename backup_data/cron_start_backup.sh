@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # file: start_backup.sh
-# version 20.08.1
+
+# bk_version 21.05.1
 
 
 # Copyright (C) 2017 Richard Albrecht
@@ -28,36 +29,43 @@
 #				./bk_rsnapshot.sh,  do rsnapshot
 
 
-echo "name: $0"
-callfilename=$(basename "$0")
-echo "name: $callfilename"
+# -- start backup from cronjob with @boot
+# removes main_lock, if exist
+# do not start manually
 
+# create log folder in /var/lo  for cron logfiles
+if [ ! -d /var/log/cron ]
+then
+	mkdir /var/log/cron
+fi
+
+
+callfilename=$(basename "$0")
 
 LLFILE="/var/log/cron/${callfilename}.crontab"
 
+
 # param = message
-function dlog {
+function cron_dlog {
         local _TODAY=`date +%Y%m%d-%H%M`
 	local _msg="$_TODAY -- $1"
 	echo -e "$_msg" >> ${LLFILE}
 }
 
 
-dlog "start"
-dlog ""
-dlog ""
-_TODAY=`date +%Y%m%d-%H%M`
-
+cron_dlog "start"
+cron_dlog ""
+cron_dlog ""
 
 if [[ $(id -u) != 0 ]]
 then
-        dlog "we are not root, use root for backup"
+        cron_dlog "we are not root, use root for backup"
         exit
 fi
 
 if [ ! -f  /usr/bin/gawk ]
 then
-	dlog "gawk not found"
+	cron_dlog "gawk not found"
 	exit 1
 fi
 
@@ -68,12 +76,12 @@ readonly rlf_backup_data_rc="rlf_backup_data.rc"
 
 if [ ! -f /etc/$rlf_backup_data_rc ]
 then
-	dlog "'/etc/$rlf_backup_data_rc' not found, exit "	
-	dlog "create file '/etc/$rlf_backup_data_rc' with used working folder"
-	dlog "Example line: WORKINGFOLDER=\"/home/user/bin/backup_data\"" 
-	dlog "" 
-	dlog "COMMAND:" 
-	dlog "echo \"WORKINGFOLDER=/home/user/bin/backup_data\" > /etc/$rlf_backup_data_rc"
+	cron_dlog "'/etc/$rlf_backup_data_rc' not found, exit "	
+	cron_dlog "create file '/etc/$rlf_backup_data_rc' with used working folder"
+	cron_dlog "Example line: WORKINGFOLDER=\"/home/rleo/bin/backup_data\"" 
+	cron_dlog "" 
+	cron_dlog "COMMAND:" 
+	cron_dlog "echo \"WORKINGFOLDER=/home/rleo/bin/backup_data\" > /etc/$rlf_backup_data_rc"
 	exit 1
 fi
 
@@ -85,32 +93,32 @@ STARTFOLDER=$WORKINGFOLDER
 _size=${#STARTFOLDER}
 if [ $_size -eq 0 ]
 then
-	dlog "'WORKINGFOLDER'  Variable not found in '/etc/rlf_backup_data.rc'"	
-	dlog ""	
-	dlog "content of file '/etc/rlf_backup_data.rc':"	
-	dlog ""	
-	dlog "cat '/etc/$rlf_backup_data_rc'"
+	cron_dlog "'WORKINGFOLDER'  Variable not found in '/etc/rlf_backup_data.rc'"	
+	cron_dlog ""	
+	cron_dlog "content of file '/etc/rlf_backup_data.rc':"	
+	cron_dlog ""	
+	cron_dlog "cat '/etc/$rlf_backup_data_rc'"
 	cat /etc/$rlf_backup_data_rc >> ${LLFILE}
-	dlog "== end == "
+	cron_dlog "== end == "
 	exit 1
 fi
 
 if [ ! -d $STARTFOLDER ]
 then
-	dlog "'WORKINGFOLDER'  in '/etc/rlf_backup_data.rc' not found '$STARTFOLDER', exit 1"	
+	cron_dlog "'WORKINGFOLDER'  in '/etc/rlf_backup_data.rc' not found '$STARTFOLDER', exit 1"	
 	exit 1
 fi
 
-dlog "'$STARTFOLDER' exists, change, and write new file .cfg" 
+cron_dlog "'$STARTFOLDER' exists, change, and write new file .cfg" 
 #echo "all backupfolders have chmod 700 and owned by root, this prevents vom deleting, with user rights"
 
 
 cd $STARTFOLDER 
-dlog "write WORKINGFOLDER from '/etc/rlf_backup_data_rc' to file 'cfg.working_folder'" 
+cron_dlog "write WORKINGFOLDER from '/etc/rlf_backup_data_rc' to file 'cfg.working_folder'" 
 
 # create file 'cfg.working_folder'
 echo "# WORKINGFOLDER from /etc/rlf_backup_data_rc" > cfg.working_folder
-echo "# version 20.08.1" >> cfg.working_folder
+echo "# bk_version 21.05.1" >> cfg.working_folder
 echo "WORKINGFOLDER=$WORKINGFOLDER" >> cfg.working_folder
 echo "export WORKINGFOLDER" >> cfg.working_folder
 
@@ -123,45 +131,47 @@ echo "export WORKINGFOLDER" >> cfg.working_folder
 
 
 # check, if already running, look for process 'bk_main.sh'
-dlog "ps aux | grep bk_main.sh | grep -v grep | wc -l "
+cron_dlog "ps aux | grep bk_main.sh | grep -v grep | wc -l "
 wc=$( ps aux | grep bk_main.sh | grep -v grep | wc -l )
 
 
 if [ $wc -gt 0  ]
 then
-	dlog "count of 'bk_main.sh' in 'ps aux' is > 0 : $wc"	
-	dlog "Backup is running, exit"
-	dlog "==  end == "
+	cron_dlog "count of 'bk_main.sh' in 'ps aux' is > 0 : $wc"	
+	cron_dlog "Backup is running, exit"
+	cron_dlog "==  end == "
 	exit 1
 fi
 
-dlog ""
-dlog "working folder is: '$(pwd)'"
-dlog ""
+cron_dlog ""
+cron_dlog "working folder is: '$(pwd)'"
+cron_dlog ""
 
-dlog "Backup is not running, start in '$STARTFOLDER'"
+cron_dlog "in cron_start_backup.sh"
+cron_dlog "Backup is not running, start in '$STARTFOLDER'"
 
-dlog ""
+cron_dlog ""
 
 if [ $callfilename == "cron_start_backup.sh" ]
 then
-	dlog "try to remove 'main_lock'"
+	cron_dlog "try to remove 'main_lock'"
 	if [ -f main_lock ]
 	then
-		dlog "remove main_lock"
+		cron_dlog "remove main_lock"
 		rm main_lock
-		dlog "main_lock removed"
+		cron_dlog "main_lock removed"
 	fi
 	
-	echo "$_TODAY"
-	dlog "$_TODAY"
-	dlog "sleep 10m"
+	cron_dlog "$_TODAY"
+	cron_dlog "sleep 1m"
 	sleep 1m
 fi
 
 
-dlog "start main with: nohup ./bk_main.sh out_bk_main"
-nohup ./bk_main.sh > out_bk_main &
+cron_dlog "start main with: nohup ./bk_main.sh 'cron' > out_bk_main"
+
+
+nohup ./bk_main.sh "cron" > out_bk_main &
 
 
 # wait a little bit

@@ -3,7 +3,8 @@
 
 # file: show_times_disk.sh
 
-# version 20.08.1
+# bk_version 21.05.1
+
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -37,12 +38,13 @@ readonly LABEL=$1
 
 . ./src_exitcodes.sh
 . ./src_filenames.sh
+. ./src_folders.sh
 
-readonly maxLASTDATE="2019-10-01T00:00"
+readonly maxLASTDATE="2021-03-01T00:00"
 
 if [ -z $LABEL  ]
 then
-	echo 	"Usage: show_times_disk.sh disk "
+	echo 	"Usage: show_times_disk.sh disklabel "
 	exit 1
 fi
 
@@ -68,28 +70,27 @@ function errorlog {
         msg=$( echo "$_TODAY err ==> '$1'" )
         echo -e "$msg" >> $ERRORLOG
 }
-if [ -z $WORKINGFOLDER ]
-then
-        echo "WD '$WORKINGFOLDER'"
-        echo "WD is empty"
-        exit 1
-fi
-if [ ! -d $WORKINGFOLDER ] 
-then
-        echo "WD '$WORKINGFOLDER'"
-        echo "WD doesn't exist"
-        exit 1
-fi
-if [ ! $( pwd ) = $WORKINGFOLDER ]
-then
-        echo "WD '$WORKINGFOLDER'"
-        echo "WD is wrong"
-        exit 1
-fi
 
-cd $WORKINGFOLDER
+#if [ -z $WORKINGFOLDER ]
+#then
+#        echo "WD '$WORKINGFOLDER'"
+#        echo "WD is empty"
+#        exit 1
+#fi
+#if [ ! -d $WORKINGFOLDER ] 
+#then
+#        echo "WD '$WORKINGFOLDER'"
+#       echo "WD doesn't exist"
+#        exit 1
+#fi
+#if [ ! $( pwd ) = $WORKINGFOLDER ]
+#then
+#        echo "WD '$WORKINGFOLDER'"
+#        echo "WD is wrong"
+#        exit 1
+#fi
 
-
+#cd $WORKINGFOLDER
 
 
 
@@ -260,7 +261,7 @@ function check_disk_done {
         # 0 = success
         # 1 = error
         local _DONEINTERVAL=1
-        local _DONEFILE="./done/${_key}_done.log"
+        local _DONEFILE="./${donefolder}/${_key}_done.log"
         #datelog "DONEFILE: '$_DONEFILE'"
         local _LASTLINE=""
         #echo "in function check_disk_done "
@@ -334,12 +335,15 @@ minexpected=10000
 declare -A nextprojects
 nextprojekt=""
 # find projects in time		
-datelog "                           dd:hh:mm               dd:hh:mm               dd:hh:mm"
+datelog "                             dd:hh:mm               dd:hh:mm               dd:hh:mm"
 for p in $PROJEKTLABELS
 do
         lpkey=${LABEL}_${p}
+	
+#datelog "key: $lpkey"
+
         tcurrent=`date +%Y-%m-%dT%H:%M`
-        DONE_FILE="$WORKINGFOLDER/done/${lpkey}_done.log"
+        DONE_FILE="$WORKINGFOLDER/$DONE/${lpkey}_done.log"
         LASTLINE=$maxLASTDATE
         if [ -f $DONE_FILE  ]
         then
@@ -354,7 +358,7 @@ do
         # ret , 0 = do backup, 1 = interval not reached, 2 = daytime not reached
         DISKDONE=$(check_disk_done $LABEL $p )
 
-        txt=$( printf "%-12s\n"  $( echo "${p}," ) )
+        txt=$( printf "%-14s\n"  $( echo "${p}," ) )
         n0=$( printf "%5s\n"  $done_diff_minutes )
         pdiff_print=$( printf "%5s\n"  $pdiff )
         ndelta=$( printf "%6s\n"  $deltadiff )
@@ -369,6 +373,7 @@ do
         if test "$DISKDONE" -eq $DONE_REACHED
         then
                 diskdonetext="ok"
+#                datelog "check_pre_host $LABEL $p "
                 check_pre_host $LABEL $p 
 		ispre=$?
                 if test $ispre -eq 0

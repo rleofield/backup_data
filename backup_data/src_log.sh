@@ -1,5 +1,5 @@
 # file: src_log.sh
-# version 20.08.1
+# bk_version 21.05.1
 # included with 'source'
 
 
@@ -108,7 +108,7 @@ dlog() {
 		exit
 	fi
 	local _msg="${FILENAME}: $1"
-        datelog "$_msg"
+	datelog "$_msg"
 }
 
 #        get_loopcounter

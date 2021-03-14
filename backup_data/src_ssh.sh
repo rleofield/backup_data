@@ -1,5 +1,6 @@
-# file: ssh.sh
-# version 20.12.1
+
+# file: src_ssh.sh
+# bk_version 21.05.1
 # included with 'source'
 
 # Copyright (C) 2017 Richard Albrecht
@@ -75,15 +76,6 @@ function do_sshnotifysend {
 }
 
 
-#function do_rm_notify_file_for_disk {
-#	local _f=$1
-#	local p=$( func_sshport )
-#	local _temp="ssh -p $p $sshlogin@${sshhost} 'rm ${sshtargetfolder}${_f}_*'"
-#	# ssh -p 4194 xxxxxx@hhhh 'rm /home/xxxxx/Desktop/backup_messages/Backup-HD_dluks_*'
-#	eval $_temp
-#	local _RET=$?
-#	return $_RET
-#}
 
 # EOF
 

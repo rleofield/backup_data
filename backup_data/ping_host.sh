@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: ping_host
-# version 20.08.1
+# version 21.02.1
 
 
 # Copyright (C) 2017 Richard Albrecht

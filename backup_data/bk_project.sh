@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_project.sh
-# version 20.08.1
+# bk_version 21.05.1
 
 
 # Copyright (C) 2017 Richard Albrecht
@@ -20,12 +20,14 @@
 #------------------------------------------------------------------------------
 
 
-#   caller    ./bk_main.sh
-#   caller    ./bk_disks.sh,    all disks
-#   caller    ./bk_loop.sh      all projects in disk
-#             ./bk_project.sh,  one project with n folder trees
-#   calls     ./bk_archive      simple rsync 
-#   calls     ./bk_rsnapshot    rsnapshot rsync
+
+# call chain:
+# ./bk_main.sh, runs forever 
+#	./bk_disks.sh,   all disks  
+#		./bk_loop.sh	all projects in disk
+#			./bk_project.sh, one project with n folder trees,   <- this file
+#				./bk_rsnapshot.sh,  do rsnapshot
+#				./bk_archive.sh,    no history, rsync only
 
 
 # parameter:
@@ -33,9 +35,8 @@
 #   $2 = PROJECT,  Backup-Projekt auf dieser HD
 
 . ./cfg.working_folder
-. ./cfg.target_disk_list
-. ./cfg.test_vars
 
+. ./src_test_vars.sh
 . ./src_exitcodes.sh
 . ./src_global_strings.sh
 . ./src_folders.sh
@@ -60,7 +61,7 @@ tlog "start:  '$projectkey'"
 dlog ""
 dlog "== start project '$PROJECT' at disk '$DISK'  =="
 
-DONE="done"
+DONE=${donefolder}
 
 # check, if config file ends with 'arch', then we do simple backup with rsync, not with 'rsnapshot'
 readonly ARCHIVE_CONFIG=${projectkey}.arch
@@ -97,6 +98,7 @@ then
 	if test $RET -eq $RSYNCFAILS
 	then
         	dlog "error in 'bk_archive.sh': rsync to archive fails '$PROJECT'"
+		# in archive call, exit $RSYNCFAILS
 		exit $RSYNCFAILS
 	fi
 	if test $RET -eq 0 
@@ -302,16 +304,16 @@ function update_counter {
 	# e.g.: /mnt/bdisk/rs/nc/eins.0/created_at_2019-10-05T10:49_number_03767.txt
 	# loop number is at end
 	local cr_file=$( ls -1 ${RSNAPSHOT_ROOT}${_currentretain}.0/created_at_*  )
-	local _tt=""
+	local _created_time=""
 	if [ ! -z $cr_file ]
 	then
 		# get last line, is only one line in file
 		cr=$( cat ${cr_file}  )
-		# prefix_created_at="created at: ", defined in src_global_strings.sh
-		pat=${prefix_created_at}
+		# prefix_created_at="created at: "
+		pat="created at: "
 		# line is: created at: 2019-06-13T13:25, loop: 02618
-		# remove pattern 'created at: ', in _tt is '2019-06-13T13:25, loop: 02618'
-		_tt=${cr#$pat}
+		# remove prefix 'created at: ', in 'cr', remainder is '2019-06-13T13:25, loop: 02618'
+		_created_time=${cr#$pat}
 	fi
 
 	space="xxx"
@@ -338,8 +340,9 @@ function update_counter {
 		msg=$( printf "%2d of %2d"  $_counter $_max_count )
 	fi
         dlog "write reportline to '$intervaldonefolder/$intervaldonefile'"
-        dlog "reportline is:  \"echo ($msg)${space}${_currentretain} at: $_currenttime created '$_tt'\""
-        echo "($msg)${space}${_currentretain} at: $_currenttime created '$_tt'" >> $intervaldonefolder/$intervaldonefile
+	reportline=$(  echo "($msg)${space}${_currentretain} at: $_currenttime created '${_created_time}'" )
+        dlog "reportline is:  $reportline"
+        echo "$reportline" >> $intervaldonefolder/$intervaldonefile
 
 
 }
@@ -361,18 +364,37 @@ function do_rs {
 	./bk_rsnapshot.sh $_currentretain $DISK $PROJECT  
 	# #############################################################################
 	RET=$?
-
+	dlog "RET: $RET"
+	if test $RET -eq $NOFOLDERRSNAPSHOT 
+	then
+        	dlog "error: folder '$rsynclogfolder' doesn't exist"
+		exit $NOFOLDERRSNAPSHOT
+	fi
 	if test $RET -eq $NORSNAPSHOTROOT 
 	then
         	dlog "error in 'bk_rsnapshot.sh': rsnapshot root not found for '$PROJECT'"
 		exit $NORSNAPSHOTROOT
 	fi
 	# 'RSYNCFAILS=8' was set in bk_rsnapshot.sh
+	# test
+	# RET=$RSYNCFAILS
+
 	if test $RET -eq $RSYNCFAILS
 	then
+		# check for space on backup disk
+		# ${DISK}_${PROJECT}
+		dlog "check: 'No space left on device'"
+		wcgr=$( tail  -n3 rr_${DISK}_${PROJECT}.log | grep "No space left on device" | wc -l )
+		dlog "wcgr: $wcgr"
+		if [ $wcgr -gt 0 ]
+		then
+        		dlog "error in 'bk_rsnapshot.sh':  'No space left on device', '$PROJECT'"
+			exit $DISKFULL
+		fi	
         	dlog "error in 'bk_rsnapshot.sh': rsync fails '$PROJECT'"
 		exit $RSYNCFAILS
 	fi
+
 	return $RET
 
 }
@@ -407,7 +429,7 @@ function do_rs_123 {
 
 function do_rs_first {
 	local _index=0
-       	dlog " in do_rs_first '$PROJECT' "
+	dlog " in do_rs_first '$PROJECT' "
 	##########  do rs #############################################################    
 	do_rs $_index
 	# #############################################################################
@@ -415,14 +437,15 @@ function do_rs_first {
 	if test $RET -eq 0
 	then
 		# first was ok, update counter
-	       	dlog "sync '$PROJECT' done"
-        	# increment index 0 counter
+		dlog "sync '$PROJECT' done"
+		# increment index 0 counter
 		# counter file doesn't exist ??
 		update_counter $_index
 		# main done is written here
+		# write _done.log
 		local _currenttime=`date +%Y-%m-%dT%H:%M`
 		echo "$_currenttime" > ./${DONE}/${projectkey}_done.log
-		dlog "write last date: '$_currenttime' to ./done/${projectkey}_done.log"
+		dlog "write last date: '$_currenttime' to ./${donefolder}/${projectkey}_done.log"
 
 	fi
 	local _counter=$( entries_keeped $_index ) 
@@ -473,7 +496,7 @@ then
 	m=$(( max_count )) 
 	if test $counter -ge  $m
 	then
- 		# do index 2 = third level
+		# do index 2 = third level
 		index=2
 		dlog "counter: $counter -ge  $max_count index: $index, root: $RSNAPSHOT_ROOT"
 		tlog "do third"
@@ -483,10 +506,10 @@ then
 		counter=$( entries_keeped $index )
 		max_count=${retainscount[$index]}
 
-        	# if index 2 counter >= max, do index 3
+		# if index 2 counter >= max, do index 3
 		m=$(( max_count )) 
-	        if test $counter -ge  $m
-        	then
+		if test $counter -ge  $m
+		then
 	                # do index 3 = fourth level
 			index=3
 			dlog "counter: $counter -ge  $max_count index: $index, root: $RSNAPSHOT_ROOT"
@@ -500,7 +523,7 @@ then
 			max_count=${retainscount[$index]}
 
 			# last, no more loops
-	               	# if index 3 counter >= max, do nothing more
+			# if index 3 counter >= max, do nothing more
 			# too much levels, don't shift to next level, last level 
 			m=$(( max_count )) 
 			
@@ -509,14 +532,14 @@ then
 			then
 				# fourth level is at end, counter reached
 				#  remove counterfile for third level, if ok
-                                # nothing do, no rotate, only counter control
+				# nothing do, no rotate, only counter control
 
-		                # do index 4
+				# do index 4
 				# oldindex 3
 				index=4 # 1 after last
 
 				dlog "counter: $counter -gt  $max_count index: $index, root: $RSNAPSHOT_ROOT"
-	        		#_oldfile=${retain_count_files[$oldindex]}
+				#_oldfile=${retain_count_files[$oldindex]}
 				#oldretain=${retains[$oldindex]}
 				dlog ""
 				dlog "(in index 4) do no rotate: '$PROJECT' at disk '$DISK'"
@@ -551,4 +574,5 @@ dlog ""
 
 
 
+# EOF
 

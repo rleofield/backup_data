@@ -1,6 +1,6 @@
 
 # file exitcodes.sh 
-# version 20.08.1
+# bk_version 21.05.1
 # included with 'source'
 
 # Copyright (C) 2017 Richard Albrecht
@@ -17,23 +17,47 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
+#
+
+
+# call chain:
+# ./bk_main.sh, runs forever
+#       ./bk_disks.sh,   all disks,  <- this file
+#               ./bk_loop.sh    all projects in disk
+#                       ./bk_project.sh, one project with 1-n folder trees
+#                               ./bk_rsnapshot.sh,  do rsnapshot
+#                               ./bk_archive.sh,    no history, rsync only
+
+
+# used in bk_disks.sh
+# ARRAYSNOK             1
+# DISKLABELNOTFOUND     3
+# DISKNOTUNMOUNTED      4
+# MOUNTDIRTNOTEXIST     5
+# DISKNOTMOUNTED        7
+# RSYNCFAILS            8
+# NOINTERVALSET         9
 
 
 
 SUCCESS=0
 
-# used in disk.sh, at start
-# not evaluated
-ARRAYSNOK=1
+# used in bk_projects.sh, line 91 
+#   after check of existence of 'a_properties', 'a_projects', 'a_interval' in cfg.projects
+#   reason: one of the arrays is wrong
+ARRAYSNOK=1  # exit, but checked in 'bk_disks.sh'
 
+# not used
+# MEDIAMOUNT  couldn_t_unmounted=1
 
-# used in disk.sh, at line  560
-# not evaluated
-MEDIAMOUNTcouldn_t_unmounted=1
-
-# used in disk.sh, evaluated in main_loop,  
+# used in 'bk_loop.sh', line 441, 
+#   exit and checked  in 'bk_disks.sh'
+#   reason: disk not found in '/dev/disk/by-uuid'
+#     after if [[ $goodlink -eq 0 ]]
 DISKLABELNOTFOUND=3
-# evaluated in main_loop.sh,but not set
+
+# evaluated in main_loop.sh,but not set 
+# set in bk_loop.sh
 DISKNOTUNMOUNTED=4
 MOUNTDIRTNOTEXIST=5
 TIMELIMITNOTREACHED=6
@@ -50,31 +74,87 @@ RSYNCFAILS=8
 # used in bk_project.sh
 NOINTERVALSET=9
 
-# no rsnapshotroot = NORSNAPSHOTROOT=12
-# evaluatesd in bk_project.sh, set again in bk_project.sh
+# no rsnapshotroot 
+# evaluated in bk_project.sh, set again in bk_project.sh
 NORSNAPSHOTROOT=12
+
+# set, when rsync finds disk is full
+DISKFULL=13
+
+# no folder 'rsnapshot' in working dir
+NOFOLDERRSNAPSHOT=14
+
+# normal loop, end disks loop
+NORMALDISKLOOPEND=99
+
+
+FATAL=255
 
 
 # in is_stopped.sh only
-WAITING=100
-WAITINTERVAL=102
-WAITEND=104
-RUNNING=105
 
-
+WAITING=100  # used in is_stopped
 # in is_stopped.sh and main_loop.sh
 STOPPED=101
+EXECONCESTOPPED=102
+
+WAITINTERVAL=103 
+WAITEND=104
+
+# only used is RUNNING
+RUNNING=105
 
 # only in project.sh, at not used place
 ERRORINCOUNTERS=106
 
-# in is_stopped.sh and main_loop.sh
-readonly text_ready="waiting, backup ready"
-readonly text_stopped="backup stopped"
-readonly text_stop_exit="backup exits with error"
-readonly text_interval="wait interval reached"
-readonly text_waittime_end="waittime end"
+
+
 readonly text_marker="--- marker ---"
 
+readonly text_backup_stopped="backup stopped"  # used in 'check_stop' in 'bk_disks.sh'
+readonly text_stop_exit="backup exits with error"  # used 'stop_exit' in 'bk_disks.sh'
 
+	# used in 'bk_disks', 522, 538, if loop is in wait interval, calls 'check_stop wait interval loop' if in interval
+	# used in is_stopped.sh, exit $WAITINTERVAL=102
+readonly text_wait_interval_reached="wait interval reached"  
+
+	# used in 'bk_disks', 5508, only shirt info aboute end if interval in log, no stop
+readonly text_waittime_end="waittime end"  # used in 'bk_disks.sh', 550, after wait time loop
+
+	# used in 'bk_disks.sh', 570, after end of main loop
+	# used in 'is_stopped.sh', 58, exit $WAITING=100 
+readonly text_marker_waiting="--- marker waiting ---"
+
+
+	# used in bk_main.sh:191:     '$do_once_counter = $do_once_count' 
+	# used in bk_main.sh:227:     dlog "$text_marker_stop, end reached, start backup again with './start_backup.sh"
+	# used in bk_main.sh:237: test only,  dlog "$text_marker_stop, end reached, execute_once "
+	# used in is_stopped.sh:62:   vtest="$text_marker_stop", exit STOPPED=101
+readonly text_marker_stop="--- marker stopped ---"
+
+
+	# used ins bk_main, 216, after $internalerrorstxt length is not 0, shows internal errors (rsync, rsnapshot)
+	# used in is_stopped.sh   exit FATAL=255
+readonly text_marker_error="--- marker end, error ---"
+readonly text_marker_error_in_waiting="--- marker waiting, error ---"
+readonly text_marker_error_in_stop="--- marker stop, error ---"
+
+	# used in loop, if $do_once_counter -gt 0 and $do_once_counter is not reached
+	# not used in is_stopped.sh
+readonly text_marker_test_counter="--- test with counter is running ---"
+
+
+readonly text_marker_end="--- marker end ---" # not used
+
+
+# all 
+# NORMALDISKLOOPEND=99
+# WAITING=100
+# STOPPED=101
+# EXECONCESTOPPED=102
+# WAITINTERVAL=103
+# WAITEND=104
+# RUNNING=105
+# ERRORINCOUNTERS=106
+# FATAL=255
 

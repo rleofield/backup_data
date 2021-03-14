@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: test.sh
-# version 20.08.1
+# bk_version 21.05.1
 
 
 # Copyright (C) 2017 Richard Albrecht
@@ -24,6 +24,7 @@
 . ./cfg.loop_time_duration
 . ./cfg.target_disk_list
 . ./cfg.projects
+. ./src_folders.sh
 
 errlog="test_errors.log"
   
@@ -38,13 +39,10 @@ fi
 
 
 
-function datelog {
-	local _TODAY
-	_TODAY=$(date +%Y%m%d-%H%M)
-        local _msg="$_TODAY --» $1"
-        echo -e "count $#,    $_msg" 
-}
 
+dlog(){
+        echo "$RSNAPSHOT -->  $1"
+}
 
 
 
@@ -60,49 +58,53 @@ do
 	echo "  ===  projects: '$PROJEKTLABELS' ==="
 	for p in $PROJEKTLABELS
 	do
-		echo "       check project '$p' in disk: '$_disk'  "
         	lpkey=${_disk}_${p}
+		RSNAPSHOT=$lpkey
+		dlog "       check project '$p' in disk: '$_disk'  "
 		RSNAPSHOT_CONFIG=${lpkey}.conf
-		echo "try with .conf:  $RSNAPSHOT_CONFIG"
+		dlog "try with .conf:  $RSNAPSHOT_CONFIG"
 		if test -f "./conf/$RSNAPSHOT_CONFIG" 
 		then
-			echo "       try rsnapshot -c conf/$lpkey.conf configtest"
+			dlog "       try rsnapshot -c conf/$lpkey.conf configtest"
 			DO_RSYNC=$(cat ./conf/${RSNAPSHOT_CONFIG} | grep ^snapshot_root | grep -v '#' | wc -l)
 			if [ $DO_RSYNC -eq 1 ]
 			then
 				RS=$( rsnapshot -c ./conf/${lpkey}.conf configtest )
-				echo "       $RS"
+				dlog "       $RS"
 			fi
 			if [ $DO_RSYNC -eq 0 ]
 			then
 				rsnapshot -c conf/${lpkey}.conf configtest
 			fi
-			echo "--------"
+			dlog "--------"
 		fi
 		
 		RSNAPSHOT_CONFIG=${lpkey}.arch
-		echo "try with .arch:  $RSNAPSHOT_CONFIG"
+		dlog "try with .arch:  $RSNAPSHOT_CONFIG"
 
 		if test -f "./conf/$RSNAPSHOT_CONFIG"
 		then
-			echo "        is arch: ${RSNAPSHOT_CONFIG}"
+				dlog "        is arch: ${RSNAPSHOT_CONFIG}"
+			else
+				dlog "        no arch: ${RSNAPSHOT_CONFIG}"
+
 		fi
 
 
-		echo ""
-		echo "pre/$lpkey.pre.sh" 
+		dlog "check reachability"
+		dlog "  pre/$lpkey.pre.sh" 
 		pre/${lpkey}.pre.sh
 		RET=$?
 		if [ $RET -eq 0 ]
 		then 
-			echo "ok"
+			dlog "  ok"
 		else 
-			echo "not reached" 
+			dlog "  not reached" 
 		fi
 	done
 done
 
-echo "==================="
+dlog "==================="
 echo ""
 
 

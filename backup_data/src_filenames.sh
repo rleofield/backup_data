@@ -1,5 +1,5 @@
 # file: filenames.sh
-# version 20.08.1
+# bk_version 21.05.1
 # included with 'source'
 
 
@@ -23,8 +23,14 @@
 # text file for success and unsuccess
 successarraytxt="successarray.txt"
 unsuccessarraytxt="unsuccessarray.txt"
+internalerrorstxt="internalerrors.txt"
+
+readonly notifybasefile="Backup-HD"
+
+
 
 # now in bk_disks.sh
 #successloglinestxt="successloglines.txt"
+executedprojects="executedprojects.txt"
 
 

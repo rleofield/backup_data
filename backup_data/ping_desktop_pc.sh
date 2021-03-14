@@ -1,6 +1,7 @@
-# file: global_strings.sh
+#!/bin/bash
+
+# file: ping_host
 # bk_version 21.05.1
-# included with 'source'
 
 
 # Copyright (C) 2017 Richard Albrecht
@@ -19,9 +20,33 @@
 #------------------------------------------------------------------------------
 
 
-# prefix for created 'at text' in file created at after rsync success
-#readonly prefix_created_at="created at: "
 
+. ./src_log.sh
+. ./src_ssh.sh
+
+FILENAME="ping"
+
+if [ ${sshhost} = "localhost" ]
+then
+	echo "is localhost"
+	exit
+fi
+if [ ${sshhost} = "127.0.0.1" ]
+then
+	echo "is 127.0.0.1"
+	exit
+fi
+
+p=$( func_sshport )
+echo "do_ping_host, login: ${sshlogin}, host: ${sshhost}, folder: ${sshtargetfolder} ${p}"
+do_ping_host ${sshlogin} ${sshhost} ${sshtargetfolder} ${sshport}
+RET=$?
+if [ $RET -eq 0 ]
+then
+	echo "ok"
+else
+	echo "nok"
+fi
 
 
 

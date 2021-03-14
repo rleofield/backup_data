@@ -1,6 +1,7 @@
-# file: global_strings.sh
+# file: src_pl_log_disks.sh
 # bk_version 21.05.1
 # included with 'source'
+
 
 
 # Copyright (C) 2017 Richard Albrecht
@@ -19,9 +20,11 @@
 #------------------------------------------------------------------------------
 
 
-# prefix for created 'at text' in file created at after rsync success
-#readonly prefix_created_at="created at: "
 
+####### host part #######
 
+# log connected disks to 'list_disks_log.log'·
+# use, if needed, PL only
+#./show_disks.sh
 
-
+####### host part #######

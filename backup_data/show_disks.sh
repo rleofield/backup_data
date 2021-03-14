@@ -3,7 +3,7 @@
 
 # file: show_disks.sh
 
-# version 20.08.1
+# bk_version 21.05.1
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -115,6 +115,7 @@ tail  list_disks_log.log -n 12
 exit 0
 
 
+# EOF
 
 
 

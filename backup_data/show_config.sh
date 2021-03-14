@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: show_config.sh
-# version 20.08.1
+# bk_version 21.05.1
 
 
 # Copyright (C) 2017 Richard Albrecht
@@ -22,6 +22,7 @@
 # 
 
 . ./cfg.working_folder
+. ./cfg.target_disk_list
 . ./cfg.projects
 
 
@@ -113,10 +114,21 @@ function encode_diff {
         echo "$ret"
 }
 
-RSNAPSHOTS="${!a_interval[*]}"
+#projects=""
 
+function do_label {
+	local _disk=$1
+#	echo "disk: $_disk"
+	local PROJEKTLABELS=${a_projects[$_disk]}
+	for p in $PROJEKTLABELS
+	do
+#		echo "p: ${_disk}_$p"
+		projects+=(${_disk}_$p)
 
-echo "$RSNAPSHOTS"
+	done
+
+}
+
 
 WORKINGDIR=$WORKINGFOLDER
 
@@ -125,36 +137,52 @@ cd  ${WORKINGDIR}
 CONFFOLDER="${WORKINGDIR}/conf"
 
 
-for RSNAPSHOT in ${RSNAPSHOTS}
+for _disk in $DISKLIST
+do
+#	echo "disk: $_disk"
+	do_label $_disk
+done
+
+echo "${projects[@]}"
+
+
+dlog(){
+	echo "$RSNAPSHOT -->  $1"
+}
+
+for RSNAPSHOT in ${projects[@]}
 do
 
 
 
-	#echo "retainslist= cat ${CONFFOLDER}/${RSNAPSHOT}.conf "
+#	echo "retainslist= cat ${CONFFOLDER}/${RSNAPSHOT}.conf "
 	if [ -f ${CONFFOLDER}/${RSNAPSHOT}.conf ]
 	then
 		retainslist=$( cat ${CONFFOLDER}/${RSNAPSHOT}.conf | grep ^retain )
+		backupslist=$( cat ${CONFFOLDER}/${RSNAPSHOT}.conf | grep ^backup )
 		#echo "$retainslist"
 		OIFS=$IFS
 IFS='
 '
 		lines=($retainslist)
+		backups=($backupslist)
 		declare -A retainscount
 		declare -A retains
 
 
 		echo ""
-		echo "======"
-		echo "Project: $RSNAPSHOT"
+		echo ""
+		dlog "Project: == $RSNAPSHOT =="
 		cfg="$CONFFOLDER/${RSNAPSHOT}.conf"
 		#RSNAPSHOT_ROOT=$(cat ${cfg} | grep ^snapshot_root | awk '{print $2}')
 		RSNAPSHOT_ROOT=$(awk  '/^snapshot_root/&&!/^'#'/  {print $2}' ${cfg})
 
 
-		echo "root folder: $RSNAPSHOT_ROOT"
+		dlog "root folder: $RSNAPSHOT_ROOT"
 		# 0 = keyword 'retain', 1 = level= e.g. eins,zwei,drei, 2 = count
 		n=0
 		IFS=$OIFS
+		ncount=0
 		for i in "${lines[@]}"
 		do
 			# split to array with ()
@@ -164,33 +192,53 @@ IFS='
 			retains[$n]=${_line[1]}
 			(( n++ ))
 		done
-		echo "-----------------"
+#		echo "n: $n"
+		#if [ $n -ne 4 ]
+		#then
+	#		exit 1
+	#	fi
+		dlog "-----------------"
 		pdiff=$( decode_pdiff ${RSNAPSHOT})
-		echo "retain 0 (${retains[0]}), ${retainscount[0]} mal alle dd:hh:mm: $(encode_diff $pdiff)"
-		rr=$(( pdiff * retainscount[0] ))
-		echo "retain 1 (${retains[1]}), ${retainscount[1]} mal alle dd:hh:mm: $( encode_diff $rr)"
-		rr=$(( rr * retainscount[1] ))
-		echo "retain 2 (${retains[2]}), ${retainscount[2]} mal alle dd:hh:mm: $( encode_diff $rr)"
-		rr=$(( rr * retainscount[2] ))
-		echo "retain 3 (${retains[3]}), ${retainscount[3]} mal alle dd:hh:mm: $( encode_diff $rr)"
-		rr=$(( rr * retainscount[3] ))
-		echo "letzte kopie nach:        dd:hh:mm         $( encode_diff $rr)"
-		echo "-----------------"
+		ncount=$(( retainscount[0] )) 
 
-		cat ${cfg} | grep ^retain 
-		cat ${cfg} | grep ^logfile 
-		cat ${cfg} | grep ^rsync_short_args 
-		cat ${cfg} | grep ^rsync_long_args 
-		cat ${cfg} | grep ^exclude_file 
-		cat ${cfg} | grep ^ssh_args 
-		cat ${cfg} | grep ^backup 
-		echo "======"
+
+		t=$( printf "%3d"  $ncount )
+		dlog "retain 0 = ${retainscount[0]} times, every $(encode_diff $pdiff), total $( printf "%3d"  $ncount )"
+		rr=$(( pdiff * retainscount[0] ))
+		ncount=$(( ncount * retainscount[1] )) 
+		dlog "retain 1 = ${retainscount[1]} times, every $( encode_diff $rr), total $( printf "%3d"  $ncount )"
+		rr=$(( rr * retainscount[1] ))
+		ncount=$(( ncount * retainscount[2] )) 
+		dlog "retain 2 = ${retainscount[2]} times, every $( encode_diff $rr), total $( printf "%3d"  $ncount )"
+		rr=$(( rr * retainscount[2] ))
+		ncount=$(( ncount * retainscount[3] )) 
+		dlog "retain 3 = ${retainscount[3]} times, every $( encode_diff $rr), total $( printf "%3d"  $ncount )"
+		rr=$(( rr * retainscount[3] ))
+		dlog "         last copy after: $( encode_diff $rr)"
+		dlog "-----------------"
+
+#		retainslist=$( cat ${cfg} | grep ^retain )
+#		lines=($retainslist)
+		for i in "${lines[@]}"
+		do
+			dlog "$i"
+		done
+		dlog "$( cat ${cfg} | grep ^logfile )" 
+		dlog "$( cat ${cfg} | grep ^rsync_short_args )"
+		dlog "$( cat ${cfg} | grep ^rsync_long_args )"
+		dlog "$( cat ${cfg} | grep ^exclude_file )"
+		dlog "$( cat ${cfg} | grep ^ssh_args )"
+		for i in "${backups[@]}"
+		do
+			dlog "$i"
+		done
+		dlog "======"
 	else
-		echo ""
-		echo "======"
-		echo "Project: $RSNAPSHOT"
-		echo "${RSNAPSHOT}.conf does not exist, is archive?"
-		echo "======"
+		dlog ""
+		dlog "======"
+		dlog "Project: $RSNAPSHOT"
+		dlog "${RSNAPSHOT}.conf does not exist, is archive?"
+		dlog "======"
 
 	fi
 		

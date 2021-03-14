@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # file: bk_rsnapshot.sh
-# version 20.08.1
+
+# bk_version 21.05.1
 
 
 # Copyright (C) 2017 Richard Albrecht
@@ -20,11 +21,13 @@
 #------------------------------------------------------------------------------
 
 
-#   caller    ./bk_main.sh
-#   caller    ./bk_disks.sh,      all disks
-#   caller    ./bk_loop.sh        all projects in disk
-#   caller    ./bk_project.sh,    one project with 1-n folder trees
-#             ./bk_rsnapshot.sh,  do rsnapshot with rsync
+# call chain:
+# ./bk_main.sh, runs forever 
+#	./bk_disks.sh,   all disks  
+#		./bk_loop.sh	all projects in disk
+#			./bk_project.sh, one project with n folder trees,   
+#				./bk_rsnapshot.sh,  do rsnapshot   <- this file
+#				./bk_archive.sh,    no history, rsync only
 
 
 . ./cfg.working_folder
@@ -58,16 +61,7 @@ readonly projectkey=${DISK}_${PROJECT}
 tlog "start: $projectkey"
 
 
-#readonly TODAY_LOG=`date +%Y-%m-%dT%H:%M:%S`
 TODAY_LOG=`date +%Y-%m-%dT%H:%M`
-RSYNCLOG=""
-
-
-
-
-function rsynclog {
-  echo "$1" >> $RSYNCLOG
-}
 
 
 dlog "== start bk_rsnapshot.sh =="
@@ -89,9 +83,13 @@ rs_exitcode=0
 readonly RSNAPSHOT_CFG=${projectkey}
 readonly cfg_file=./${CONFFOLDER}/${RSNAPSHOT_CFG}.conf
 readonly RSNAPSHOT_ROOT=$(cat ${cfg_file} | grep snapshot_root | grep -v '#' | awk '{print $2}')
-readonly RSYNCLOG="rsynclog/${RSNAPSHOT_CFG}.log"
+readonly RSYNCLOGFILE="$rsynclogfolder/${RSNAPSHOT_CFG}.log"
 
-
+if test ! -d $rsynclogfolder
+then
+       	dlog "folder '$rsynclogfolder' doesn't exist" 
+	exit $NOFOLDERRSNAPSHOT
+fi
 
 if test ! -d $RSNAPSHOT_ROOT 
 then
@@ -99,6 +97,16 @@ then
         dlog "give up, also don't do remaining rsnapshots"
 	exit $NORSNAPSHOTROOT
 fi
+
+
+function write_rsynclog {
+	if [ -d $rsynclogfolder ]
+	then
+		echo "$1" >> $RSYNCLOGFILE
+	else
+		dlog "'rsynclog' doesn't exist, can't write: '$1' to '$RSYNCLOGFILE'"
+	fi
+}
 
 
 
@@ -112,7 +120,7 @@ then
 	# get first interval line, second entry is name of interval, eins, zwei or first second ...
 	FIRST_INTERVAL=$(cat ${cfg_file} | grep ^retain | awk 'NR==1'| awk '{print $2}')
 	
-	rsynclog "${FILENAME}: -----------  first is: ${FIRST_INTERVAL}, interval: ${INTERVAL}"
+	write_rsynclog "${FILENAME}: -----------  first is: ${FIRST_INTERVAL}, interval: ${INTERVAL}"
 
 	# lookup sync_first entry
 	WC=$(cat ${cfg_file} | grep ^sync_first |  wc -l)
@@ -130,10 +138,13 @@ then
 			dlog "==> first interval with run sync   : /usr/bin/rsnapshot -c ${cfg_file} sync"
 			tlog "rsync"
 			TODAY_RSYNC_START=`date +%Y%m%d-%H%M`
-			rsynclog "${FILENAME}: start sync -- $TODAY_RSYNC_START" 
+			write_rsynclog "${FILENAME}: start sync -- $TODAY_RSYNC_START" 
 			########### rsnapshot call, sync ######################
-			/usr/bin/rsnapshot -c ${cfg_file} sync >> ${RSYNCLOG}
+			/usr/bin/rsnapshot -c ${cfg_file} sync >> ${RSYNCLOGFILE}
 			RETSYNC=$?
+			#	0 All operations completed successfully
+			#	1 A fatal error occurred
+			#	2 Some warnings occurred, but the backup still finished
 			
 			TODAY_LOG=`date +%Y-%m-%dT%H:%M`
 			dlog "return from rsnapshot: '$RETSYNC'"
@@ -149,9 +160,10 @@ then
 				dlog "created at file is: '$RSNAPSHOT_ROOT.sync/created_at_${TODAY_LOG}_number_$runningnumber.txt'"
 				dlog "write to file: 'created at: ${TODAY_LOG} , loop: $runningnumber'"
 				# write control message to .sync
-				echo "${prefix_created_at}${TODAY_LOG}, loop: $runningnumber" > $RSNAPSHOT_ROOT.sync/created_at_${TODAY_LOG}_number_$runningnumber.txt
+				echo "created at: ${TODAY_LOG}, loop: $runningnumber" > $RSNAPSHOT_ROOT.sync/created_at_${TODAY_LOG}_number_$runningnumber.txt
+				#     'created at: '
 			fi	
-			rsynclog "${FILENAME}: end   sync -- $TODAY_RSYNC_END"
+			write_rsynclog "${FILENAME}: end   sync -- $TODAY_RSYNC_END"
 		fi
 	fi
 	# sync is done or we have a simple rotate
@@ -159,27 +171,36 @@ then
 	
 	#rs_exitcode=$RSYNCFAILS
 
-        #RETSYNC=1 
+        # RETSYNC > 0  is error 
         if test $RETSYNC -eq 0 
         then
                	datelog "${FILENAME}: ==> run rotate: /usr/bin/rsnapshot -c ${cfg_file} ${INTERVAL}"
                 TODAY_RSYNC2_START=`date +%Y%m%d-%H%M`
-                #rsynclog "rotate starts at ${INTERVAL} -- $TODAY_RSYNC_START"
-                rsynclog "${FILENAME}: start ${INTERVAL} -- $TODAY_RSYNC2_START"
+                #write_rsynclog "rotate starts at ${INTERVAL} -- $TODAY_RSYNC_START"
+                write_rsynclog "${FILENAME}: start ${INTERVAL} -- $TODAY_RSYNC2_START"
 		tlog "rotate: ${INTERVAL}"
 		RETROTATE=1
 		########### rsnapshot call, rotate ######################
-   		/usr/bin/rsnapshot -c ${cfg_file} ${INTERVAL} >> ${RSYNCLOG}
+   		/usr/bin/rsnapshot -c ${cfg_file} ${INTERVAL} >> ${RSYNCLOGFILE}
 	        RETROTATE=$?
                 #datelog "${FILENAME}: rotate return: $RETROTATE"
                 TODAY_RSYNC2_END=`date +%Y%m%d-%H%M`
-                rsynclog "${FILENAME}: end   ${INTERVAL} -- $TODAY_RSYNC2_END"
+                write_rsynclog "${FILENAME}: end   ${INTERVAL} -- $TODAY_RSYNC2_END"
                 if test $RETROTATE -ne 0 
                 then
-       			datelog "${FILENAME}: ==> error in rsnapshop, in '${cfg_file}' "
+			datelog "${FILENAME}: ==> error in rsnapshop, in '${cfg_file}' "
+		else
+			zero_interval_folder=$( echo "${RSNAPSHOT_ROOT}${INTERVAL}.0" )
+			dlog "interval.0 folder: ${zero_interval_folder} check"
+			if test -d ${zero_interval_folder} 
+			then
+				dlog "interval.0 folder: ${zero_interval_folder} exists"
+				TODAY_LOG1=`date +%Y-%m-%dT%H:%M`
+				echo "created in ${INTERVAL}, at ${TODAY_LOG1}. loop: $runningnumber" > ${zero_interval_folder}/created_in_${INTERVAL}_at_${TODAY_LOG1}_number_$runningnumber.txt
+			fi
                 fi
        	else
-               	datelog "${FILENAME}: ==> return in sync first was not ok, in '${cfg_file}' "
+               	datelog "${FILENAME}: ==> return in sync first wasn't ok, check disk or config in  '${cfg_file}' "
         fi
 		
 else
@@ -193,9 +214,30 @@ tlog "end, code: $rs_exitcode"
 
 exit $rs_exitcode
 
+# rsync errors
+#       0      Success
+#       1      Syntax or usage error
+#       2      Protocol incompatibility
+#       3      Errors selecting input/output files, dirs
+#       4      Requested  action not supported: an attempt was made to manipulate 64-bit files on a platform 
+#              that cannot support them; or an option was specified that is supported by the client and not by the server.
+#       5      Error starting client-server protocol
+#       6      Daemon unable to append to log-file
+#       10     Error in socket I/O
+#       11     Error in file I/O
+#       12     Error in rsync protocol data stream
+#       13     Errors with program diagnostics
+#       14     Error in IPC code
+#       20     Received SIGUSR1 or SIGINT
+#       21     Some error returned by waitpid()
+#       22     Error allocating core memory buffers
+#       23     Partial transfer due to error
+#       24     Partial transfer due to vanished source files
+#       25     The --max-delete limit stopped deletions
+#       30     Timeout in data send/receive
+#       35     Timeout waiting for daemon connection
 
-
-
+# EOF
 
 
 

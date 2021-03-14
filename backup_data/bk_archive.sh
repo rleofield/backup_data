@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_archive.sh
-# version 20.08.1
+# bk_version 21.05.1
 
 
 
@@ -21,11 +21,13 @@
 #------------------------------------------------------------------------------
 
 
-#   caller    ./bk_main.sh
-#   caller    ./bk_disks.sh,      all disks
-#   caller    ./bk_loop.sh        all projects in disk
-#   caller    ./bk_project.sh,    one project with 1-n folder trees
-#             ./bk_archive.sh,    do rsync 
+# call chain:
+# ./bk_main.sh, runs forever 
+#	./bk_disks.sh,   all disks  
+#		./bk_loop.sh	all projects in disk
+#			./bk_project.sh, one project with n folder trees,   
+#				./bk_rsnapshot.sh,  do rsnapshot   
+#				./bk_archive.sh,    no history, rsync only,  <- this file
 
 . ./cfg.working_folder
 
@@ -53,7 +55,6 @@ tlog "start: $projectkey"
 
 #readonly TODAY_LOG=`date +%Y-%m-%dT%H:%M:%S`
 TODAY_LOG=`date +%Y-%m-%dT%H:%M`
-RSYNCLOG=""
 
 
 dlog "== start bk_archive.sh =="
@@ -169,11 +170,12 @@ done
 runningnumber=$( printf "%05d"  $( get_loopcounter ) )
 
 TODAY_LOG=`date +%Y-%m-%dT%H:%M`
+
 if test $_ok -eq 0 
 then
-	echo "${prefix_created_at}${TODAY_LOG}, loop: $runningnumber" > $ARCHIVE_ROOT/${projectkey}_created_at_${TODAY_LOG}_number_$runningnumber.txt
+	echo "created at: ${TODAY_LOG}, loop: $runningnumber" > $ARCHIVE_ROOT/${projectkey}_created_at_${TODAY_LOG}_number_$runningnumber.txt
 else
-	echo "${prefix_created_at}${TODAY_LOG}, loop: $runningnumber, errors in rsync, see log" > $ARCHIVE_ROOT/${projectkey}_created_at_${TODAY_LOG}_number_${runningnumber}_with_errors.txt
+	echo "created_at: ${TODAY_LOG}, loop: $runningnumber, errors in rsync, see log" > $ARCHIVE_ROOT/${projectkey}_created_at_${TODAY_LOG}_number_${runningnumber}_with_errors.txt
 	dlog "bk_archive.sh ends with errors, see '${wf}/${RSYNC_LOG}'"
 	tlog "end, error"
 	exit $RSYNCFAILS
