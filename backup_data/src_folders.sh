@@ -18,42 +18,50 @@
 #------------------------------------------------------------------------------
 
 
-# 10 folders
+# 9 folders
 
-# folder for rsnapshot configuration files
+# 1. folder for rsnapshot configuration files
+
 readonly CONFFOLDER="conf"
+export CONFFOLDER
 
-# folder for log of done backups
+# 2. folder for log of done backups
 readonly intervaldonefolder="interval_done"
+export intervaldonefolder
 
-# folder for count if retains
+# 3. folder for count if retains
 # files to store count of retains for one retain value
 # number of lines is used as count
 readonly retainscountfolder="retains_count"
+export retainscountfolder
 
 
-# folder for own rsnapshot logs
+# 4. folder for own rsnapshot logs
 readonly rsynclogfolder="rsynclog"
+export rsynclogfolder
 
-# for test messages, send to PC-Desktop, if configured, see 'cfg.ssh_login'
+
+# 5. for test messages, send to PC-Desktop, if configured, see 'cfg.ssh_login'
+# found
 readonly backup_messages_test="backup_messages_test"
+export backup_messages_test
 
-# date of last backup per project 'label_projekt'
-readonly done="done"
+# 6. date of last backup per project 'label_projekt'
+#readonly done="done"
 readonly donefolder="done"
+export donefolder
 
-# exclude files for rsync/rsnasphot
+# 7. exclude files for rsync/rsnasphot
 readonly exclude="exclude"
+export exclude
 
-# storage for old daily logfiles, never deleted
+# 8. storage for old daily logfiles, never deleted
 readonly oldlogs="oldlogs"
+export oldlogs
 
-# ssh tests to chcke if a remote host is alive and ready for backup
+# 9. ssh tests to chcke if a remote host is alive and ready for backup
 readonly pre="pre"
-
-# files to store count of retains for one retain value
-# number of lines is used as count
-#readonly retains_count="retain_scount"
+export pre
 
 
 

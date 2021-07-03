@@ -38,12 +38,16 @@
 . ./cfg.loop_time_duration
 . ./cfg.target_disk_list
 . ./cfg.projects
+. ./cfg.working_folder
 
 . ./src_test_vars.sh
 . ./src_exitcodes.sh
 . ./src_filenames.sh
 . ./src_log.sh
 . ./src_ssh.sh
+. ./src_global_strings.sh
+#. ./src_folders.sh
+
 
 TODAY=`date +%Y-%m-%dT%H:%M`
 readonly LABEL=$1
@@ -64,9 +68,6 @@ readonly use_mediamount=1
 arrays_ok=0
 readonly OPERATION="loop"
 readonly FILENAME="$LABEL:${OPERATION}"
-
-
-
 
 tlog "start: '$LABEL'"
 

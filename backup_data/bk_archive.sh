@@ -33,7 +33,7 @@
 
 . ./src_exitcodes.sh
 . ./src_global_strings.sh
-. ./src_folders.sh
+#. ./src_folders.sh
 . ./src_log.sh
 
 # parameter

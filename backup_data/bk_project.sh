@@ -39,7 +39,7 @@
 . ./src_test_vars.sh
 . ./src_exitcodes.sh
 . ./src_global_strings.sh
-. ./src_folders.sh
+#. ./src_folders.sh
 . ./src_log.sh
 
 readonly DISK=$1

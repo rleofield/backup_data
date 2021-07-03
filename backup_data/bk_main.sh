@@ -119,17 +119,16 @@ dlog "daily_rotate (1):                 $daily_rotate"
 dlog " == "
 
 # folder for rsnapshot configuration files
-folderlist="$CONFFOLDER $intervaldonefolder $retainscountfolder $rsynclogfolder $backup_messages_test $done $exclude $oldlogs $pre $retains_count"
+folderlist="$CONFFOLDER $intervaldonefolder $retainscountfolder $rsynclogfolder $backup_messages_test $donefolder $exclude $oldlogs $pre $retains_count"
 for ff in $folderlist
 do
 	dlog "check folder: '$ff'"
-	if  ! test -d $ff 
+	if  [ ! -d $ff   ]
 	then
 		dlog "folder: '$ff' doesn't exist, exit 1"
 		dlog "===================="
 		exit 1
 	fi
-
 done
 
 
