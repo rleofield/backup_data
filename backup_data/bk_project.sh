@@ -61,7 +61,7 @@ tlog "start:  '$projectkey'"
 dlog ""
 dlog "== start project '$PROJECT' at disk '$DISK'  =="
 
-DONE=${donefolder}
+#DONE=${donefolder}
 
 # check, if config file ends with 'arch', then we do simple backup with rsync, not with 'rsnapshot'
 readonly ARCHIVE_CONFIG=${projectkey}.arch
@@ -104,9 +104,9 @@ then
 	if test $RET -eq 0 
 	then
 		# write current time to done file
-		dlog "write last date: ./${DONE}/${projectkey}_done.log"
+		dlog "write last date: ./${donefolder}/${projectkey}_done.log"
 		_currenttime_=`date +%Y-%m-%dT%H:%M`
-		echo "$_currenttime_" > ./${DONE}/${projectkey}_done.log
+		echo "$_currenttime_" > ./${donefolder}/${projectkey}_done.log
 	fi
 	exit $RET
 	
@@ -444,7 +444,7 @@ function do_rs_first {
 		# main done is written here
 		# write _done.log
 		local _currenttime=`date +%Y-%m-%dT%H:%M`
-		echo "$_currenttime" > ./${DONE}/${projectkey}_done.log
+		echo "$_currenttime" > ./${donefolder}/${projectkey}_done.log
 		dlog "write last date: '$_currenttime' to ./${donefolder}/${projectkey}_done.log"
 
 	fi

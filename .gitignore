@@ -1,2 +1,5 @@
 /1/
 /backup_data/retains_count/bbackup_testData_third
+/backup_data/internalerrors.txt
+/backup_data/interval_done/bbackup_testData_done.txt
+/backup_data/oldlogs

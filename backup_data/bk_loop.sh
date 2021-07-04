@@ -38,7 +38,6 @@
 . ./cfg.loop_time_duration
 . ./cfg.target_disk_list
 . ./cfg.projects
-. ./cfg.working_folder
 
 . ./src_test_vars.sh
 . ./src_exitcodes.sh

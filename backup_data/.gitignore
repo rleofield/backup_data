@@ -1,12 +1,8 @@
-*.txt
+out_bk_main
+success*
+main_lock
+backup_messages_test
 *.out
 *.log~
-/rsync_eluks_dserver.log
-/aa_eluks_dserver.log
-/cc_log.log
-/aa_kvm_PC/
-/cc_error.log
 *.log
-*.
-/main_lock
-/rr_dokubackup_testDatalog
+

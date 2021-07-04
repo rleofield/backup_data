@@ -334,6 +334,9 @@ mindiff=100000
 minexpected=10000
 declare -A nextprojects
 nextprojekt=""
+#DONE=$donefolder
+#datelog "DONE: '$DONE'"
+
 # find projects in time		
 datelog "                             dd:hh:mm               dd:hh:mm               dd:hh:mm"
 for p in $PROJEKTLABELS
@@ -343,7 +346,7 @@ do
 #datelog "key: $lpkey"
 
         tcurrent=`date +%Y-%m-%dT%H:%M`
-        DONE_FILE="$WORKINGFOLDER/$DONE/${lpkey}_done.log"
+        DONE_FILE="$WORKINGFOLDER/${donefolder}/${lpkey}_done.log"
         LASTLINE=$maxLASTDATE
         if [ -f $DONE_FILE  ]
         then
