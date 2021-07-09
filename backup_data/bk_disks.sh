@@ -476,7 +476,7 @@ do
 	fi
 	if [[ ${RET} == "$RSYNCFAILS" ]]
 	then
-		msg="rsync error in disk: '$_disk'"
+		msg="rsync error in disk: '$_disk', RET: '$RET'"
 		PROJECTERROR="true"
 		RET=$SUCCESS
 	fi
