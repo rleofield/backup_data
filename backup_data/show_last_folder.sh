@@ -39,10 +39,10 @@ then
 fi
 
 # set disk label
-DISKLABEL="label"
+DISKLABEL="bbackup"
 
 # set projekt
-PROJECT="project"
+PROJECT="testData"
 
 PROJECT_LABEL=$( echo "${DISKLABEL}_${PROJECT}" )
 
@@ -66,39 +66,29 @@ count=${#retains[@]}
 first=""
 while [ $count -ge 0 ]
 do
-#	echo "retain: $count"
 	retainvalue=${retains[count]}
-#	echo "loop retain: $retainvalue"
-#	echo "number: ${numbers[count]}"
 	i=${numbers[count]}
 	((i--))
 	ok=0
 	while [ $i -ge  0 ]
 	do
 #		echo "i: $i "
-	
 		p=$( echo "/mnt/${DISKLABEL}/rs/${PROJECT}/${retainvalue}.$i")
+		p=$( echo "/mnt/${DISKLABEL}/gh/${PROJECT}/${retainvalue}.$i")
 		if [ -d "$p" ]
 		then
-		
 			d0=$( ls -1F $p | grep '/' | cut -d '/' -f 1 )
-	#		echo "abc: $p/$d0"
-			d1=$( echo "$p/${d0}" )
-			first=$p
-	#		echo "def: $d1"
-			if [ -d "$d1" ]
-			then
-				echo "d1 exists:           $d1"
-	#			i=0
-	#			ok=1
-			else	
-				echo "d1 doesn't exist:     $d1"
-			fi
+			for _d in $d0
+			do
+				_dd=$p/$_d
+				if [ -d "$_dd" ]
+				then
+					echo "exists:      $_dd"
+				fi
+			done
 		else
-			echo "p doesn't exist:     $p"
-
+			echo                 "doesn't exist:  $p"
 		fi
-
 		((i--))
 	done
 	if [ $ok -eq 1 ]
@@ -108,14 +98,8 @@ do
 	((count--))
 done
 
-#echo "found: $first"
-
 
 # EOF
-
-# ./conf/wdg_tux2.conf
-# find . -name "*.conf"| xargs grep backup| grep -v pid | grep -v delete | grep -v log | grep -v exclude | awk '{ print $2 " " $3}
-
 
 
 

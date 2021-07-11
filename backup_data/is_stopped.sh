@@ -71,6 +71,21 @@ then
                 exit $WAITING
 	fi
 
+	# stopped run one, backup stopped by hand './stop.sh', 
+        vtest="$text_marker_stop, end, do_once_count loops reached"
+        if [[ $lastlogline == *"$vtest"* ]]
+        then
+		echo "log contains '$vtest' at end, exit 'stopped do once count loops end': $EXECONCESTOPPED"
+                exit $EXECONCESTOPPED
+	fi
+
+	# stopped run one, backup stopped by hand './stop.sh', 
+        vtest="$text_marker_stop, end reached, 'execute_once', RET: '102'"
+        if [[ $lastlogline == *"$vtest"* ]]
+        then
+		echo "log contains '$vtest' at end, exit 'stopped run once': $EXECONCESTOPPED"
+                exit $EXECONCESTOPPED
+	fi
 	# stopped, backup stopped by hand './stop.sh', 
         vtest="$text_marker_stop"
         if [[ $lastlogline == *"$vtest"* ]]

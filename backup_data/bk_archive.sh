@@ -171,8 +171,10 @@ runningnumber=$( printf "%05d"  $( get_loopcounter ) )
 
 TODAY_LOG=`date +%Y-%m-%dT%H:%M`
 
+
 if test $_ok -eq 0 
 then
+	rm $ARCHIVE_ROOT/${projectkey}_created_at_*
 	echo "created at: ${TODAY_LOG}, loop: $runningnumber" > $ARCHIVE_ROOT/${projectkey}_created_at_${TODAY_LOG}_number_$runningnumber.txt
 else
 	echo "created_at: ${TODAY_LOG}, loop: $runningnumber, errors in rsync, see log" > $ARCHIVE_ROOT/${projectkey}_created_at_${TODAY_LOG}_number_${runningnumber}_with_errors.txt
