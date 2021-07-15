@@ -39,10 +39,10 @@ then
 fi
 
 # set disk label
-DISKLABEL="bbackup"
+DISKLABEL="label"
 
 # set projekt
-PROJECT="testData"
+PROJECT="project"
 
 PROJECT_LABEL=$( echo "${DISKLABEL}_${PROJECT}" )
 
@@ -74,7 +74,6 @@ do
 	do
 #		echo "i: $i "
 		p=$( echo "/mnt/${DISKLABEL}/rs/${PROJECT}/${retainvalue}.$i")
-		p=$( echo "/mnt/${DISKLABEL}/gh/${PROJECT}/${retainvalue}.$i")
 		if [ -d "$p" ]
 		then
 			d0=$( ls -1F $p | grep '/' | cut -d '/' -f 1 )
