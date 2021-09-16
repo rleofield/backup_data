@@ -1,5 +1,5 @@
 # file: filenames.sh
-# bk_version 21.05.1
+# bk_version 21.09.1
 # included with 'source'
 
 
@@ -33,4 +33,5 @@ readonly notifybasefile="Backup-HD"
 #successloglinestxt="successloglines.txt"
 executedprojects="executedprojects.txt"
 
+# EOF
 

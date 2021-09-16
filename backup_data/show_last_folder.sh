@@ -3,7 +3,7 @@
 
 # file: show_disks.sh
 
-# bk_version 21.05.1
+# bk_version 21.09.1
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -45,6 +45,15 @@ DISKLABEL="label"
 PROJECT="project"
 
 PROJECT_LABEL=$( echo "${DISKLABEL}_${PROJECT}" )
+
+if [ -f conf/${PROJECT_LABEL}.conf ]
+then
+	echo "ok, conf/${PROJECT_LABEL}.conf exists"
+else
+	echo "conf/${PROJECT_LABEL}.conf not found, please edit DISKLABEL and PROJECT in this file"
+	exit 1
+	
+fi
 
 #array=($(ls -d */))
 retains=($(grep retain conf/${PROJECT_LABEL}.conf | awk '{ print $2 }'))

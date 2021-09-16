@@ -1,7 +1,7 @@
 
 
 # file: cfg.projects
-# bk_version 21.05.1
+# bk_version 21.09.1
 # included with 'source'
 
 # Copyright (C) 2017 Richard Albrecht
@@ -20,12 +20,13 @@
 #------------------------------------------------------------------------------
 
 
-
-
-
 # keys for control projects at a disk
+# label_project
 
 ####### host part #######
+
+# moved from cfg.target_disk_list
+readonly DISKLIST="bbackup"
 
 # umount   = disk is mounted/unmounted by backup, for external USB
 # noumount = disk stays at system, for internal disks mountet at /mnt
@@ -47,6 +48,8 @@ declare -A a_interval
 # minutes
 a_interval['bbackup_testData']=03:00
 
+declare -A a_waittime
+a_waittime['bbackup_testData']=10-12
 
 ####### host part #######
 

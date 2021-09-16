@@ -2,7 +2,7 @@
 
 
 # file: mount.sh
-# bk_version 21.05.1
+# bk_version 21.09.1
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -43,20 +43,20 @@ mountdir=/mnt/$label
 
 if [[ "$label" == *luks ]]
 then
-#	datelog "${FILENAME}:  is luks"
+	dlog "is luks"
 	LUKSKEYFILE=/root/keyfile_${label}
 
 	UUID=`grep -w ${label} uuid.txt | awk '{print $2}'`
 	#UUID=$( gawk -v pattern="$label" '$1 ~ pattern  {print $NF}' uuid.txt )
 
 	DEVICE="/dev/disk/by-uuid/${UUID}"
-	datelog "${FILENAME}:   LUKS device: $DEVICE"
+	dlog "LUKS device: $DEVICE"
 
 	# test, if LUKS Device is open
 	# test against block device
 	if test ! -b /dev/mapper/$label
 	then
-       	datelog "${FILENAME}:   LUKS:  cryptsetup luksOpen --key-file $LUKSKEYFILE $DEVICE $label"
+	dlog "LUKS:  cryptsetup luksOpen --key-file $LUKSKEYFILE $DEVICE $label"
 	cryptsetup luksOpen --key-file $LUKSKEYFILE $DEVICE $label
 #       RETURN CODES
 #              Cryptsetup returns 0 on success and a non-zero value on error.
@@ -67,36 +67,36 @@ then
 #                4 wrong device specified, 
 #                5 device already exists or device is busy.
 
-        	RET=$?
-        	if test $RET -ne 0
-        	then
-        		datelog "${FILENAME}:   LUKS Device couldn't be opened"
-                	exit 1
-        	fi
+		RET=$?
+		if test $RET -ne 0
+		then
+			dlog "LUKS Device couldn't be opened"
+			exit 1
+		fi
 	else
-        	datelog "${FILENAME}:   LUKS Device /dev/mapper/$label is already open"
+		dlog "LUKS Device /dev/mapper/$label is already open"
 	fi
 
-#	datelog "${FILENAME}:   LUKS: command: 'mount /dev/mapper/$label $mountdir'"
 	mount /dev/mapper/$label $mountdir
 	RET=$?
-        if test $RET -ne 0
-        then
-        	datelog "${FILENAME}:   LUKS Device couldn't be mounted"
+	if test $RET -ne 0
+	then
+		dlog "LUKS Device couldn't be mounted"
 		exit 1
 	fi
-	
-
 else
-#	datelog "${FILENAME}:  is no luks device, mount normal"
-#	datelog "${FILENAME}:    'mount -L $label $mountdir'"
+	dlog "is no luks device, mount normal"
+	dlog "'mount -L $label $mountdir'"
 	mount -L $label $mountdir
 	RET=$?
-        if test $RET -ne 0
-        then
+	if test $RET -ne 0
+	then
 		exit 1
 	fi
 fi
 
 
 exit 0
+
+# EOF
+

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_main.sh
-# bk_version 21.05.1
+# bk_version 21.09.1
 
 
 # Copyright (C) 2020 Richard Albrecht
@@ -37,6 +37,7 @@
 . ./src_folders.sh
 
 
+
 echo " pwd $PWD"
 
 readonly iscron=$1
@@ -55,7 +56,7 @@ then
 	dlog ""
 	dlog "========================"
 	dlog "===  start of backup ==="
-	dlog "===  version 21.05.1 ==="
+	dlog "===  version 21.09.1 ==="
 	dlog "========================"
 
 	if [ $iscron == "cron" ]
@@ -156,12 +157,12 @@ do
 			mkdir "$oldlogdir"
 			mv aa_* "$oldlogdir"
 			mv rr_* "$oldlogdir"
-			mv $LOGFILE "$oldlogdir"
+			mv $BK_LOGFILE "$oldlogdir"
 			mv $ERRORLOG "$oldlogdir"
 			mv $TRACEFILE "$oldlogdir"
 			mv label_not_found.log "$oldlogdir"
 			# and create new and empty files
-			touch $LOGFILE
+			touch $BK_LOGFILE
 			touch $ERRORLOG
 			touch $TRACEFILE
 			dlog "log rotated to '$oldlogdir'"
@@ -316,7 +317,7 @@ done
 dlog "execute loop: shouldn't be reached"
 exit 0
 
-
+# EOF
 
 
 

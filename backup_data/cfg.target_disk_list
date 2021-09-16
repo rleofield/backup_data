@@ -1,7 +1,7 @@
 
 
 # file: cfg.target_disk_list
-# bk_version 21.05.1
+# bk_version 21.09.1
 # included with 'source'
 
 # Copyright (C) 2017 Richard Albrecht
@@ -23,16 +23,10 @@
 # controlled disks
 
 ####### host part #######
+# moved to cfg.projects
+#readonly DISKLIST="bbackup"
 
-
-
-
-
-DISKLIST="bbackup"
-
-
-
-# successarray
+# successarray header
 # successful projects listed in this order in file 'successloglines.txt'
 
 SUCCESSLINE="bbackup:testData"
@@ -40,7 +34,8 @@ SUCCESSLINE="bbackup:testData"
 SUCCESSLINEWIDTH=15
 
 
-FINAL_EXTERN_DISK="none"
+# not used
+#FINAL_EXTERN_DISK="xxx"
 
 ####### host part #######
 

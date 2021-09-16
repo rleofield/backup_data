@@ -3,7 +3,7 @@
 
 # file: show_disks.sh
 
-# bk_version 21.05.1
+# bk_version 21.09.1
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -29,7 +29,7 @@
 . ./src_exitcodes.sh
 . ./src_filenames.sh
 
-LOGFILE="list_disks_log.log"
+SHOW_DISKS_LOGFILE="list_disks_log.log"
 FILENAME="show_disks"
 
 
@@ -37,13 +37,17 @@ FILENAME="show_disks"
 
 function log {
    local msg=$1
-   #echo "$msg" | tee -a $LOGFILE
-   echo -e "$msg" >> $LOGFILE
+   #echo -e "$msg" >> $SHOW_DISKS_LOGFILE
+   echo -e "$msg" 
 }
 
 
+function dlog {
+        local _TODAY=`date +%Y%m%d-%H%M`
+        log "${_TODAY} -> ${FILENAME}: $1"
+}
 
-function datelog {
+function sddatelog {
         local _TODAY=`date +%Y%m%d-%H%M`
         log "${_TODAY} -> ${FILENAME}: $1"
 }
@@ -73,9 +77,10 @@ function check_disk_label {
         # 1 = error
         local goodlink=1
 
+        #echo "local uuid=$( cat uuid.txt | grep -w $_LABEL | awk '{print $2}' )"
         local uuid=$( cat "uuid.txt" | grep -w $_LABEL | awk '{print $2}' )
 #	local uuid=$( gawk -v pattern="$_LABEL" '$1 ~ pattern  {print $NF}' uuid.txt )
-	#datelog "/dev/disk/by-uuid/$uuid"
+	#sddatelog "/dev/disk/by-uuid/$uuid"
         local disklink="/dev/disk/by-uuid/$uuid"
         # test, if symbolic link
         if test -L ${disklink} 
@@ -87,9 +92,9 @@ function check_disk_label {
 
 
 
-datelog ""
-datelog "== Liste der verbundenen Disks == "
-datelog "= Disks: '$DISKLIST' = "
+sddatelog ""
+sddatelog "== Liste der verbundenen Disks == "
+sddatelog "= Disks: '$DISKLIST' = "
 for _disk in $DISKLIST
 do
         LABEL=$_disk
@@ -102,14 +107,14 @@ do
 		aw="awk '{ print $1 }'"
 #		echo "find oldlogs -name "cc_log*" | grep -v save | xargs grep $_disk | grep 'is mounted' | sort | $aw | cut -d '/' -f 2 | tail -f -n1"
 		F=$( find oldlogs -name "cc_log*" | grep -v save | xargs grep $_disk | grep 'is mounted' | sort | awk '{ print $1 }'| cut -d '/' -f 2 | tail -f -n1 )
-        	datelog "$RET, letztes Backup war: $F "
+        	sddatelog "$RET, letztes Backup war: $F "
         else
                 RET="${RET} ist verbunden"
-        	datelog "$RET"
+        	sddatelog "$RET"
         fi
 done
 
-tail  list_disks_log.log -n 12
+#tail  list_disks_log.log -n 12
 
 
 exit 0

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_disk.sh
-# bk_version 21.05.1
+# bk_version 21.09.2
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -40,10 +40,6 @@
 . ./src_ssh.sh
 
 
-. ./src_log_disks.sh
-
-
-
 
 readonly iscron=$1
 
@@ -56,34 +52,32 @@ SECONDS=0
 readonly successloglinestxt="successloglines.txt"
 
 
-readonly _waittimeinterval=$waittimeinterval
-readonly oldifs=$IFS
-IFS='-'
+waittimestart="09"
+waittimeend="09"
 
-readonly dononearray=($_waittimeinterval)
-# set default to 09-11
-startdonone="09"
-enddonone="09"
-# read configured values from cfg.projekt
-if [ ${#dononearray[@]} = 2 ]
-then
-        startdonone=${dononearray[0]}
-        enddonone=${dononearray[1]}
-fi
 
-tlog "start"
+function get_waittimeinterval() {
+	local _waittimeinterval=$waittimeinterval
+	local oldifs=$IFS
+	IFS='-'
+	
+	# convert to array
+	local dononearray=($_waittimeinterval)
+	# read configured values from cfg.loop_time_duration
+	if [ ${#dononearray[@]} = 2 ]
+	then
+		waittimestart=${dononearray[0]}
+		waittimeend=${dononearray[1]}
+	fi
+	IFS=$oldifs
+}
 
-IFS=$oldifs
-
-#LLLUSER="rleo"
-#DESKTOP_DIR=$( su -s /bin/sh $LLLUSER -c 'echo "$(xdg-user-dir DESKTOP)"' )
 
 
 function rsyncerrorlog {
 	local _TODAY=`date +%Y%m%d-%H%M`
-	local msg=$( echo "$_TODAY err ==> '$1'" )
-	#dlog "rsyncerrorlog write: $msg"
-	echo -e "$msg" >> $internalerrorstxt
+	local _msg=$( echo "$_TODAY err ==> '$1'" )
+	echo -e "$_msg" >> $internalerrorstxt
 }
 
 
@@ -100,12 +94,6 @@ function stop_exit(){
 # 1 = Name des Ortes, in dem stop getestet wird
 function check_stop(){
         local _name=$1
-#	dlog "in check stop"
-        #if test -f $stopfile
-        #then
-	#	dlog "stopfile exists"
-	#	cat $stopfile
-	#fi
 
         if test -f $stopfile
         then
@@ -255,7 +243,7 @@ function successlog {
 
 	local ff=$successloglinestxt
 	local _TODAY=`date +%Y%m%d-%H%M`
-#	datelog "${FILENAME}:  $_TODAY: $line" 
+#	dlog " $_TODAY: $line" 
 
 	# add line to successloglinestxt
 	echo "$_TODAY: $line" >> $ff
@@ -335,48 +323,47 @@ function write_header(){
 
 	declare -a successline=( $SUCCESSLINE )
 
-	# use one of the entries in header array for grep 
-	local first=${successline[0]}
+	# use first entry in header array for grep 
+	local firstheader=${successline[0]}
 
-	#datelog "cat $successloglinestxt | grep -v $first | wc -l "
-	local count=$( cat $successloglinestxt | grep -v $first | wc -l )
-	#datelog "count: $count"
+	# get count of lines without header
+	local count=$( cat $successloglinestxt | grep -v $firstheader | wc -l )
 	local divisor=20
 	local n=$(( count % divisor ))
+
+	# if count is divideable by 20, write header
 	if test $n -eq 0 
 	then
-		# write header out at every 20'th line
+		# write headers formatted to one line
 		line1=""
 		for _s in ${successline[@]}
         	do
+
+			# write line in field, width = 15
         		txt=$( printf "%${SUCCESSLINEWIDTH}s" $_s )
+
+			# append formatted header to line
 			line1=${line1}${txt}
         	done
 		ff=$successloglinestxt
         	_TODAY=`date +%Y%m%d-%H%M`
+		# append formatted header line
 		echo "$_TODAY: $line1" >> $ff
 	fi
 }
 
 dlog "=== disks start ==="
+tlog "start"
 check_stop  "at start of loop through disklist (bk_disks.sh)"
 
-IFS=' '
+#IFS=' '
 declare -a successlist
 declare -a unsuccesslist
 
-#datelog "${FILENAME}"
-#dlog "is: $iscron"
-#if [ $iscron == "cron" ]
-#then
-#	dlog "------  is cron start    ------"
-#else
-#	dlog "------  is manual start  ------"
-#fi
 dlog "check all projects in disks: '$DISKLIST'"
 dlog ""
 
-dlog "found connected Disks:"
+dlog "found connected disks:"
 
 ####
 # show disk connected with usb
@@ -385,12 +372,16 @@ IFS='
 '
 for _d in $(ls -1 /dev/disk/by-uuid/)
 do
-	_g=$(grep  $_d uuid.txt)
+	_g=$(grep  ${_d}  uuid.txt)
 	# Following syntax deletes the longest match of $substring from front of $string
 	# ${string##substring}
 	if ! [ -z "${_g##*swap*}" ] && ! [ -z "${_g##*boot*}" ]
 	then
 		dlog "    connected disk:  $_g"
+#		_disk=$( echo $_g | awk -F' ' '$0=$1')
+		#dlog "    disk:  $_disk"
+#		_last=$( find oldlogs -name "cc_log*" | grep -v save | xargs grep $_disk | grep 'is mounted' | sort | awk '{ print $1 }'| cut -d '/' -f 2 | tail -f -n1 )
+#		dlog "    letztes Backup war: $_last "
 	fi
 done
 IFS=$_oldifs
@@ -492,11 +483,11 @@ do
 	then
 		if [[ $PROJECTERROR == "true" ]]
 		then
-		datelog   "${FILENAME}: '$_disk' done, min. one project has rsync errors, see log"
+		dlog "'$_disk' done, min. one project has rsync errors, see log"
 		else
-			datelog   "${FILENAME}: '$_disk' successfully done"
+			dlog "'$_disk' successfully done"
 		fi
-#		datelog   "${FILENAME}: cat successarraytxt: $( cat $successarraytxt )"
+#		dlog   "cat successarraytxt: $( cat $successarraytxt )"
 		# defined in  filenames.sh
 		# successarraytxt and unsuccessarraytxt contain 
 		# shortened names, like in header in var SUCCESSLINE="c:dserver ...."
@@ -519,13 +510,13 @@ do
 	else
 		if [[ "${RET}" == "$TIMELIMITNOTREACHED" ]]
 		then
-                	datelog "${FILENAME}: '$_disk' no project has timelimit reached, wait for next loop"
+                	dlog "'$_disk' no project has timelimit reached, wait for next loop"
                 else
                 	if [[ "${RET}" == "$DISKLABELNOTFOUND" ]]
 			then
-				datelog "${FILENAME}: '$_disk' is not connected with the server"
+				dlog "'$_disk' is not connected with the server"
 			else
-				datelog  "${FILENAME}: '$_disk' returns with errors, see log"
+				dlog  "'$_disk' returns with errors, see log"
 			fi
 		fi
 	fi
@@ -538,7 +529,7 @@ dlog ""
 tlog "end list"
 
 
-#datelog "${FILENAME}: write success disk: $_disk"
+#dlog "write success disk: $_disk"
 _length_successlist=${#successlist[@]}
 _length_unsuccesslist=${#unsuccesslist[@]}
 
@@ -546,7 +537,7 @@ if test "$_length_successlist" -eq "0" -a "$_length_unsuccesslist" -eq "0"
 then
 	dlog "successarrays are empty, don't write an entry to: $successloglinestxt"
 else
-	datelog "${FILENAME}: successarrays are not empty, write success/error entry to: $successloglinestxt"
+	dlog "successarrays are not empty, write success/error entry to: $successloglinestxt"
 	write_header
 	successlog  successlist[@] unsuccesslist[@] 
 fi
@@ -579,9 +570,11 @@ IFS=$oldifs
 # end full backup loop
 
 
-datelog "${FILENAME}:"
+dlog ""
 
-datelog "${FILENAME}: waittime interval:  $startdonone - $enddonone "
+get_waittimeinterval
+
+dlog "waittime interval:  $waittimestart - $waittimeend "
 
 
 hour=$(date +%H)
@@ -599,16 +592,16 @@ fi
 
 # check for stop in wait interval
 
-#dlog "if  $hour >= $startdonone  && $hour  < $enddonone &&  use_minute_loop = 0 && $execute_once = 0, then wait to end of interval"
-if [ "$hour" -ge "$startdonone" ] && [ "$hour" -lt "$enddonone"  ] && [ $use_minute_loop -eq 0 ] 
+dlog "if  $hour >= $waittimestart  && $hour  < $waittimeend "
+if [ "$hour" -ge "$waittimestart" ] && [ "$hour" -lt "$waittimeend"  ] && [ $use_minute_loop -eq 0 ] 
 then
 	# in waittime interval or minute loop used
-	datelog "${FILENAME}: $text_marker $text_wait_interval_reached, current: $hour, begin wait interval: $startdonone, end wait interval: $enddonone"
+	dlog "$text_marker $text_wait_interval_reached, current: $hour, begin wait interval: $waittimestart, end wait interval: $waittimeend"
 	count=0
-	while [  $hour -lt $enddonone ] 
+	while [  $hour -lt $waittimeend ] 
         do
 
-		#datelog "${FILENAME}: time $(date +%H:%M:%S), wait until $enddonone"
+		#dlog "time $(date +%H:%M:%S), wait until $waittimeend"
 		hour=$(date +%H)
 		# every 30 min display a status message
 		# 30 min = 1800 sec 
@@ -618,20 +611,21 @@ then
 			count=0
 			mminute=$(date +%M)
 
-			#datelog "${FILENAME}:  value of minute, in loop: $mminute"
-			datelog "${FILENAME}: $text_marker ${text_wait_interval_reached}, time $(date +%H:%M:%S), wait until $enddonone"
+			#dlog "value of minute, in loop: $mminute"
+			dlog "$text_marker ${text_wait_interval_reached}, time $(date +%H:%M:%S), wait until $waittimeend"
 		fi
 		count=$(( count+1 ))
 
 		# every 10 sec check stop file
 		sleep "10s"
 
-		#datelog "${FILENAME}:  before stop: "
+		#dlog "before stop: "
 		check_stop "wait interval loop"
 	done
 	_minute2=$(date +%M)
-	#datelog "${FILENAME}:  value of minute, after stop interval: $_minute2"
-	dlog "$text_marker ${text_waittime_end}, next check at $(date +%H):00"
+	#dlog " value of minute, after stop interval: $_minute2"
+#	dlog "$text_marker ${text_waittime_end}, next check at $(date +%H):00"
+	dlog "$text_marker ${text_waittime_end}, next check at $(date -d '+1 hour' '+%H'):00"
 	tlog "wait 1 hour"
 #	if [ $execute_once -eq 1 ]
 #	then
@@ -642,7 +636,7 @@ then
 else
 	# not in waittime interval
 	hour=$(date +%H:%M)
-	datelog "${FILENAME}: time '$hour' not in waittime interval: '$startdonone - $enddonone'"
+	dlog "time '$hour' not in waittime interval: '$waittimestart - $waittimeend'"
 
 	loopcounter=$( printf "%05d"  $( get_loopcounter ) )
 
@@ -710,7 +704,7 @@ tlog "end"
 exit $NORMALDISKLOOPEND
 
 
-
+# EOF
 
 
 

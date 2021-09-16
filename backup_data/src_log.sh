@@ -1,5 +1,5 @@
 # file: src_log.sh
-# bk_version 21.05.1
+# bk_version 21.09.1
 # included with 'source'
 
 
@@ -19,13 +19,6 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
 
-
-
-ERRORLOG="cc_error.log"
-LOGFILE="cc_log.log"
-TRACEFILE="trace.log"
-
-
 #bk_main.sh:33:readonly OPERATION="main"
 #bk_disks.sh:36:readonly OPERATION="disks"
 #bk_loop.sh:57:readonly OPERATION="loop"
@@ -35,16 +28,19 @@ TRACEFILE="trace.log"
 
 
 # ./bk_main.sh·
-#	./bk_disks.sh,   all disks
+#	./bk_disks.sh, all disks
 #		./bk_loop.sh.   all projects in disk
 #			./bk_project.sh, one project with 1-n folder trees
 #				./bk_rsnapshot.sh,  do rsnapshot
-#				./bk_archive,       no snapshot, rsync only, files accumulated
+#				./bk_archive, no snapshot, rsync only, files accumulated
 
 
+ERRORLOG="cc_error.log"
+BK_LOGFILE="cc_log.log"
+TRACEFILE="trace.log"
 
 ltrace() {
-        if [  -z ${TRACEFILE} ]
+	if [  -z ${TRACEFILE} ]
 	then
 		echo "tracefilename is empty "
 		return 1
@@ -77,20 +73,20 @@ ltrace() {
 }
 
 tlog() {
-        if [  -z ${OPERATION} ]
-        then 
+	if [  -z ${OPERATION} ]
+	then 
 		echo "${OPERATION} is empty in trace"
-                exit
-        fi
-        ltrace "${OPERATION}: $1"
+		exit
+	fi
+	ltrace "${OPERATION}: $1"
 }
 
 
 # param = message
 function datelog {
-        local _TODAY=`date +%Y%m%d-%H%M`
-   	local _msg="$_TODAY --» $1"
-   	echo -e "$_msg" >> $LOGFILE
+	local _TODAY=`date +%Y%m%d-%H%M`
+	local _msg="$_TODAY --» $1"
+	echo -e "$_msg" >> $BK_LOGFILE
 }
 
 function errorlog {
@@ -107,13 +103,13 @@ dlog() {
 		echo "${FILENAME} is empty"
 		exit
 	fi
-	local _msg="${FILENAME}: $1"
+	local _msg="${FILENAME}:  $1"
 	datelog "$_msg"
 }
 
-#        get_loopcounter
+#	get_loopcounter
 function get_loopcounter {
-	local ret=""
+	local ret="0"
 	if [ -f "loop_counter.log" ] 
 	then
 		#ret=$(cat loop_counter.log |  awk  'END {print}' | cut -d ':' -f 2 |  sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')

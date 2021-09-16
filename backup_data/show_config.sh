@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: show_config.sh
-# bk_version 21.05.1
+# bk_version 21.09.1
 
 
 # Copyright (C) 2017 Richard Albrecht
@@ -82,7 +82,7 @@ function encode_diff {
         #dlog " encode_diff, testday: $testday"
         if test $testday -lt 0
         then
-                #datelog "${FILENAME}: is negative '$testday'"
+                #dlog "is negative '$testday'"
                 testday=$(( $testday * (-1) ))
                 negativ="true"
         fi
@@ -256,7 +256,11 @@ cat cfg.projects | grep -v declare | grep a_projects
 echo ""
 echo "all intervals"
 cat cfg.projects | grep -v declare | grep -v pdiff | grep a_interval
+echo ""
+echo "all wait times"
+cat cfg.projects | grep -v declare | grep -v pdiff | grep a_waittime
 	
 
+# EOF
 
 

@@ -1,5 +1,5 @@
 # file: folders.sh
-# bk_version 21.05.1
+# bk_version 21.09.1
 # included with 'source'
 
 # Copyright (C) 2017 Richard Albrecht

@@ -2,7 +2,7 @@
 
 # file: start_backup.sh
 
-# bk_version 21.05.1
+# bk_version 21.09.1
 
 
 # Copyright (C) 2017 Richard Albrecht
@@ -118,12 +118,9 @@ cron_dlog "write WORKINGFOLDER from '/etc/rlf_backup_data_rc' to file 'cfg.worki
 
 # create file 'cfg.working_folder'
 echo "# WORKINGFOLDER from /etc/rlf_backup_data_rc" > cfg.working_folder
-echo "# bk_version 21.05.1" >> cfg.working_folder
+echo "# bk_version 21.09.1" >> cfg.working_folder
 echo "WORKINGFOLDER=$WORKINGFOLDER" >> cfg.working_folder
 echo "export WORKINGFOLDER" >> cfg.working_folder
-
-
-
 
 
 #  start 'bk_main.sh' in background and returns
@@ -180,4 +177,8 @@ sleep 0.5
 
 
 exit 0
+
+
+# EOF
+
 

@@ -1,6 +1,6 @@
 
 # file exitcodes.sh 
-# bk_version 21.05.1
+# bk_version 21.09.1
 # included with 'source'
 
 # Copyright (C) 2017 Richard Albrecht
@@ -157,4 +157,7 @@ readonly text_marker_end="--- marker end ---" # not used
 # RUNNING=105
 # ERRORINCOUNTERS=106
 # FATAL=255
+
+
+# EOF
 

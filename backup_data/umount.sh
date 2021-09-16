@@ -2,7 +2,7 @@
 
 
 # file: umount.sh
-# bk_version 21.05.1
+# bk_version 21.09.1
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -33,8 +33,8 @@ FILENAME="$label:umount"
 
 if [[ "$label" == *luks ]]
 then
-	#datelog "${FILENAME}:  is luks"
-	#datelog "${FILENAME}:   LUKS: 'umount /mnt/$label'"
+	dlog "is luks"
+	dlog "LUKS: 'umount /mnt/$label'"
 	umount /mnt/$label
 	RET=$?
 	if test $RET -eq 0
@@ -44,20 +44,16 @@ then
 		RET=$?
 		if test $RET -ne 0
 		then
-			datelog "${FILENAME}:   LUKS: 'cryptsetup luksClose $label' fails"
+			dlog "LUKS: 'cryptsetup luksClose $label' fails"
 			exit 1
 		fi
 	else
 		dlog "LUKS: 'umount /mnt/$label' fails"
 		exit 1
 	fi
-
-
-	#datelog "${FILENAME}:   LUKS: ok, dismounted"
-	exit 0
 else
-	#datelog "${FILENAME}:  is not luks, umount normal"
-	#datelog "${FILENAME}:    'umount /mnt/$label'"
+	dlog "is not luks, umount normal"
+	dlog "'umount /mnt/$label'"
 	umount /mnt/$label
 	RET=$?
 	if test $RET -ne 0

@@ -2,7 +2,7 @@
 
 # file: is_stopped.sh
 
-# bk_version 21.05.1
+# bk_version 21.09.1
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -59,9 +59,9 @@ fi
 
 
 
-if test -f $LOGFILE 
+if test -f $BK_LOGFILE 
 then
-	lastlogline=$( awk  'END { print }'  $LOGFILE )
+	lastlogline=$( awk  'END { print }'  $BK_LOGFILE )
 
 	# waiting, backup ready, normal waiting for next hour
 	vtest="$text_marker_waiting"
@@ -129,4 +129,5 @@ fi
 
 exit 0
 
+# EOF
 

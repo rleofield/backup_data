@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_archive.sh
-# bk_version 21.05.1
+# bk_version 21.09.1
 
 
 
@@ -37,12 +37,23 @@
 . ./src_log.sh
 
 # parameter
-# $1 = projectkey  ($LABEL_$PROJECT)
+# $1 = $LABEL
+# $2 = $PROJECT)
+readonly DISK=$1
+readonly PROJECT=$2
+if [ ! $DISK ] || [ ! $PROJECT ]
+then
+	dlog "DISK '$DISK' or PROJECT '$PROJECT' not set in 'bk_archive.sh'"
+	exit 1
+fi
 
-readonly projectkey=$1 
+
+
+readonly projectkey=${DISK}_${PROJECT}
+
 readonly OPERATION="archive"
-#readonly FILENAME="${OPERATION}:${projectkey}"
-readonly FILENAME="${projectkey}:${OPERATION}"
+readonly FILENAME="${DISK}:$PROJECT:${OPERATION}"
+
 
 
 tlog "start: $projectkey"
@@ -126,17 +137,8 @@ do
 		backuptarget[$n]="."
 	fi
 
-	#dlog "control backup  $n: ${backupsource[$n]},  ${backuptarget[$n]}"
-
 	tlog "do: $_source"
-	# strip host from source, all after : is path
-	_spath=$( echo $_source | cut -d: -f 2 )
-	if test "$_source" = "$_path"
-	then
-		dlog "source: $_source"
-	else
-		dlog "source: $_source,  $_spath"
-	fi
+	dlog "source : $_source"
 
 	_target=${backuptarget[$n]}
 	if test $_target = "." 
@@ -144,21 +146,20 @@ do
 		_target=""
 	fi
 	dlog "target: ${ARCHIVE_ROOT}${_target}"
-	#r="rsync $RSYNC_ARGS   $_source   ${ARCHIVE_ROOT}${_target}${_spath} --log-file=${wf}/${RSYNC_LOG}"
-	r="rsync $RSYNC_ARGS   $_source   ${ARCHIVE_ROOT}${_target} --log-file=${wf}/${RSYNC_LOG}"
+
+	rcommand="rsync $RSYNC_ARGS   $_source   ${ARCHIVE_ROOT}${_target} --log-file=${wf}/${RSYNC_LOG}"
 	if [ -f "exclude/${EXCLUDE_FILE}" ]
 	then
-	#	--exclude-from=/usr/local/bin/backup_data/exclude/dluks_dserver
-	r="rsync $RSYNC_ARGS  --exclude-from=exclude/${EXCLUDE_FILE}  $_source   ${ARCHIVE_ROOT}${_target} --log-file=${wf}/${RSYNC_LOG}"
+		#	--exclude-from=/usr/local/bin/backup_data/exclude/dluks_dserver
+		rcommand="rsync $RSYNC_ARGS  --exclude-from=exclude/${EXCLUDE_FILE}  $_source   ${ARCHIVE_ROOT}${_target} --log-file=${wf}/${RSYNC_LOG}"
 	fi
-	dlog "rsync command: $r"
-	echo "$r" >> ${wf}/${RSYNC_LOGFILE}
-	eval $r
+	dlog "rsync command: $rcommand"
+	echo "$rcommand" >> ${wf}/${RSYNC_LOGFILE}
+	eval $rcommand
 	RET=$?
 	if test $RET -ne 0
 	then
 		dlog "rsync fails, source: $_source"
-		#exit $RSYNCFAILS
 		_ok=1
 	else
 		dlog "rsync ok, source: $_source"
@@ -172,9 +173,11 @@ runningnumber=$( printf "%05d"  $( get_loopcounter ) )
 TODAY_LOG=`date +%Y-%m-%dT%H:%M`
 
 
+# lösche old logs
+rm $ARCHIVE_ROOT/${projectkey}_created_at*
+
 if test $_ok -eq 0 
 then
-	rm $ARCHIVE_ROOT/${projectkey}_created_at_*
 	echo "created at: ${TODAY_LOG}, loop: $runningnumber" > $ARCHIVE_ROOT/${projectkey}_created_at_${TODAY_LOG}_number_$runningnumber.txt
 else
 	echo "created_at: ${TODAY_LOG}, loop: $runningnumber, errors in rsync, see log" > $ARCHIVE_ROOT/${projectkey}_created_at_${TODAY_LOG}_number_${runningnumber}_with_errors.txt
@@ -198,5 +201,6 @@ exit 0
 
 
 
+# EOF
 
 

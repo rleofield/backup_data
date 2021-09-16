@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_project.sh
-# bk_version 21.05.1
+# bk_version 21.09.1
 
 
 # Copyright (C) 2017 Richard Albrecht
@@ -85,7 +85,7 @@ then
 	#readonly DISK=$1
 	#readonly PROJECT=$2
 
-	./bk_archive.sh  $projectkey
+	./bk_archive.sh  ${DISK} ${PROJECT}
 	# #############################################################################
 	RET=$?
 	#dlog "RET archive: $RET"

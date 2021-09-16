@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: ping_host
-# bk_version 21.05.1
+# bk_version 21.09.1
 
 
 # Copyright (C) 2017 Richard Albrecht
@@ -48,5 +48,6 @@ else
 	echo "nok"
 fi
 
+# EOF
 
 

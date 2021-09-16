@@ -1,5 +1,5 @@
 # file: src_test_vars.sh
-# bk_version 21.05.1
+# bk_version 21.09.1
 # included with 'source'
 
 # Copyright (C) 2017 Richard Albrecht
@@ -138,4 +138,5 @@ readonly minute_loop_duration=2
 readonly daily_rotate=1
 
 
+# EOF
 

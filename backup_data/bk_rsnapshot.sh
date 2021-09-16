@@ -2,7 +2,7 @@
 
 # file: bk_rsnapshot.sh
 
-# bk_version 21.05.1
+# bk_version 21.09.1
 
 
 # Copyright (C) 2017 Richard Albrecht
@@ -174,7 +174,7 @@ then
         # RETSYNC > 0  is error 
         if test $RETSYNC -eq 0 
         then
-               	datelog "${FILENAME}: ==> run rotate: /usr/bin/rsnapshot -c ${cfg_file} ${INTERVAL}"
+               	dlog "==> run rotate: /usr/bin/rsnapshot -c ${cfg_file} ${INTERVAL}"
                 TODAY_RSYNC2_START=`date +%Y%m%d-%H%M`
                 #write_rsynclog "rotate starts at ${INTERVAL} -- $TODAY_RSYNC_START"
                 write_rsynclog "${FILENAME}: start ${INTERVAL} -- $TODAY_RSYNC2_START"
@@ -183,12 +183,12 @@ then
 		########### rsnapshot call, rotate ######################
    		/usr/bin/rsnapshot -c ${cfg_file} ${INTERVAL} >> ${RSYNCLOGFILE}
 	        RETROTATE=$?
-                #datelog "${FILENAME}: rotate return: $RETROTATE"
+                #dlog "rotate return: $RETROTATE"
                 TODAY_RSYNC2_END=`date +%Y%m%d-%H%M`
                 write_rsynclog "${FILENAME}: end   ${INTERVAL} -- $TODAY_RSYNC2_END"
                 if test $RETROTATE -ne 0 
                 then
-			datelog "${FILENAME}: ==> error in rsnapshop, in '${cfg_file}' "
+			dlog "==> error in rsnapshop, in '${cfg_file}' "
 		else
 			zero_interval_folder=$( echo "${RSNAPSHOT_ROOT}${INTERVAL}.0" )
 			dlog "interval.0 folder: ${zero_interval_folder} check"
@@ -200,13 +200,14 @@ then
 			fi
                 fi
        	else
-               	datelog "${FILENAME}: ==> return in sync first wasn't ok, check disk or config in  '${cfg_file}' "
+               	dlog "==> return in sync first wasn't ok, check disk or config in  '${cfg_file}' "
         fi
 		
 else
-	datelog "${FILENAME}: ==> can't execute -->: '${RSNAPSHOT_CFG}', interval '$INTERVAL' is not in '${cfg_file}' "
+	dlog "==> can't execute -->: '${RSNAPSHOT_CFG}', interval '$INTERVAL' is not in '${cfg_file}' "
 fi
 
+dlog "do sync"
 sync
 
 dlog "== end bk_rsnapshot.sh: $rs_exitcode =="

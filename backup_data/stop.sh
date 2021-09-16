@@ -2,7 +2,7 @@
 
 # file: stop.sh
 
-# bk_version 21.05.1
+# bk_version 21.09.1
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -27,3 +27,5 @@ fi
 
 touch stop
 
+
+# EOF

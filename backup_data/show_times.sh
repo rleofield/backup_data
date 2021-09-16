@@ -2,7 +2,7 @@
 
 # file: show_times.sh
 
-# bk_version 21.05.1
+# bk_version 21.09.1
 
 
 # Copyright (C) 2017 Richard Albrecht
@@ -31,11 +31,11 @@ cd $WORKINGFOLDER
 . ./src_exitcodes.sh
 . ./src_filenames.sh
 
-SHOWTIMES_LOGFILE="_show_times.log"
-export SHOWTIMES_LOGFILE 
+#SHOWTIMES_LOGFILE="_show_times.log"
+#export SHOWTIMES_LOGFILE 
 
-echo "show times for alle disks and all projects"
-echo "result is in '$SHOWTIMES_LOGFILE'"
+echo "show times for all disks and all projects"
+#echo "result is in '$SHOWTIMES_LOGFILE'"
 
 function log {
    local _msg=$1
@@ -44,10 +44,17 @@ function log {
 }
 
 
+FILENAME="show_times"
 
-function datelog {
-        local _TODAY=`date +%Y%m%d-%H%M`
-        log "$_TODAY ==>  $1"
+function stdatelog {
+	if [  -z ${FILENAME} ]
+	then
+		echo "${FILENAME} is empty"
+		exit
+	fi
+	local _msg="${FILENAME}: $1"
+	local _TODAY=`date +%Y%m%d-%H%M`
+	log "$_TODAY ==>  $_msg"
 }
 
 function errorlog {
@@ -58,7 +65,6 @@ function errorlog {
 
 
 
-FILENAME="show_times"
 
 cd $WORKINGFOLDER
 if [ ! -d $WORKINGFOLDER ] && [ ! $( pwd ) = $WORKINGFOLDER ]
@@ -69,24 +75,24 @@ then
 fi
 
 
-	
-	
+
+
 
 for _disk in $DISKLIST
 do
 	# clean up ssh messages
-	datelog ""
-	datelog "${FILENAME}: ==== next disk: '$_disk' ===="
+	stdatelog ""
+	stdatelog "${FILENAME}: ==== next disk: '$_disk' ===="
 	oldifs2=$IFS
 	IFS=','
 	RET=""
-	./_show_times_disk.sh "$_disk"
+	./disk_show_times.sh "$_disk"
         RET=$?
 	IFS=$oldifs2
 
 	if [[ $RET = "$DISKLABELNOTFOUND" ]]
 	then
-		datelog "${FILENAME}: HD with label: '$_disk' not found"
+		stdatelog "${FILENAME}: HD with label: '$_disk' not found"
         fi
 
 done
@@ -94,10 +100,7 @@ done
 
 exit 0
 
-
-
-
-
+# EOF
 
 
 

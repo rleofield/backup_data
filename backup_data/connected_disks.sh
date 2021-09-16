@@ -2,7 +2,7 @@
 
 # file: connected_disks.sh
 
-# bk_version 21.05.1
+# bk_version 21.09.1
 
 
 # Copyright (C) 2017 Richard Albrecht
@@ -30,8 +30,9 @@ fi
 
 for _d in $(ls -1 /dev/disk/by-uuid/)
 do
-		
-	g=$(grep  $_d uuid.txt) 
+	val=$( cat uuid.txt | awk  '{ print $2 }' )	
+	echo "val : $val "
+	g=$(grep  "$_d"  uuid.txt) 
 	if ! [ -z "${g##*swap*}" ] && ! [ -z "${g##*boot*}" ]
 	then
 	        echo "disk:  $g " >> $temp
@@ -45,4 +46,5 @@ then
 fi
 
 
+# EOF
 

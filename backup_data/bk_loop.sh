@@ -2,7 +2,7 @@
 
 
 # file: bk_loop.sh
-# bk_version 21.05.1
+# bk_version 21.09.1
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -67,6 +67,13 @@ readonly use_mediamount=1
 arrays_ok=0
 readonly OPERATION="loop"
 readonly FILENAME="$LABEL:${OPERATION}"
+readonly NOTIFYSENDLOG="notifysend.log"
+
+# now in src_filenames.sh
+#readonly notifybasefile="Backup-HD"
+
+readonly successlogtxt="successlog.txt"
+readonly maxLASTDATE="2021-03-01T00:00"
 
 tlog "start: '$LABEL'"
 
@@ -75,21 +82,65 @@ if test ${#a_properties[@]} -eq 0
 then
 	dlog "Array 'a_properties' doesn't exist"
 	arrays_ok=1
+#else
+#	dlog "Array 'a_properties' exists"
 fi
 if test ${#a_projects[@]} -eq 0 
 then
 	dlog "Array 'a_projects' doesn't exist"
 	arrays_ok=1
+#else
+#	dlog "Array 'a_projects' exists"
 fi
 if test ${#a_interval[@]} -eq 0 
 then
 	dlog "Array 'a_interval' doesn't exist"
 	arrays_ok=1
+#else
+#	dlog "Array 'a_interval' exists"
+
 fi
+if test ${#a_waittime[@]} -eq 0 
+then
+	dlog "Array 'a_waittime' doesn't exist"
+	# should be tolerated
+	#arrays_ok=1
+#else
+#	dlog "Array 'a_waittime' exists"
+
+fi
+
 if test "$arrays_ok" -eq "1" 
 then
+	dlog "err in Arrays"
 	exit $ARRAYSNOK
 fi
+
+
+# defaults
+loopwaittimestart="09"
+loopwaittimeend="09"
+
+
+function get_waittimeinterval {
+	local key=$1
+	local v=${a_waittime[${key}]}
+	local _oldifs=$IFS
+	IFS='-'
+	IFS='-'
+	#local darr=($v)
+	local darr=($v)
+	# read configured values from cfg.projects
+	loopwaittimestart="09"
+	loopwaittimeend="09"
+	if [ ${#darr[@]} = 2 ]
+	then
+		loopwaittimestart=${darr[0]}
+		loopwaittimeend=${darr[1]}
+	fi
+	IFS=$_oldifs
+}
+
 
 # changed later, if use_mediamount=0,  = use 
 MOUNTDIR=/mnt/$LABEL
@@ -119,14 +170,6 @@ then
 	dlog "properties: '$ausgabe',  'local' is set in properties: '$local_in_array' = 1  (local disks only)"
 fi
 
-
-readonly NOTIFYSENDLOG="notifysend.log"
-
-# now in src_filenames.sh
-#readonly notifybasefile="Backup-HD"
-
-readonly successlogtxt="successlog.txt"
-readonly maxLASTDATE="2021-03-01T00:00"
 
 
 function sendlog {
@@ -194,16 +237,21 @@ function check_disk_label {
         local _LABEL=$1
         if test $local_in_array -eq 1
 	then
-	#	dlog "return 0, array"
+		# used for future ideas
+		# dlog "return 0, array"
         	return 0
 	else
+		# '^[[:blank:]]*[^[:blank:]#;]'
+# 		https://unix.stackexchange.com/questions/60994/how-to-grep-lines-which-does-not-begin-with-or
+#		How to grep lines which does not begin with “#” or “;”
+		#local uuid=$( cat "uuid.txt" | grep  '^[[:blank:]]*[^[:blank:]#;]'  |  grep -w $_LABEL | awk '{print $2}' )
 		local uuid=$( cat "uuid.txt" | grep -w $_LABEL | awk '{print $2}' )
 		# local uuid=$( gawk -v pattern="$_LABEL" '$1 ~ pattern  {print $NF}' uuid.txt )
 		# better
 		# uuid=$( gawk -v pattern="$_LABEL" '$1 ~ "(^|[[:blank:]])" pattern "([[:blank:]]|$)"  {print $NF}' uuid.txt )
 		# echo "uuid: $uuid"
 	        # test, if symbolic link
-        #	dlog "if test -L /dev/disk/by-uuid/$uuid"
+#        	dlog "if test -L /dev/disk/by-uuid/$uuid"
         	if test -L "/dev/disk/by-uuid/$uuid"
 	        then
 	#		dlog "return 0"
@@ -242,18 +290,13 @@ function decode_pdiff_local {
 
 }
 
-# parameter is key=label_project  in a_interval array
-# return projekt interval in minutes 
+# key is 'disklabel_project'  in a_interval array
+# return project interval in minutes 
 function decode_pdiff {
 	local _key=$1
 	local _interval=${a_interval[${_key}]}
-        local _r2=$( decode_pdiff_local ${_interval} )
-	#local bb=$( ./cpp/rs_cpp_decode_pdiff ${_interval} )
-	#dlog "interval: $_interval"
-	#dlog "pdiff old: $_r2"
-	#dlog "new: $bb"
-        echo $_r2
-        #echo $bb
+	local _r2=$( decode_pdiff_local ${_interval} )
+	echo $_r2
 }
 
 encode_diff_var=""
@@ -271,7 +314,7 @@ function encode_diff {
 	#dlog " encode_diff, testday: $testday"
 	if test $testday -lt 0
 	then
-		#datelog "${FILENAME}: is negative '$testday'"
+		#dlog "is negative '$testday'"
 		testday=$(( $testday * (-1) ))
 		negativ="true"
 	fi
@@ -307,6 +350,7 @@ function encode_diff {
         encode_diff_var="$ret"
 }
 
+
 # parameter
 # $1 = Disklabel
 # $2 = Projekt
@@ -319,7 +363,10 @@ function encode_diff {
 
 readonly DONE_REACHED=0
 readonly DONE_NOT_REACHED=1
+readonly WAITTIME=2
 DONE_TEST_MODE=0
+
+
 
 function check_disk_done_last_done {
 
@@ -350,7 +397,18 @@ function check_disk_done_last_done {
 		_LASTLINE=$(cat $_DONEFILE | awk  'END {print }')
 	fi
 
-	#dlog "_LASTLINE: '$_LASTLINE'"
+	# here waittime check
+	# 01.09.21, erweiterung
+	# check 
+	get_waittimeinterval $_lpkey
+	local hour=$(date +%H)
+	local wstart=$loopwaittimestart
+	local wend=$loopwaittimeend
+	if [ "$hour" -ge "$wstart" ] && [ "$hour" -lt "$wend"  ] && [ $use_minute_loop -eq 0 ]
+	then
+		return $WAITTIME
+	fi
+
 	if [ -z "$_LASTLINE" ]
 	then
 		_LASTLINE="$maxLASTDATE"
@@ -359,14 +417,9 @@ function check_disk_done_last_done {
 	local _DIFF=$(time_diff_minutes  $_LASTLINE  $_current  )
 	local _pdiff=$( decode_pdiff ${_lpkey} )
 
-	#dlog "if test _DIFF -ge _pdiff"
-	#dlog "if test $_DIFF -ge $_pdiff"
-
 	if test $_DIFF -ge $_pdiff
 	then
 		# diff was greater than reference, take as success
-		# diff was greater than reference, take as success
-		#dlog "'$_DIFF' -ge '$_pdiff'  check_disk_done_last_done, done reached"
 		return $DONE_REACHED
 	fi
 	return $DONE_NOT_REACHED
@@ -460,13 +513,16 @@ ispre=1
 declare -a nextprojects
 
 # build list of last times for backup per projekt in disk
-# don't check the disk, this is later
+# don't check the existence of the disk, this is done later
+dlog ""
 dlog "               dd:hh:mm                 dd:hh:mm               dd:hh:mm"
 pcount=0
 for p in $PROJEKTLABELS
 do
+	# project key = disklabel_project
 	lpkey=${LABEL}_${p}
 
+	# check, if  time interval entry exists	
 	l_interval=${a_interval[${lpkey}]}
 	if [ -z "$l_interval" ]
 	then
@@ -476,13 +532,13 @@ do
 	
 	tcurrent=`date +%Y-%m-%dT%H:%M`
 	DONE_FILE="./${donefolder}/${lpkey}_done.log"
+
 	LASTLINE=$maxLASTDATE
 	if test -f $DONE_FILE 
 	then
 		# last line in done file
 		LASTLINE=$(cat $DONE_FILE | awk  'END {print }')  	
 	fi
-	#dlog "_LASTLINE 2222: '$_LASTLINE'"
 	if [ -z "$_LASTLINE" ]
 	then
         	_LASTLINE="$maxLASTDATE"
@@ -497,7 +553,7 @@ do
 	DONE_TEST_MODE=0
 	check_disk_done $lpkey 
 	RET=$?
-	#dlog "DONE_TEST_MODE: $DONE_TEST_MODE"
+	#dlog "DONE_RET: $RET"
 	DISKDONE=$RET
 	# test only
 	#dlog "PROJECT: ${p}"
@@ -555,6 +611,11 @@ do
 		tlog "not in time: $p"
 		dlog "$timeline do nothing"
 	fi
+	if test "$DISKDONE" -eq $WAITTIME
+	then
+		tlog "in wait interval: $p"
+		dlog "$timeline wait,  from $loopwaittimestart to $loopwaittimeend"
+	fi
 	DONE_TEST_MODE=0
 
 done
@@ -565,8 +626,8 @@ lnextprojects=${#nextprojects[@]}
 
 if test $lnextprojects -eq 0
 then
-	datelog "${FILENAME}: == end disk '$LABEL', nothing to do =="
-	datelog "${FILENAME}:"
+	dlog "== end disk '$LABEL', nothing to do =="
+	dlog ""
 	exit $TIMELIMITNOTREACHED
 fi
 
@@ -583,7 +644,7 @@ rm backup_messages_test/${notifybasefile}_${LABEL}_*
 
 
 
-#datelog "${FILENAME}:  next projects: ${nextprojects[*]}"
+#dlog "next projects: ${nextprojects[*]}"
 dlog "time limit for at least one project is reached, projects: ${nextprojects[*]}"
 
 if [ -f $executedprojects ]
@@ -665,7 +726,7 @@ then
 			fi
 		else
 			# ok use media folder
-			datelog "media mount '$MEDIAMOUNT' exists"
+			dlog "media mount '$MEDIAMOUNT' exists"
 			MOUNTDIR=$MEDIAMOUNT
 			MARKERDIR=$MOUNTDIR/marker
 		fi
@@ -780,7 +841,7 @@ do
 
         if test "$DISKDONE" -eq 0
         then
-		datelog "${FILENAME}: === disk: '$LABEL', start of project '$p' ==="
+		dlog "=== disk: '$LABEL', start of project '$p' ==="
 		tlog "do: '$p'"
 		# calls bk_project.sh #########################################################
 		./bk_project.sh $LABEL $p 
@@ -805,27 +866,27 @@ do
 		if test $RET -eq $DISKFULL
 		then
 			projecterrors[${p}]="rsync error, no space left on device, check harddisk usage: $LABEL $p"
-			datelog "${FILENAME}:  !! no space left on device, check configuration !! ($LABEL $p)"
-			datelog "${FILENAME}:  !! no space left on device, check file 'rr_${LABEL}_${p}.log' !!"
+			dlog " !! no space left on device, check configuration !! ($LABEL $p)"
+			dlog " !! no space left on device, check file 'rr_${LABEL}_${p}.log' !!"
 		fi
 		if test $RET -eq $RSYNCFAILS
 		then
 			projecterrors[${p}]="rsync error, check configuration or data source: $LABEL $p"
-			datelog "${FILENAME}:  !! rsync error, check configuration !! (disk: '$LABEL', project: '$p')"
-			datelog "${FILENAME}:  !! rsync error, check file 'rr_${LABEL}_${p}.log'  !! "
+			dlog " !! rsync error, check configuration !! (disk: '$LABEL', project: '$p')"
+			dlog " !! rsync error, check file 'rr_${LABEL}_${p}.log'  !! "
 		fi
 		if test $RET -eq $ERRORINCOUNTERS
 		then
 			projecterrors[${p}]="retain error, one valus is lower than 2, check configuration of retain values: $LABEL $p"
-			datelog "${FILENAME}:  !! retain error, check configuration !! ($LABEL $p)"
-			datelog "${FILENAME}:  !! retain error, check file 'rr_${LABEL}_${p}.log'  !! "
+			dlog " !! retain error, check configuration !! ($LABEL $p)"
+			dlog " !! retain error, check file 'rr_${LABEL}_${p}.log'  !! "
 		fi
 
 		
 		if test $RET -eq $NOFOLDERRSNAPSHOT
 		then
 			projecterrors[${p}]="error, folder '$rsynclogfolder' is not present"
-			datelog "${FILENAME}:  folder '$rsynclogfolder' doesn't exist"
+			dlog " folder '$rsynclogfolder' doesn't exist"
 		fi
 		if test $RET -eq $NORSNAPSHOTROOT
 		then
@@ -849,7 +910,7 @@ do
 		then
 			# set current at last line to done file
 			# done entry is written in bk_project.sh, 131
-		        datelog "${FILENAME}:  all ok, disk: '$LABEL', project '$p'"
+		        dlog "all ok, disk: '$LABEL', project '$p'"
 			sendlog "HD: '$LABEL' mit Projekt '$p' gelaufen, keine Fehler"
 			# write success to a single file 
 			echo "$__TODAY ==> '$LABEL' mit '$p' ok" >> $successlogtxt
@@ -870,15 +931,15 @@ do
 			fi
 			var="${ll}:$p"
 			successlist=( "${successlist[@]}" "$var" )
-			datelog "${FILENAME}: successlist: $( echo ${successlist[@]} )"
+			dlog "successlist: $( echo ${successlist[@]} )"
 
 			#echo "$__TODAY" > ./$donefolder/${LABEL}_${p}_done.log
-			#datelog "${FILENAME}: write last date: ./$donefolder/${LABEL}_${p}_done.log"
+			#dlog "write last date: ./$donefolder/${LABEL}_${p}_done.log"
 
 		else
 			# error in rsync
 			error_in_rsync=$RSYNCFAILS
-			datelog "${FILENAME}:  error: disk '$LABEL', project '$p'"
+			dlog "error: disk '$LABEL', project '$p'"
 			sendlog "HD: '$LABEL' mit Projekt  '$p' hatte Fehler"
 			sendlog "siehe File: 'rr_${LABEL}_$p.log' im Backup-Server"
 			errorlog "HD: '$LABEL' mit Projekt  '$p' hatte Fehler" 
@@ -899,7 +960,7 @@ do
 			fi
 			var="${ll}:$p"
 			unsuccesslist=( "${unsuccesslist[@]}" "$var" )
-			datelog "${FILENAME}: unsuccesslist: $( echo ${unsuccesslist[@]} )"
+			dlog "unsuccesslist: $( echo ${unsuccesslist[@]} )"
 		fi
 	fi
 done
@@ -912,9 +973,9 @@ minp=""
 for p in $PROJEKTLABELS
 do
 	lpkey=${LABEL}_${p}
-        DONE_FILE="./${donefolder}/${lpkey}_done.log"
-	#datelog "donefile: $DONE_FILE"
-        LASTLINE=$maxLASTDATE
+	DONE_FILE="./${donefolder}/${lpkey}_done.log"
+	#dlog "donefile: $DONE_FILE"
+	LASTLINE=$maxLASTDATE
         if test -f $DONE_FILE
         then
                 LASTLINE=$(cat $DONE_FILE | awk  'END {print }')
@@ -923,19 +984,19 @@ do
 	# get project delta time
 	pdiff=$(decode_pdiff ${lpkey} )
 	# get current delta after last done, in LASTLINE is date in %Y-%m-%dT%H:%M
-        tcurrent=`date +%Y-%m-%dT%H:%M`
-        DIFF=$(time_diff_minutes  $LASTLINE  $tcurrent  )
-        deltadiff=$(( pdiff - DIFF ))
-#	datelog "$p, configured value $pdiff"
-#	datelog "$p, lastline   value $DIFF"
-#	datelog "$p, delta=pdiff-DIFF $deltadiff, mindiff: $mindiff"
-        if ((deltadiff < mindiff ))
-        then
-                mindiff=$deltadiff
+	tcurrent=`date +%Y-%m-%dT%H:%M`
+	DIFF=$(time_diff_minutes  $LASTLINE  $tcurrent  )
+	deltadiff=$(( pdiff - DIFF ))
+#	dlog "$p, configured value $pdiff"
+#	dlog "$p, lastline   value $DIFF"
+#	dlog "$p, delta=pdiff-DIFF $deltadiff, mindiff: $mindiff"
+	if ((deltadiff < mindiff ))
+	then
+		mindiff=$deltadiff
 		minp=$p
-        fi
-	#datelog "after b delta $deltadiff, mindiff: $mindiff"
-	#datelog "programmed diff: $pdiff, lastDIFF: $DIFF, mindiff: $mindiff, delta: $deltadiff"
+	fi
+	#dlog "after b delta $deltadiff, mindiff: $mindiff"
+	#dlog "programmed diff: $pdiff, lastDIFF: $DIFF, mindiff: $mindiff, delta: $deltadiff"
 done
 
 
@@ -953,20 +1014,20 @@ then
 	#ucommand=$( grep -e properties cfg.projects | grep fluks | cut -d '=' -f 2 | sed 's/"//' | sed 's/"$//' )
 	umount_is_inarray=$(echo ${parray[@]} | grep -w -o "umount" | wc -l )
 	RET=1
-        if test $umount_is_inarray -eq 1 
+	if test $umount_is_inarray -eq 1 
 	then
-		datelog "${FILENAME}: umount  $MOUNTDIR"
+		dlog "umount  $MOUNTDIR"
 		./umount.sh  $LABEL
 		RET=$?
 		if test $RET -ne 0
 		then
 			msg="HD '$LABEL' wurde nicht korrekt getrennt, bitte nicht entfernen"
-			datelog $msg
+			dlog "$msg"
 			sendlog $msg
 			notifyfilepostfix="Fehler_HD_nicht_getrennt"
 		else
 			#rmdir  $MOUNTDIR
-			datelog "${FILENAME}: '$LABEL' all is ok"
+			dlog "'$LABEL' all is ok"
 			sendlog "HD '$LABEL': alles ist ok"
 
 			# set in cfg.loop_time_duration
@@ -982,18 +1043,18 @@ then
 		fi
 		if [ -d $MARKERDIR ]
 		then
-        		datelog "${FILENAME}: disk is still mounted: '$LABEL', at: '$MOUNTDIR' "
-        		datelog ""
-	  		datelog "${FILENAME}: '$LABEL' ist noch verbunden, umount error"
-                        sendlog "HD mit Label: '$LABEL' konnte nicht ausgehängt werden, bitte nicht entfernen"
+			dlog "disk is still mounted: '$LABEL', at: '$MOUNTDIR' "
+			dlog ""
+			dlog "'$LABEL' ist noch verbunden, umount error"
+			sendlog "HD mit Label: '$LABEL' konnte nicht ausgehängt werden, bitte nicht entfernen"
 			TODAY=`date +%Y%m%d-%H%M`
 			sendlog "=======  $TODAY  ======="
 			notifyfilepostfix="HD_konnte_nicht_getrennt_werden_Fehler"
 			
 		fi
 	else
-		datelog "${FILENAME}: no umount configured, maybe this is a fixed disk  at $MOUNTDIR"
-		datelog "${FILENAME}: next run of '$minp' in '${mindiff}' minutes"
+		dlog "no umount configured, maybe this is a fixed disk  at $MOUNTDIR"
+		dlog "next run of '$minp' in '${mindiff}' minutes"
 		sendlog "'umount' wurde nicht konfiguriert, HD '$LABEL' ist noch verbunden, at $MOUNTDIR"
 	fi
 else
@@ -1002,8 +1063,8 @@ fi
 
 
 
-datelog "${FILENAME}: == end disk with '$LABEL' =="
-datelog ""
+dlog "== end disk with '$LABEL' =="
+dlog ""
 encode_state="empty"
 encode_diff_var="empty"
 
@@ -1105,4 +1166,5 @@ tlog "end: ok,    '$LABEL'"
 dlog "end: ok,    '$LABEL'"
 exit $SUCCESS
 
+# EOF
 

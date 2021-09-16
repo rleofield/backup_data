@@ -1,13 +1,8 @@
-in main
-20210314-2306
-create main_lock
-00071, start bk_disk: 20210314-2306
-umount: /mnt/bbackup: target is busy.
+ pwd /home/rleo/github/rleofield/backup_data/backup_data
+20210916-1604
+20210916-160411: create file 'main_lock'
 sending incremental file list
 rsync: mkdir "/home/user/Desktop/backup_messages_bbackup" failed: No such file or directory (2)
 rsync error: error in file IO (code 11) at main.c(682) [Receiver=3.1.3]
 chown: invalid user: ‘user:user’
-remove main_lock
-loop counter: 72
-STOPPED is value 101
-last loop counter: '72', RET=101 
+20210916-160420: remove file 'main_lock'
