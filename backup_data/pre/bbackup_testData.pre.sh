@@ -8,6 +8,7 @@ HOST="host"
 USER="root"
 
 
+
 ping -c1 $HOST &> /dev/null
 if test $? -eq 0
 then
