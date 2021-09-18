@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_project.sh
-# bk_version 21.09.1
+# bk_version 21.09.2
 
 
 # Copyright (C) 2017 Richard Albrecht
@@ -412,6 +412,7 @@ function do_rs_123 {
                 # increment index 1 counter
                 update_counter $_index
 
+		# counter is in caller: $counter -ge  $max_count 
                 # remove index 0 counter, set count to 0, = interval eins
                 remove_counter_file $(previous_index $_index)
 
@@ -441,6 +442,8 @@ function do_rs_first {
 		# increment index 0 counter
 		# counter file doesn't exist ??
 		update_counter $_index
+                # no remove index 0 counter 
+
 		# main done is written here
 		# write _done.log
 		local _currenttime=`date +%Y-%m-%dT%H:%M`
@@ -462,7 +465,7 @@ function previous_index {
 }
 
 
-# start of rsnpshot calls
+# start of rsnapshot calls
 tlog "do first"
 ##########  do_rs_first 0 #####################################################
 # index is 0

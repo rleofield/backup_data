@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_disk.sh
-# bk_version 21.09.2
+# bk_version 21.09.3
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -408,6 +408,7 @@ do
 	./bk_loop.sh "$_disk" 
 	############################################################################
         RET=$?
+	#dlog "RET nach loop: $RET"
 
 
 	# possible exit values

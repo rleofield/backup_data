@@ -30,6 +30,6 @@ MIN_WAIT_FOR_NEXT_LOOP=60
 
 
 # backup waits in this intervall, nothing ist done
-waittimeinterval=06-12
+waittimeinterval=06-11
 ####### host part #######
 

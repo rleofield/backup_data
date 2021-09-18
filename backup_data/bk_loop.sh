@@ -2,7 +2,7 @@
 
 
 # file: bk_loop.sh
-# bk_version 21.09.1
+# bk_version 21.09.2
 
 # Copyright (C) 2017 Richard Albrecht
 # www.rleofield.de
@@ -775,26 +775,28 @@ fi
 # disk is mounted 
 
 ## place for disk size
-	dsmaxfree=$maxfillbackupdiskpercent
+dsmaxfree=$maxfillbackupdiskpercent
 
-	dlog "---> max allowed used space: '${dsmaxfree}%'"
-	#dlog "free_space=$( df -h | grep -w $LABEL | awk '{print $4}')"
-	dsfree_space=$( df -h | grep -w $LABEL | awk '{print $4}')
+dlog "---> max allowed used space: '${dsmaxfree}%'"
+#dlog "free_space=$( df -h | grep -w $LABEL | awk '{print $4}')"
+dsdevice=$( blkid | grep -w $LABEL| awk '{print $1}'| sed 's/.$//')
 
-	#dlog "used_space_percent=$( df -h | grep -w $LABEL | awk '{print $5}')"
-	dstempused=$( df -h | grep -w $LABEL | awk '{print $5}')
-	dstemp=${dstempused%?}
-	dsused_space_percent=$dstemp
+dsfree_space=$( df -h | grep -w $LABEL | awk '{print $4}')
 
-	if [ $dsmaxfree -lt $dsused_space_percent ]
-	then
-		dlog "max allowed used space '${dsmaxfree}%' is lower than current used space '${dsused_space_percent}%', continue with next disk"
-		#continue
-	fi
+#dlog "used_space_percent=$( df -h | grep -w $LABEL | awk '{print $5}')"
+dstempused=$( df -h | grep -w $LABEL | awk '{print $5}')
+dstemp=${dstempused%?}
+dsused_space_percent=$dstemp
+
+if [ $dsmaxfree -lt $dsused_space_percent ]
+then
+	dlog "max allowed used space '${dsmaxfree}%' is lower than current used space '${dsused_space_percent}%', continue with next disk"
+	#continue
+fi
 
 
-	dsfreemsg="free space: $dsfree_space, used space: ${dsused_space_percent}%"
-	dlog "---> $dsfreemsg"
+dsfreemsg="free space: $dsfree_space, used space: ${dsused_space_percent}%"
+dlog "---> $dsfreemsg"
 
 
 ## end disk size
@@ -822,7 +824,7 @@ do
 	# second check, first was in first loop
 	# is already checked, see above
 	DISKDONE=0 
-	ispre=0    
+	ispre=0
 
 	pdiff=$( decode_pdiff ${lpkey} )
 
@@ -866,19 +868,19 @@ do
 		if test $RET -eq $DISKFULL
 		then
 			projecterrors[${p}]="rsync error, no space left on device, check harddisk usage: $LABEL $p"
-			dlog " !! no space left on device, check configuration !! ($LABEL $p)"
+			dlog " !! no space left on device, check configuration for $LABEL $p !!"
 			dlog " !! no space left on device, check file 'rr_${LABEL}_${p}.log' !!"
 		fi
 		if test $RET -eq $RSYNCFAILS
 		then
 			projecterrors[${p}]="rsync error, check configuration or data source: $LABEL $p"
-			dlog " !! rsync error, check configuration !! (disk: '$LABEL', project: '$p')"
+			dlog " !! rsync error, check configuration for '$LABEL', project: '$p' !!)"
 			dlog " !! rsync error, check file 'rr_${LABEL}_${p}.log'  !! "
 		fi
 		if test $RET -eq $ERRORINCOUNTERS
 		then
-			projecterrors[${p}]="retain error, one valus is lower than 2, check configuration of retain values: $LABEL $p"
-			dlog " !! retain error, check configuration !! ($LABEL $p)"
+			projecterrors[${p}]="retain error, one value is lower than two, check configuration of retain values: $LABEL $p"
+			dlog " !! retain error, check configuration for $LABEL $p !!"
 			dlog " !! retain error, check file 'rr_${LABEL}_${p}.log'  !! "
 		fi
 

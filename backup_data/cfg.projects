@@ -49,7 +49,7 @@ declare -A a_interval
 a_interval['bbackup_testData']=03:00
 
 declare -A a_waittime
-a_waittime['bbackup_testData']=10-12
+a_waittime['bbackup_testData']=10-11
 
 ####### host part #######
 
