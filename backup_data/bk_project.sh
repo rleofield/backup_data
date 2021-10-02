@@ -412,8 +412,11 @@ function do_rs_123 {
                 # increment index 1 counter
                 update_counter $_index
 
-		# counter is in caller: $counter -ge  $max_count 
+		# counter check is in caller: $counter -ge  $max_count 
                 # remove index 0 counter, set count to 0, = interval eins
+		# _index is current level
+		# previous_index is one level lower 
+		# e.g. rm 'cdisk_dserver_eins'
                 remove_counter_file $(previous_index $_index)
 
         fi
@@ -442,7 +445,7 @@ function do_rs_first {
 		# increment index 0 counter
 		# counter file doesn't exist ??
 		update_counter $_index
-                # no remove index 0 counter 
+                # no remove index 0 counter, previous_index is -1
 
 		# main done is written here
 		# write _done.log

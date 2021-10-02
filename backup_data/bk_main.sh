@@ -96,6 +96,13 @@ then
         exit 1
 fi
 
+if [ -f  rsnapshot.pid ]
+then
+        dlog "old rsnapshot.pid found, has backup_data crashed before?"
+        rm rsnapshot.pid
+fi
+
+
 
 # empty '$internalerrorstxt'
 # do not empty in loop
@@ -105,6 +112,64 @@ dlog " == truncate -s 0 $internalerrorstxt   =="
 truncate -s 0 $internalerrorstxt
 dlog " == "
 
+
+function shatestfile(){
+        local _file1=$1
+        local _lsum1=$2
+        local sum=$( sha256sum $_file1 )
+        local a=$( echo $sum | cut -f1 -d " " )
+#       echo "$a, found sum $a"
+        if [ $_lsum1 != $a ]
+        then
+                dlog "$_file was changed. sha256sum  $a, "
+                dlog "         sha256sum  must be $_lsum1 "
+                return 1
+        fi
+        return 0
+
+}
+
+function shatestfiles(){
+        local _testfile=$1
+	local exitval=0
+        while IFS=' ' read -r _lsum _file 
+        do
+                if [ -f $_file ]
+                then
+                        shatestfile  $_file $_lsum 
+                        RET=$?
+                        if [ $RET -eq 0 ]
+                        then
+                                dlog "$_file is ok"
+			else
+				exitval=1
+                        fi
+                fi
+        done < <(cat $_testfile )
+	return $exitval
+}
+
+
+
+
+# create sha file, if needed
+# sha256sum *.sh > sha256.txt.sh
+if [ -f "sha256sum.txt.sh" ]
+then
+	dlog " ==  test sha256sums"
+	#RETSHA256=$( sha256sum -c --quiet sha256sum.txt.sh )
+	shatestfiles sha256sum.txt.sh
+	RETSHA256=$?
+	if [ ${RETSHA256} -gt 0  ]
+	then
+		dlog "sha256sum check fails, see: 'sha256sum.txt.sh'"
+		exit 0
+	else
+		dlog "sha256sum check ok"
+	fi
+fi
+
+dlog ""
 
 dlog " ==  list test flags and variables =="
 dlog "maxfillbackupdiskpercent (90):    $maxfillbackupdiskpercent"
@@ -118,6 +183,9 @@ dlog "short_minute_loop_seconds_10 (0): $short_minute_loop_seconds_10"
 dlog "minute_loop_duration (2):         $minute_loop_duration"
 dlog "daily_rotate (1):                 $daily_rotate"
 dlog " == "
+
+
+
 
 # folder for rsnapshot configuration files
 folderlist="$CONFFOLDER $intervaldonefolder $retainscountfolder $rsynclogfolder $backup_messages_test $donefolder $exclude $oldlogs $pre $retains_count"
@@ -195,7 +263,7 @@ do
 
 	# call 'bk_disks.sh' to loop over all backup disks ############################################
 	_TODAY1=`date +%Y%m%d-%H%M`
-	dlog "$runningnumber, start 'bk_disks.sh': $_TODAY1"
+	#dlog "$runningnumber, start 'bk_disks.sh': $_TODAY1"
 	./bk_disks.sh $iscron
 	##########################################################################################
 	RET=$?
