@@ -1,4 +1,4 @@
-in dconf-editorin 
+in dconf-editor 
 in /org/gnome/meld/filename-filters
 eintragen
 
