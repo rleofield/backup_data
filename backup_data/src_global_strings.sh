@@ -22,7 +22,10 @@
 # prefix for created 'at text' in file created at after rsync success
 #readonly prefix_created_at="created at: "
 
-# empty
+
+LABELEXTERN="extern"
+
+
 
 
 # EOF

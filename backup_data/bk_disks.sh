@@ -632,6 +632,7 @@ then
 #	then
 #		dlog "'execute_once': stop in 'loop_to_full_next_hour'"
 #	fi
+# wait one hour or not
 	loop_to_full_next_hour
 
 else

@@ -1,2 +1,6 @@
+in dconf-editorin 
+in /org/gnome/meld/filename-filters
+eintragen
+
 [('meld_no_cfg', true, 'out_bk_main main_lock stop cfg.* *.log *.out success* aa_* rr_* oldlogs _cpp conf done cpp btest backup_messages_test exclude interval_done label _not_used pre retains_count rsynclog templates _templates'), ('meld_cfg', true, 'out_bk_main main_lock stop *.log *.out aa_* rr_* oldlogs _cpp conf done cpp btest backup_messages_test exclude interval_done label _not_used pre retains_count rsynclog templates _templates')]
 
