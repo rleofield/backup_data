@@ -30,7 +30,7 @@ fi
 . ./src_log.sh
 
 
-#readonly FILENAME=$(basename "$0" .sh)
+#FILENAME=$(basename "$0" .sh)
 
 
 # call: ./mount.sh $LABEL
