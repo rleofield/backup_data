@@ -1,8 +1,8 @@
-# file: folders.sh
-# bk_version 21.09.1
+# file: src_folders.sh
+# bk_version 21.11.1
 # included with 'source'
 
-# Copyright (C) 2017 Richard Albrecht
+# Copyright (C) 2021 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -23,45 +23,45 @@
 # 1. folder for rsnapshot configuration files
 
 readonly CONFFOLDER="conf"
-export CONFFOLDER
+#export CONFFOLDER
 
 # 2. folder for log of done backups
 readonly intervaldonefolder="interval_done"
-export intervaldonefolder
+#export intervaldonefolder
 
 # 3. folder for count if retains
 # files to store count of retains for one retain value
 # number of lines is used as count
 readonly retainscountfolder="retains_count"
-export retainscountfolder
+#export retainscountfolder
 
 
 # 4. folder for own rsnapshot logs
 readonly rsynclogfolder="rsynclog"
-export rsynclogfolder
+#export rsynclogfolder
 
 
 # 5. for test messages, send to PC-Desktop, if configured, see 'cfg.ssh_login'
 # found
 readonly backup_messages_test="backup_messages_test"
-export backup_messages_test
+#export backup_messages_test
 
 # 6. date of last backup per project 'label_projekt'
 #readonly done="done"
 readonly donefolder="done"
-export donefolder
+#export donefolder
 
 # 7. exclude files for rsync/rsnasphot
 readonly exclude="exclude"
-export exclude
+#export exclude
 
 # 8. storage for old daily logfiles, never deleted
 readonly oldlogs="oldlogs"
-export oldlogs
+#export oldlogs
 
 # 9. ssh tests to chcke if a remote host is alive and ready for backup
 readonly pre="pre"
-export pre
+#export pre
 
 
 

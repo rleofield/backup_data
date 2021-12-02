@@ -1,9 +1,9 @@
 # file: global_strings.sh
-# bk_version 21.09.1
+# bk_version 21.11.1
 # included with 'source'
 
 
-# Copyright (C) 2017 Richard Albrecht
+# Copyright (C) 2021 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -22,10 +22,14 @@
 # prefix for created 'at text' in file created at after rsync success
 #readonly prefix_created_at="created at: "
 
-
+# not used
+# 
 LABELEXTERN="extern"
 
 
+#  IFS=$' \t\n'
+#  see
+#  http://mywiki.wooledge.org/IFS?highlight=%28%5CbCategoryShell%5Cb%29
 
 
 # EOF

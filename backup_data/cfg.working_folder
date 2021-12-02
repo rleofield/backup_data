@@ -1,4 +1,3 @@
 # WORKINGFOLDER from /etc/rlf_backup_data_rc
-# bk_version 21.09.1
+# bk_version 21.11.1
 WORKINGFOLDER=/home/rleo/github/rleofield/backup_data/backup_data
-export WORKINGFOLDER

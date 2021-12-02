@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # file: start_backup.sh
-# bk_version 21.09.1
+# bk_version 21.11.1
 
 
-# Copyright (C) 2017 Richard Albrecht
+# Copyright (C) 2021 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -25,20 +25,17 @@
 #	./bk_disks.sh,   all disks
 #		./bk_loop.sh	all projects in disk
 #			./bk_project.sh, one project with 1-n folder trees
-#				./bk_rsnapshot.sh,  do rsnapshot
+#					./bk_rsnapshot.sh,  do rsnapshot
 
 
-#echo "name: $0"
-callfilename=$(basename "$0")
-echo "name: $callfilename"
-
+readonly callfilename=$(basename "$0")
+echo "start of: $callfilename"
 
 echo ""
 
-
 if [[ $(id -u) != 0 ]]
 then
-        echo "we are not root, use root for backup"
+	echo "we are not root, use root for backup"
         exit
 fi
 
@@ -57,8 +54,8 @@ if [ ! -f /etc/$rlf_backup_data_rc ]
 then
 	echo "'/etc/$rlf_backup_data_rc' not found, exit "	
 	echo "create file '/etc/$rlf_backup_data_rc' with used working folder"
-	echo "Example line: WORKINGFOLDER=\"/home/rleo/bin/backup_data\"" 
-	echo "" 
+	echo "Example line: WORKINGFOLDER=\"/home/rleo/bin/backup_data\""
+	echo ""
 	echo "COMMAND:" 
 	echo "echo \"WORKINGFOLDER=/home/rleo/bin/backup_data\" > /etc/$rlf_backup_data_rc"
 	exit 1
@@ -96,14 +93,15 @@ cd $STARTFOLDER
 #  start 'bk_main.sh' in background and returns
 #   if 'bk_main.sh' is running, display a message and exit
 # check, if already running, look for process 'bk_main.sh'
+echo "check, if 'bk_main.sh' is running"
 echo "ps aux | grep bk_main.sh | grep -v grep | grep -v vim | wc -l "
 wc=$( ps aux | grep bk_main.sh | grep -v grep | grep -v vim | wc -l )
-echo "wc=$wc"
+echo "nr of lines with 'bk_main': $wc"
 if [ $wc -gt 0  ]
 then
 	echo "count of 'bk_main.sh' in 'ps aux' is > 0 : $wc"	
 	echo "Backup is running, exit"
-	echo "==  end == "
+	echo "==  end  == "
 	exit 1
 fi
 
@@ -113,9 +111,9 @@ echo "write WORKINGFOLDER, set in '/etc/rlf_backup_data_rc', to file 'cfg.workin
 # create file 'cfg.working_folder'
 echo "write new file 'cfg.working_folder'"
 echo "# WORKINGFOLDER from /etc/rlf_backup_data_rc" > cfg.working_folder
-echo "# bk_version 21.09.1" >> cfg.working_folder
+echo "# bk_version 21.11.1" >> cfg.working_folder
 echo "WORKINGFOLDER=$WORKINGFOLDER" >> cfg.working_folder
-echo "export WORKINGFOLDER" >> cfg.working_folder
+#echo "export WORKINGFOLDER" >> cfg.working_folder
 echo ""
 echo "working folder is: '$(pwd)'"
 echo "start command: nohup ./bk_main.sh 'manual' > out_bk_main"
@@ -124,8 +122,8 @@ nohup ./bk_main.sh "manual" > out_bk_main &
 
 # wait for sync
 sync
-sleep 0.1
-echo "started"
+sleep 0.5
+echo "'bk_main.sh' started"
 
 
 exit 0

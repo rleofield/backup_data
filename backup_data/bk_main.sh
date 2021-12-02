@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # file: bk_main.sh
-# bk_version 21.09.1
+# bk_version 21.11.1
 
 
-# Copyright (C) 2020 Richard Albrecht
+# Copyright (C) 2021 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -38,7 +38,7 @@
 
 
 
-echo " pwd $PWD"
+echo "pwd $PWD"
 
 readonly iscron=$1
 
@@ -56,7 +56,7 @@ then
 	dlog ""
 	dlog "========================"
 	dlog "===  start of backup ==="
-	dlog "===  version 21.09.1 ==="
+	dlog "===  version 21.11.1 ==="
 	dlog "========================"
 
 	if [ $iscron == "cron" ]
@@ -78,7 +78,7 @@ fi
 
 dlog "pgrep -u $USER   bk_main.sh "
 pidcount=$(  pgrep -u $USER   "bk_main.sh" | wc -l )
-                      
+
 # pid appears twice, because of the subprocess finding the pid
 if [ $pidcount -lt 3 ]
 then
@@ -104,14 +104,13 @@ fi
 
 
 
-# empty '$internalerrorstxt'
+# empty '$internalerrorstxt' = internalerrors.txt
 # do not empty in loop
 # errors must be present until solved
 dlog " == "
 dlog " == truncate -s 0 $internalerrorstxt   ==" 
 truncate -s 0 $internalerrorstxt
 dlog " == "
-
 
 function shatestfile(){
         local _file1=$1
@@ -240,8 +239,8 @@ do
 			if [[ ${_date01} == ${_date} ]]
 			then
 				dlog "rotate monthly at '$_date'"
-				mv successlog.txt "$oldlogdir"
-				touch successlog.txt 
+				#mv successlog.txt "$oldlogdir"
+				#touch successlog.txt 
 				mv successloglines.txt "$oldlogdir"
 				touch successloglines.txt 
 				mv $rsynclogfolder "$oldlogdir"
@@ -262,7 +261,7 @@ do
 	echo "$runningnumber" > main_lock
 
 	# call 'bk_disks.sh' to loop over all backup disks ############################################
-	_TODAY1=`date +%Y%m%d-%H%M`
+	#_TODAY1=`date +%Y%m%d-%H%M`
 	#dlog "$runningnumber, start 'bk_disks.sh': $_TODAY1"
 	./bk_disks.sh $iscron
 	##########################################################################################
@@ -289,9 +288,21 @@ do
 #       RET = STOPPED,            if stop ist executed by hand and execute_once = 0
 #       RET = EXECONCESTOPPED,    if stop ist executed by execute_once = 1
 
-
-	dlog "---  last return was: '$RET'"
-	dlog "---    values are: normal loop (99), manually stopped (101), run once only (102)"
+	endmsg=""
+	if [ $RET -eq $NORMALDISKLOOPEND ]
+	then
+		endmsg="all is ok, normal loop"
+	fi
+	if [ $RET -eq $STOPPED ]
+	then
+		endmsg="stop ist executed manually"
+	fi
+	if [ $RET -eq $EXECONCESTOPPED ]
+	then
+		endmsg="stop, is exec_one loop only"
+	fi
+	dlog "---  last return says: $endmsg"
+	dlog "---    values are: normal stop in loop, manually stopped, run once only"
 	sleep 0.5
 	
 	#  all was ok, check for next loop
@@ -375,7 +386,7 @@ do
 
 	# no stop set
 	dlog " ----> goto next loop  <----"
-#	tlog " ----> goto next loop  <----"
+	tlog " ----> goto next loop  <----"
 	sleep 10
 
 done

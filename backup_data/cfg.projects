@@ -1,7 +1,7 @@
 
 
 # file: cfg.projects
-# bk_version 21.09.1
+# bk_version 21.11.1
 # included with 'source'
 
 # Copyright (C) 2017 Richard Albrecht
@@ -47,6 +47,10 @@ declare -A a_interval
 # hours:minutes
 # minutes
 a_interval['bbackup_testData']=03:00
+
+# backup for this project waits in this intervall, nothing ist done
+# values  > 23 or < 1 didn't work
+# first value must be smaller than the second
 
 declare -A a_waittime
 a_waittime['bbackup_testData']=10-11

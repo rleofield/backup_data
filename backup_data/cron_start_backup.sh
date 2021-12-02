@@ -2,10 +2,9 @@
 
 # file: start_backup.sh
 
-# bk_version 21.09.1
+# bk_version 21.11.1
 
-
-# Copyright (C) 2017 Richard Albrecht
+# Copyright (C) 2021 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -40,7 +39,7 @@ then
 fi
 
 
-callfilename=$(basename "$0")
+readonly callfilename=$(basename "$0")
 
 LLFILE="/var/log/cron/${callfilename}.crontab"
 
@@ -53,7 +52,8 @@ function cron_dlog {
 }
 
 
-cron_dlog "start"
+cron_dlog "start of: $callfilename"
+
 cron_dlog ""
 cron_dlog ""
 
@@ -118,7 +118,7 @@ cron_dlog "write WORKINGFOLDER from '/etc/rlf_backup_data_rc' to file 'cfg.worki
 
 # create file 'cfg.working_folder'
 echo "# WORKINGFOLDER from /etc/rlf_backup_data_rc" > cfg.working_folder
-echo "# bk_version 21.09.1" >> cfg.working_folder
+echo "# bk_version 21.11.1" >> cfg.working_folder
 echo "WORKINGFOLDER=$WORKINGFOLDER" >> cfg.working_folder
 echo "export WORKINGFOLDER" >> cfg.working_folder
 
@@ -167,7 +167,7 @@ fi
 
 cron_dlog "start main with: nohup ./bk_main.sh 'cron' > out_bk_main"
 
-
+# start in crontab at boot, no check, if is running
 nohup ./bk_main.sh "cron" > out_bk_main &
 
 

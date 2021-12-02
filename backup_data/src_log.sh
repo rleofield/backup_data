@@ -1,10 +1,10 @@
 # file: src_log.sh
-# bk_version 21.09.1
+# bk_version 21.11.1
 # included with 'source'
 
 
 
-# Copyright (C) 2017 Richard Albrecht
+# Copyright (C) 2021 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -35,11 +35,12 @@
 #				./bk_archive, no snapshot, rsync only, files accumulated
 
 
-ERRORLOG="cc_error.log"
-BK_LOGFILE="cc_log.log"
-TRACEFILE="trace.log"
+readonly ERRORLOG="cc_error.log"
+readonly BK_LOGFILE="cc_log.log"
+readonly TRACEFILE="trace.log"
 
-ltrace() {
+
+function operation_to_spaces() {
 	if [  -z ${TRACEFILE} ]
 	then
 		echo "tracefilename is empty "
@@ -78,16 +79,16 @@ tlog() {
 		echo "${OPERATION} is empty in trace"
 		exit
 	fi
-	ltrace "${OPERATION}: $1"
+	operation_to_spaces "${OPERATION}: $1"
 }
 
 
 # param = message
-function datelog {
-	local _TODAY=`date +%Y%m%d-%H%M`
-	local _msg="$_TODAY --» $1"
-	echo -e "$_msg" >> $BK_LOGFILE
-}
+#function datelog {
+#	local _TODAY=`date +%Y%m%d-%H%M`
+#	local _msg="$_TODAY --» $1"
+#	echo -e "$_msg" >> $BK_LOGFILE
+#
 
 function errorlog {
 	local _TODAY=`date +%Y%m%d-%H%M`
@@ -104,8 +105,14 @@ dlog() {
 		exit
 	fi
 	local _msg="${FILENAME}:  $1"
-	datelog "$_msg"
+	local _TODAY=`date +%Y%m%d-%H%M`
+	local msg2="$_TODAY --» $_msg"
+	echo -e "$msg2" >> $BK_LOGFILE
+
+#	datelog "$_msg"
 }
+
+
 
 #	get_loopcounter
 function get_loopcounter {

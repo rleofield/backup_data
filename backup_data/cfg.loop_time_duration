@@ -1,7 +1,7 @@
   
 
 # file: cfg.loop_time_duration
-# bk_version 21.09.1
+# bk_version 21.11.1
 # included with 'source'
 
 
@@ -30,6 +30,9 @@ MIN_WAIT_FOR_NEXT_LOOP=60
 
 
 # backup waits in this intervall, nothing ist done
+# values  > 23 or < 1 didn't work
+# first value must be smaller than the second
 waittimeinterval=06-11
+
 ####### host part #######
 

@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # file: bk_disk.sh
-# bk_version 21.09.3
+# bk_version 21.11.1
 
-# Copyright (C) 2017 Richard Albrecht
+# Copyright (C) 2021 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -352,6 +352,25 @@ function write_header(){
 	fi
 }
 
+show_disks_connected(){
+	local _oldifs=$IFS
+	IFS=$'\n'
+
+	#ls -1 /dev/disk/by-uuid/
+	for _d in $(ls -1 /dev/disk/by-uuid/)
+	do
+		_g=$(grep  ${_d}  uuid.txt)
+		# Following syntax deletes the longest match of $substring from front of $string
+		# ${string##substring}
+		if ! [ -z "${_g##*swap*}" ] && ! [ -z "${_g##*boot*}" ]
+		then
+			dlog "    connected disk:  $_g"
+		fi
+	done
+	IFS=$_oldifs
+}
+
+
 dlog "=== disks start ==="
 tlog "start"
 check_stop  "at start of loop through disklist (bk_disks.sh)"
@@ -363,33 +382,15 @@ declare -a unsuccesslist
 dlog "check all projects in disks: '$DISKLIST'"
 dlog ""
 
-dlog "found connected disks:"
+dlog "show connected disks:"
 
-####
-# show disk connected with usb
-_oldifs=$IFS
-IFS='
-'
-for _d in $(ls -1 /dev/disk/by-uuid/)
-do
-	_g=$(grep  ${_d}  uuid.txt)
-	# Following syntax deletes the longest match of $substring from front of $string
-	# ${string##substring}
-	if ! [ -z "${_g##*swap*}" ] && ! [ -z "${_g##*boot*}" ]
-	then
-		dlog "    connected disk:  $_g"
-#		_disk=$( echo $_g | awk -F' ' '$0=$1')
-		#dlog "    disk:  $_disk"
-#		_last=$( find oldlogs -name "cc_log*" | grep -v save | xargs grep $_disk | grep 'is mounted' | sort | awk '{ print $1 }'| cut -d '/' -f 2 | tail -f -n1 )
-#		dlog "    letztes Backup war: $_last "
-	fi
-done
-IFS=$_oldifs
+show_disks_connected
+
 dlog ""
 
 # loop disk list
 
-
+dlog "execute list: $DISKLIST"
 tlog "execute list: $DISKLIST"
 for _disk in $DISKLIST
 do
@@ -399,7 +400,6 @@ do
 
 	_FNOLD=$FILENAME
 	FILENAME="$_disk"
-	dlog ""
 	dlog ""
 	oldifs2=$IFS
 	IFS=','
@@ -468,7 +468,7 @@ do
 	fi
 	if [[ ${RET} == "$RSYNCFAILS" ]]
 	then
-		msg="rsync error in disk: '$_disk', RET: '$RET'"
+		msg="rsync error in disk: '$_disk'"
 		PROJECTERROR="true"
 		RET=$SUCCESS
 	fi
@@ -484,7 +484,7 @@ do
 	then
 		if [[ $PROJECTERROR == "true" ]]
 		then
-		dlog "'$_disk' done, min. one project has rsync errors, see log"
+			dlog "'$_disk' done, min. one project has rsync errors, see log"
 		else
 			dlog "'$_disk' successfully done"
 		fi
@@ -569,6 +569,7 @@ dlog "loopmsg: $loopmsg "
 IFS=$oldifs
 
 # end full backup loop
+# lookup for waittimeinterval
 
 
 dlog ""
@@ -625,15 +626,15 @@ then
 	done
 	_minute2=$(date +%M)
 	#dlog " value of minute, after stop interval: $_minute2"
-#	dlog "$text_marker ${text_waittime_end}, next check at $(date +%H):00"
-	dlog "$text_marker ${text_waittime_end}, next check at $(date -d '+1 hour' '+%H'):00"
-	tlog "wait 1 hour"
+	dlog "$text_marker ${text_waittime_end}, next check at $(date +%H):00"
+	#dlog "$text_marker ${text_waittime_end}, next check at $(date -d '+1 hour' '+%H'):00"
+	#tlog "wait 1 hour"
 #	if [ $execute_once -eq 1 ]
 #	then
 #		dlog "'execute_once': stop in 'loop_to_full_next_hour'"
 #	fi
-# wait one hour or not
-	loop_to_full_next_hour
+# wait one hour ?
+#	loop_to_full_next_hour
 
 else
 	# not in waittime interval

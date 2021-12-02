@@ -2,9 +2,9 @@
 
 
 # file: bk_loop.sh
-# bk_version 21.09.2
+# bk_version 21.11.1
 
-# Copyright (C) 2017 Richard Albrecht
+# Copyright (C) 2021 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -45,7 +45,7 @@
 . ./src_log.sh
 . ./src_ssh.sh
 . ./src_global_strings.sh
-#. ./src_folders.sh
+. ./src_folders.sh
 
 
 TODAY=`date +%Y-%m-%dT%H:%M`
@@ -72,8 +72,8 @@ readonly NOTIFYSENDLOG="notifysend.log"
 # now in src_filenames.sh
 #readonly notifybasefile="Backup-HD"
 
-readonly successlogtxt="successlog.txt"
-readonly maxLASTDATE="2021-03-01T00:00"
+#readonly successlogtxt="successlog.txt"
+readonly maxLASTDATE="2021-09-01T00:00"
 
 tlog "start: '$LABEL'"
 
@@ -162,13 +162,13 @@ readonly ausgabe=$( echo ${parray[@]} )
 
 # not used
 # used for future ideas
-local_in_array=0
+#local_in_array=0
 
-if test $local_in_array -eq 1
-then
-	dlog "label: '$LABEL'  "
-	dlog "properties: '$ausgabe',  'local' is set in properties: '$local_in_array' = 1  (local disks only)"
-fi
+#if test $local_in_array -eq 1
+#then
+#	dlog "label: '$LABEL'  "
+#	dlog "properties: '$ausgabe',  'local' is set in properties: '$local_in_array' = 1  (local disks only)"
+#fi
 
 
 
@@ -235,12 +235,12 @@ function time_diff_minutes() {
 # 1 = error, disk not in uuid list
 function check_disk_label {
         local _LABEL=$1
-        if test $local_in_array -eq 1
-	then
+        #if test $local_in_array -eq 1
+	#then
 		# used for future ideas
 		# dlog "return 0, array"
-        	return 0
-	else
+        #	return 0
+	#else
 		# '^[[:blank:]]*[^[:blank:]#;]'
 # 		https://unix.stackexchange.com/questions/60994/how-to-grep-lines-which-does-not-begin-with-or
 #		How to grep lines which does not begin with “#” or “;”
@@ -257,7 +257,7 @@ function check_disk_label {
 	#		dlog "return 0"
 			return 0
 	        fi
-	fi
+	#fi
 	#		dlog "return 1"
         return 1
 }
@@ -399,7 +399,7 @@ function check_disk_done_last_done {
 
 	# here waittime check
 	# 01.09.21, erweiterung
-	# check 
+	# check, get_waittimeinterval() only for disk done 
 	get_waittimeinterval $_lpkey
 	local hour=$(date +%H)
 	local wstart=$loopwaittimestart
@@ -472,6 +472,7 @@ function check_pre_host {
 
 # remove intermediate files
 # readonly NOTIFYSENDLOG="notifysend.log"
+dlog "remove old notify log for disk ' $LABEL': '$NOTIFYSENDLOG'"
 if test -f $NOTIFYSENDLOG
 then
 	rm $NOTIFYSENDLOG
@@ -657,9 +658,6 @@ fi
 dlog " continue with test of mount state of disk: '$LABEL'"
 dlog ""
 
-# no 'local' in a_properties check disk against uuid and mount 
-if test $local_in_array -eq 0
-then
 
 	# check mountdir at /mnt
 	dlog "check mountdir"
@@ -766,11 +764,6 @@ then
 	fi
 
 	dlog " -- disk '$LABEL' is mounted, marker folder '$MARKERDIR' exists"
-else
-	# if test $local_in_array -ne 0
-	dlog " test $local_in_array -ne 0"
-	dlog " disk '$LABEL' not checked, ist marked with 'local' in properties, this is ok"
-fi
 
 # disk is mounted 
 
@@ -788,10 +781,19 @@ dstempused=$( df -h | grep -w $LABEL | awk '{print $5}')
 dstemp=${dstempused%?}
 dsused_space_percent=$dstemp
 
+diskfull=$SUCCESS
+
+export -p > ex.txt
+
 if [ $dsmaxfree -lt $dsused_space_percent ]
 then
-	dlog "max allowed used space '${dsmaxfree}%' is lower than current used space '${dsused_space_percent}%', continue with next disk"
-	#continue
+	dlog "---"
+	dlog "!!!  disk: '$LABEL', max allowed used space '${dsmaxfree}%' is lower than current used space '${dsused_space_percent}%', continue with next disk !!!"
+	dlog "---"
+	diskfull=$FREEDISKSPACETOOSMALL
+	#dlog "diskfull: $diskfull"
+	#dlog "diskfull: $FREEDISKSPACETOOSMALL"
+
 fi
 
 
@@ -801,11 +803,18 @@ dlog "---> $dsfreemsg"
 
 ## end disk size
 
+#if [ ! $diskfull -eq $FREEDISKSPACETOOSMALL ]
+#then
+#	dlog "true message:  max allowed used space '${dsmaxfree}%' is lower than current used space "
+#else
+#	dlog "else message:  max allowed used space '${dsmaxfree}%' is lower than current used space "
+#fi
+
 
 # done to false
 done=false
 
-dlog "execute projects in time and with valid pre check"
+
 
 
 declare -A projecterrors
@@ -813,161 +822,176 @@ declare -a successlist
 declare -a unsuccesslist
 
 
+if [ ! $diskfull -eq $FREEDISKSPACETOOSMALL ]
+then
+	dlog "execute projects in time and with valid pre check: ${nextprojects[*]}"
 
-# in 'nextprojects' are all projects to backup
-# call bk_project for each
-for p in "${nextprojects[@]}"
-do
+	# in 'nextprojects' are all projects to backup
+	# call bk_project for each
+	for p in "${nextprojects[@]}"
+	do
 
-	dlog ""
-	lpkey=${LABEL}_${p}
-	# second check, first was in first loop
-	# is already checked, see above
-	DISKDONE=0 
-	ispre=0
+		dlog ""
+		lpkey=${LABEL}_${p}
+		# second check, first was in first loop
+		# is already checked, see above
+		DISKDONE=0 
+		ispre=0
 
-	pdiff=$( decode_pdiff ${lpkey} )
+		pdiff=$( decode_pdiff ${lpkey} )
 
-	# check current time
-	tcurrent=`date +%Y-%m-%dT%H:%M`
-	# set lastline to 01.01.1980
-        LASTLINE=$maxLASTDATE
-	DONE_FILE="./${donefolder}/${lpkey}_done.log"
-	# read last line fron done file
-        if test -f $DONE_FILE
-        then
-                LASTLINE=$(cat $DONE_FILE | awk  'END {print }')
-        fi
-	# get delta from lastline and current time
-	DIFF=$(time_diff_minutes  $LASTLINE  $tcurrent  )
+		# check current time
+		tcurrent=`date +%Y-%m-%dT%H:%M`
+		# set lastline to "2021-09-01T00:00"
+        	LASTLINE=$maxLASTDATE
+		DONE_FILE="./${donefolder}/${lpkey}_done.log"
+		# read last line fron done file
+	        if test -f $DONE_FILE
+        	then
+                	LASTLINE=$(cat $DONE_FILE | awk  'END {print }')
+	        fi
+		# get delta from lastline and current time
+		DIFF=$(time_diff_minutes  $LASTLINE  $tcurrent  )
 
-        if test "$DISKDONE" -eq 0
-        then
-		dlog "=== disk: '$LABEL', start of project '$p' ==="
-		tlog "do: '$p'"
-		# calls bk_project.sh #########################################################
-		./bk_project.sh $LABEL $p 
-		# #############################################################################
-		RET=$?
-		#dlog "RET: $RET"
-		#dlog "NOFOLDERRSNAPSHOT=14 : $NOFOLDERRSNAPSHOT"
+        	if test "$DISKDONE" -eq 0
+	        then
+			dlog "=== disk: '$LABEL', start of project '$p' ==="
+			tlog "do: '$p'"
+			# calls bk_project.sh #########################################################
+			./bk_project.sh $LABEL $p 
+			# #############################################################################
+			RET=$?
+			#dlog "RET: $RET"
+			#dlog "NOFOLDERRSNAPSHOT=14 : $NOFOLDERRSNAPSHOT"
 
-		# check free space
-		_maxfree=$maxfillbackupdiskpercent
-		_used_space_percent=$( df -h | grep -w $LABEL | awk '{print $5}')
-		_temp=${_used_space_percent%?}
-		_used_space_percent=$_temp
-		#  handle disk full err
-		if [ $_maxfree -lt $_used_space_percent ]
-		then
-			RET=$DISKFULL
-			#dlog "set RET to DISKFULL, allowed space of disk '${_maxfree}%' is lower than current free space '${_used_space_percent}%'"
-		fi	
+			# check free space
+			_maxfree=$maxfillbackupdiskpercent
+			_used_space_percent=$( df -h | grep -w $LABEL | awk '{print $5}')
+			_temp=${_used_space_percent%?}
+			_used_space_percent=$_temp
+			#  handle disk full err
+			if [ $_maxfree -lt $_used_space_percent ]
+			then
+				RET=$DISKFULL
+				#dlog "set RET to DISKFULL, allowed space of disk '${_maxfree}%' is lower than current free space '${_used_space_percent}%'"
+			fi	
 
 
-		if test $RET -eq $DISKFULL
-		then
-			projecterrors[${p}]="rsync error, no space left on device, check harddisk usage: $LABEL $p"
-			dlog " !! no space left on device, check configuration for $LABEL $p !!"
-			dlog " !! no space left on device, check file 'rr_${LABEL}_${p}.log' !!"
-		fi
-		if test $RET -eq $RSYNCFAILS
-		then
-			projecterrors[${p}]="rsync error, check configuration or data source: $LABEL $p"
-			dlog " !! rsync error, check configuration for '$LABEL', project: '$p' !!)"
-			dlog " !! rsync error, check file 'rr_${LABEL}_${p}.log'  !! "
-		fi
-		if test $RET -eq $ERRORINCOUNTERS
-		then
-			projecterrors[${p}]="retain error, one value is lower than two, check configuration of retain values: $LABEL $p"
-			dlog " !! retain error, check configuration for $LABEL $p !!"
-			dlog " !! retain error, check file 'rr_${LABEL}_${p}.log'  !! "
-		fi
+			if test $RET -eq $DISKFULL
+			then
+				projecterrors[${p}]="rsync error, no space left on device, check harddisk usage: $LABEL $p"
+				dlog " !! no space left on device, check configuration for $LABEL $p !!"
+				dlog " !! no space left on device, check file 'rr_${LABEL}_${p}.log' !!"
+			fi
+			if test $RET -eq $RSYNCFAILS
+			then
+				projecterrors[${p}]="rsync error, check configuration or data source: $LABEL $p"
+				dlog " !! rsync error, check configuration for '$LABEL', project: '$p' !!)"
+				dlog " !! rsync error, check file 'rr_${LABEL}_${p}.log'  !! "
+			fi
+			if test $RET -eq $ERRORINCOUNTERS
+			then
+				projecterrors[${p}]="retain error, one value is lower than two, check configuration of retain values: $LABEL $p"
+				dlog " !! retain error, check configuration for $LABEL $p !!"
+				dlog " !! retain error, check file 'rr_${LABEL}_${p}.log'  !! "
+			fi
 
 		
-		if test $RET -eq $NOFOLDERRSNAPSHOT
-		then
-			projecterrors[${p}]="error, folder '$rsynclogfolder' is not present"
-			dlog " folder '$rsynclogfolder' doesn't exist"
-		fi
-		if test $RET -eq $NORSNAPSHOTROOT
-		then
-			projecterrors[${p}]="snapshot root folder doesn't exist, see log"
-			dlog "snapshot root folder doesn't exist, see log"
-#			exit $NORSNAPSHOTROOT
-		fi
-
-		done=true
-		if test $RET -ne 0
-		then
-			done=false
-			dlog "done = false"
-		fi
-
-
-
-		current=`date +%Y-%m-%dT%H:%M`
-		__TODAY=`date +%Y%m%d-%H%M`
-		if test "$done" == "true"
-		then
-			# set current at last line to done file
-			# done entry is written in bk_project.sh, 131
-		        dlog "all ok, disk: '$LABEL', project '$p'"
-			sendlog "HD: '$LABEL' mit Projekt '$p' gelaufen, keine Fehler"
-			# write success to a single file 
-			echo "$__TODAY ==> '$LABEL' mit '$p' ok" >> $successlogtxt
-
-			# collect success for report at end of main loop
-			ll="${LABEL}"
-
-			# shorten label, if label ends with luks or disk
-			if [[ "$ll" = *"disk"* ]]; 
+			if test $RET -eq $NOFOLDERRSNAPSHOT
 			then
-				tt=${ll::-4} 
-				ll=$tt
+				projecterrors[${p}]="error, folder '$rsynclogfolder' is not present"
+				dlog " folder '$rsynclogfolder' doesn't exist"
 			fi
-			if [[ "$ll" = *"luks"* ]]; 
+			if test $RET -eq $NORSNAPSHOTROOT
 			then
-				tt=${ll::-4} 
-				ll=$tt
+				projecterrors[${p}]="snapshot root folder doesn't exist, see log"
+				dlog "snapshot root folder doesn't exist, see log"
+#				exit $NORSNAPSHOTROOT
 			fi
-			var="${ll}:$p"
-			successlist=( "${successlist[@]}" "$var" )
-			dlog "successlist: $( echo ${successlist[@]} )"
+
+			done=true
+			if test $RET -ne 0
+			then
+				done=false
+				dlog "done = false"
+			fi
+
+
+
+			current=`date +%Y-%m-%dT%H:%M`
+			__TODAY=`date +%Y%m%d-%H%M`
+			if test "$done" == "true"
+			then
+				# set current at last line to done file
+				# done entry is written in bk_project.sh, 101 for archive
+				# done entry is written in bk_project.sh, 450 for projects
+				
+			        dlog "all ok, disk: '$LABEL', project '$p'"
+				sendlog "HD: '$LABEL' mit Projekt '$p' gelaufen, keine Fehler"
+				# write success to a single file 
+				#echo "$__TODAY ==> '$LABEL' mit '$p' ok" >> $successlogtxt
+
+				# collect success for report at end of main loop
+				ll="${LABEL}"
+
+				# shorten label, if label ends with luks or disk
+				if [[ "$ll" = *"disk"* ]]; 
+				then
+					tt=${ll::-4} 
+					ll=$tt
+				fi
+				if [[ "$ll" = *"luks"* ]]; 
+				then
+					tt=${ll::-4} 
+					ll=$tt
+				fi
+				var="${ll}:$p"
+				successlist=( "${successlist[@]}" "$var" )
+				dlog "successlist: $( echo ${successlist[@]} )"
 
 			#echo "$__TODAY" > ./$donefolder/${LABEL}_${p}_done.log
 			#dlog "write last date: ./$donefolder/${LABEL}_${p}_done.log"
 
-		else
-			# error in rsync
-			error_in_rsync=$RSYNCFAILS
-			dlog "error: disk '$LABEL', project '$p'"
-			sendlog "HD: '$LABEL' mit Projekt  '$p' hatte Fehler"
-			sendlog "siehe File: 'rr_${LABEL}_$p.log' im Backup-Server"
-			errorlog "HD: '$LABEL' mit Projekt  '$p' hatte Fehler" 
-			# write unsuccess to a single file 
-			echo "$__TODAY ==> '$LABEL' mit '$p' not ok" >> $successlogtxt
+			else
+				# error in rsync
+				error_in_rsync=$RSYNCFAILS
+				dlog "error: disk '$LABEL', project '$p'"
+				sendlog "HD: '$LABEL' mit Projekt  '$p' hatte Fehler"
+				sendlog "siehe File: 'rr_${LABEL}_$p.log' im Backup-Server"
+				errorlog "HD: '$LABEL' mit Projekt  '$p' hatte Fehler" 
+				# write unsuccess to a single file 
+				#echo "$__TODAY ==> '$LABEL' mit '$p' not ok" >> $successlogtxt
 			
-			# collect unsuccess for report at end of main loop
-			ll="${LABEL}"
-			if [[ "$ll" = *"disk"* ]]; 
-			then
-				tt=${ll::-4} 
-				ll=$tt
+				# collect unsuccess for report at end of main loop
+				ll="${LABEL}"
+				if [[ "$ll" = *"disk"* ]]; 
+				then
+					tt=${ll::-4} 
+					ll=$tt
+				fi
+				if [[ "$ll" = *"luks"* ]]; 
+				then
+					tt=${ll::-4} 
+					ll=$tt
+				fi
+				var="${ll}:$p"
+				unsuccesslist=( "${unsuccesslist[@]}" "$var" )
+				dlog "unsuccesslist: $( echo ${unsuccesslist[@]} )"
 			fi
-			if [[ "$ll" = *"luks"* ]]; 
-			then
-				tt=${ll::-4} 
-				ll=$tt
-			fi
-			var="${ll}:$p"
-			unsuccesslist=( "${unsuccesslist[@]}" "$var" )
-			dlog "unsuccesslist: $( echo ${unsuccesslist[@]} )"
 		fi
-	fi
-done
+	done
+
+ 
+#  end of  [ ! $diskfull -eq $FREEDISKSPACETOOSMALL ]
+else
+
+	dlog "---> don't execute projects: '${nextprojects[*]}', disk full"
+	dlog "---> max allowed used space '${dsmaxfree}%' is lower than current used space '${dsused_space_percent}%', continue with next disk"
+fi
+
 # all backups are done
 # end of disk
+
 
 # find min diff after backup ist done, done file exists here
 mindiff=10000
@@ -1091,6 +1115,7 @@ then
 fi
 
 
+# change to full message
 msg="HD mit Label '$LABEL', nächster Lauf eines Projektes ('$minp')  auf dieser HD ist in '${_mind}' $Tagen_Stunden_Minuten"
 dlog "====================================================================================================="
 dlog "$msg"
@@ -1135,7 +1160,8 @@ then
 	else
 		notifyfilepostfix="Fehler_in_Projekten"
 	fi
-	sendlog "${#projecterrors[@]}  $notifyfilepostfix"
+
+	sendlog "listsize: '${#projecterrors[@]}',  $notifyfilepostfix"
 	# loop over keys in array  (!)
 	for i in "${!projecterrors[@]}"
 	do

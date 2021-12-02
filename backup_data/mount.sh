@@ -2,9 +2,9 @@
 
 
 # file: mount.sh
-# bk_version 21.09.1
+# bk_version 21.11.1
 
-# Copyright (C) 2017 Richard Albrecht
+# Copyright (C) 2021 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -30,15 +30,15 @@ fi
 . ./src_log.sh
 
 
-FILENAME=$(basename "$0" .sh)
+#readonly FILENAME=$(basename "$0" .sh)
 
 
-# call: ./mount.sh $LABEL $MOUNTDIR $MARKERDIR
+# call: ./mount.sh $LABEL
 
 
 label=$1
 #FILENAME="mount:$label"
-FILENAME="$label:mount"
+readonly FILENAME="$label:mount"
 mountdir=/mnt/$label
 
 if [[ "$label" == *luks ]]
@@ -47,7 +47,6 @@ then
 	LUKSKEYFILE=/root/keyfile_${label}
 
 	UUID=`grep -w ${label} uuid.txt | awk '{print $2}'`
-	#UUID=$( gawk -v pattern="$label" '$1 ~ pattern  {print $NF}' uuid.txt )
 
 	DEVICE="/dev/disk/by-uuid/${UUID}"
 	dlog "LUKS device: $DEVICE"
@@ -56,16 +55,16 @@ then
 	# test against block device
 	if test ! -b /dev/mapper/$label
 	then
-	dlog "LUKS:  cryptsetup luksOpen --key-file $LUKSKEYFILE $DEVICE $label"
-	cryptsetup luksOpen --key-file $LUKSKEYFILE $DEVICE $label
-#       RETURN CODES
-#              Cryptsetup returns 0 on success and a non-zero value on error.
-#              Error codes are: 
-#                1 wrong parameters, 
-#                2 no permission (bad passphrase), 
-#                3 out of memory, 
-#                4 wrong device specified, 
-#                5 device already exists or device is busy.
+		dlog "LUKS:  cryptsetup luksOpen --key-file $LUKSKEYFILE $DEVICE $label"
+		cryptsetup luksOpen --key-file $LUKSKEYFILE $DEVICE $label
+	#       RETURN CODES
+	#              Cryptsetup returns 0 on success and a non-zero value on error.
+	#              Error codes are: 
+	#                1 wrong parameters, 
+	#                2 no permission (bad passphrase), 
+	#                3 out of memory, 
+	#                4 wrong device specified, 
+	#                5 device already exists or device is busy.
 
 		RET=$?
 		if test $RET -ne 0
@@ -91,6 +90,7 @@ else
 	RET=$?
 	if test $RET -ne 0
 	then
+		dlog "Device couldn't be mounted"
 		exit 1
 	fi
 fi

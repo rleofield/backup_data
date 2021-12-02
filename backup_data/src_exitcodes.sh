@@ -1,9 +1,9 @@
 
 # file exitcodes.sh 
-# bk_version 21.09.1
+# bk_version 21.11.1
 # included with 'source'
 
-# Copyright (C) 2017 Richard Albrecht
+# Copyright (C) 2021 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -40,12 +40,12 @@
 
 
 
-SUCCESS=0
+readonly SUCCESS=0
 
 # used in bk_projects.sh, line 91 
 #   after check of existence of 'a_properties', 'a_projects', 'a_interval' in cfg.projects
 #   reason: one of the arrays is wrong
-ARRAYSNOK=1  # exit, but checked in 'bk_disks.sh'
+readonly ARRAYSNOK=1  # exit, but checked in 'bk_disks.sh'
 
 # not used
 # MEDIAMOUNT  couldn_t_unmounted=1
@@ -54,58 +54,61 @@ ARRAYSNOK=1  # exit, but checked in 'bk_disks.sh'
 #   exit and checked  in 'bk_disks.sh'
 #   reason: disk not found in '/dev/disk/by-uuid'
 #     after if [[ $goodlink -eq 0 ]]
-DISKLABELNOTFOUND=3
+readonly DISKLABELNOTFOUND=3
 
 # evaluated in main_loop.sh,but not set 
 # set in bk_loop.sh
-DISKNOTUNMOUNTED=4
-MOUNTDIRTNOTEXIST=5
-TIMELIMITNOTREACHED=6
-DISKNOTMOUNTED=7
+readonly DISKNOTUNMOUNTED=4
+readonly MOUNTDIRTNOTEXIST=5
+readonly TIMELIMITNOTREACHED=6
+readonly DISKNOTMOUNTED=7
 
 
 
 
 # set in bk_rsnapshot.sh
 # evaluated in bk_project.sh and set again in bk_project.sh
-RSYNCFAILS=8
+readonly RSYNCFAILS=8
 
 
 # used in bk_project.sh
-NOINTERVALSET=9
+readonly NOINTERVALSET=9
 
 # no rsnapshotroot 
 # evaluated in bk_project.sh, set again in bk_project.sh
-NORSNAPSHOTROOT=12
+readonly NORSNAPSHOTROOT=12
 
 # set, when rsync finds disk is full
-DISKFULL=13
+readonly DISKFULL=13
+
+# set, when disk has't enough space
+readonly FREEDISKSPACETOOSMALL=15
 
 # no folder 'rsnapshot' in working dir
-NOFOLDERRSNAPSHOT=14
+readonly NOFOLDERRSNAPSHOT=14
 
 # normal loop, end disks loop
-NORMALDISKLOOPEND=99
+readonly NORMALDISKLOOPEND=99
 
 
-FATAL=255
+readonly FATAL=255
 
 
 # in is_stopped.sh only
 
-WAITING=100  # used in is_stopped
+readonly WAITING=100  # used in is_stopped
 # in is_stopped.sh and main_loop.sh
-STOPPED=101
-EXECONCESTOPPED=102
+readonly STOPPED=101
+readonly EXECONCESTOPPED=102
 
-WAITINTERVAL=103 
-WAITEND=104
+readonly WAITINTERVAL=103 
+readonly WAITEND=104
 
 # only used is RUNNING
-RUNNING=105
+readonly RUNNING=105
 
 # only in project.sh, at not used place
-ERRORINCOUNTERS=106
+readonly ERRORINCOUNTERS=106
 
 
 
