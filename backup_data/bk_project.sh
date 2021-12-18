@@ -383,7 +383,7 @@ function do_rs {
 	then
 		# check for space on backup disk
 		# ${DISK}_${PROJECT}
-		dlog "check: 'No space left on device'"
+		dlog "check condition: 'No space left on device ?' in File 'rr_${DISK}_${PROJECT}.log'"
 		wcgr=$( tail  -n3 rr_${DISK}_${PROJECT}.log | grep "No space left on device" | wc -l )
 		dlog "wcgr: $wcgr"
 		if [ $wcgr -gt 0 ]
@@ -391,7 +391,7 @@ function do_rs {
         		dlog "error in 'bk_rsnapshot.sh':  'No space left on device', '$PROJECT'"
 			exit $DISKFULL
 		fi	
-        	dlog "error in 'bk_rsnapshot.sh': rsync fails '$PROJECT'"
+        	dlog "error in 'bk_rsnapshot.sh': rsync fails '$PROJECT', rsync error, no 'No space left on device' error"
 		exit $RSYNCFAILS
 	fi
 

@@ -23,15 +23,15 @@
 
 temp=$(mktemp)
 
-if test -f $temp 
-then
-        rm $temp
-fi
+#if test -f $temp 
+#then
+#        rm $temp
+#fi
 
 for _d in $(ls -1 /dev/disk/by-uuid/)
 do
 	val=$( cat uuid.txt | awk  '{ print $2 }' )	
-	echo "val : $val "
+#	echo "val : $val "
 	g=$(grep  "$_d"  uuid.txt) 
 	if ! [ -z "${g##*swap*}" ] && ! [ -z "${g##*boot*}" ]
 	then

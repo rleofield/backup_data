@@ -174,6 +174,7 @@ readonly ausgabe=$( echo ${parray[@]} )
 
 function sendlog {
         local msg=$1
+        local _TODAY=`date +%Y%m%d-%H%M`
         echo -e "$_TODAY  == Notiz: $msg" >> $NOTIFYSENDLOG
 }
 
