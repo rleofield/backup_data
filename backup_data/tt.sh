@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: tt.sh
-# bk_version 21.11.1
+# bk_version 22.01.1
 
 
 # Copyright (C) 2021 Richard Albrecht
@@ -23,8 +23,8 @@
 
 . ./src_log.sh
 
-touch $BK_LOGFILE
-tail -f $BK_LOGFILE -n 500
+touch $bv_logfile
+tail -f $bv_logfile -n 500
 
 # EOF
 

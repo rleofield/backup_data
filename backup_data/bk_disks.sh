@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_disk.sh
-# bk_version 21.11.1
+# bk_version 22.01.1
 
 # Copyright (C) 2021 Richard Albrecht
 # www.rleofield.de
@@ -27,100 +27,134 @@
 #				./bk_archive.sh,    no history, rsync only
 
 
+# prefixes of variables in backup:
+# bv_*  - global vars, alle files
+# lv_*  - local vars, global in file
+# _*    - local in functions or loops
+# BK_*  - exitcodes, upper case, BK_
+
+
 . ./cfg.working_folder
 . ./cfg.loop_time_duration
 . ./cfg.target_disk_list
 . ./cfg.projects
 . ./cfg.filenames
 
+. ./src_folders.sh
 . ./src_test_vars.sh
 . ./src_exitcodes.sh
 . ./src_filenames.sh
 . ./src_log.sh
 . ./src_ssh.sh
 
+# exit values
+# exit $BK_EXECONCESTOPPED - test 'exec once' stopped
+# exit $BK_NORMALDISKLOOPEND  - 99, normal end
+# exit $BK_STOPPED -   normal stop, file 'stop' detected
 
 
-readonly iscron=$1
 
-readonly OPERATION="disks"
-FILENAME="$OPERATION"
 
-readonly stopfile="stop"
+readonly lv_iscron=$1
+
+readonly lv_tracelogname="disks"
+
+# logname, not readonly, changed to diskname later
+lv_cc_logname="disks"
+
+readonly lv_stopfile="stop"
+
+# set internal counter in bash to 0
 SECONDS=0
 
-readonly successloglinestxt="successloglines.txt"
+#  is set in cfg.projects
+readonly bv_disklist=$DISKLIST
 
 
-waittimestart="09"
-waittimeend="09"
+readonly lv_successloglinestxt="successloglines.txt"
 
-
+# backup waits after end of loop
+# 
+# min=01, max=23
+# identical values means no interval is set
+#  lv_waittimestart="09"
+#  lv_waittimeend="09"
 function get_waittimeinterval() {
 	local _waittimeinterval=$waittimeinterval
-	local oldifs=$IFS
+	local _oldifs=$IFS
+	lv_waittimestart="09"
+	lv_waittimeend="09"
 	IFS='-'
 	
 	# convert to array
 	local dononearray=($_waittimeinterval)
+	IFS=$_oldifs
 	# read configured values from cfg.loop_time_duration
 	if [ ${#dononearray[@]} = 2 ]
 	then
-		waittimestart=${dononearray[0]}
-		waittimeend=${dononearray[1]}
+		lv_waittimestart=${dononearray[0]}
+		lv_waittimeend=${dononearray[1]}
 	fi
-	IFS=$oldifs
 }
 
 
 
 function rsyncerrorlog {
-	local _TODAY=`date +%Y%m%d-%H%M`
+	local _TODAY=$( currentdate_for_log )
 	local _msg=$( echo "$_TODAY err ==> '$1'" )
-	echo -e "$_msg" >> $internalerrorstxt
+	echo -e "$_msg" >> $bv_internalerrors
 }
 
 
-# parameter
+# programmmed stop, if something has happened
 # executed after 'is_number $_minutes'
+# $1 = short text, reason for stop
+# used only in tests for valid waittimes, all numbers, no alpha-chars
+# see 'is_number'
 function stop_exit(){
-        local _name=$1
-        dlog "$text_marker ${text_stop_exit}: by '$_name'"
-        exit $STOPPED
+	local _name=$1
+	dlog "$text_marker ${text_stop_exit}: by '$_name'"
+	exit $BK_STOPPED
 }
 
 
-# parameter
-# 1 = Name des Ortes, in dem stop getestet wird
-function check_stop(){
-        local _name=$1
 
-        if test -f $stopfile
-        then
+# file 'stop' is tested, set manually with 'stop.sh'
+# $1 = Name des Ortes, in dem stop getestet wird
+function check_stop(){
+	local _name=$1
+	if test -f $lv_stopfile
+	then
 		local msg=$( printf "%05d"  $( get_loopcounter  ) )
-		#dlog "$text_backup_stopped in '$_name', counter: $msg  "
-                rm $stopfile
-#		if [ $execute_once -eq 1 ]
-#		then
-#			dlog "'execute_once': exec stop in 'check_stop', RET: '$STOPPED'"
-#		fi
-                exit $STOPPED
-        fi
+		dlog "$text_backup_stopped in '$_name', counter: $msg  "
+		rm $lv_stopfile
+		exit $BK_STOPPED
+	fi
 	return 0
 }
 
-
+# return
+#  0, if number
+#  1, if contains chars
+#  1, if string doesn't exist
 function is_number(){
 	local _input=$1	
 	if [[ -z $_input ]]
 	then
+		# not a number, length = 0
 		return 1
 	fi
+	# remove all numbers from _input
+	#	${_input//[0-9]/} 
+	#
+	# if length is zero, the it was a number
+	# -n = nicht length 0 
 	if [[ ! -n ${_input//[0-9]/} ]]
-      	then
+	then
+		# is number
 		return 0
-      	fi
-      	return 1
+	fi
+	# not a numbersuccessloglinestxt
 }
   
 
@@ -134,24 +168,20 @@ function loop_minutes (){
 	fi
 	local _seconds=$(( _minutes * 60 ))
 	local _sleeptime="10"
-	if [ $short_minute_loop_seconds_10 -eq 1 ]
+	if [ $bv_test_short_minute_loop_seconds_10 -eq 1 ]
 	then
 		_seconds=$(( _minutes * 10 ))
 	fi
 	local _minute=$(date +%M)
 	local _count=0
-	if [ $short_minute_loop -eq 0 ]
+	if [ $bv_test_short_minute_loop -eq 0 ]
 	then
 		while [  $_count -lt $_seconds ] 
 		do
-			#dlog "minute: '$_count -ne $_seconds'"
-			# sleep 5 sec
+			# sleep 
 			sleep  $_sleeptime
 			_count=$(( _count + _sleeptime ))
-			#if  [ ! (( _count % 30 )) ]
-			#then
 			dlog "in loop minutes: $_count seconds"
-			#fi
 			check_stop "in 'loop_minutes', value of seconds: $_seconds"
 		done
 	fi
@@ -163,7 +193,6 @@ function loop_minutes (){
 # used in 'loop_to_full_next_hour()'
 function loop_until_minute  {
 	local _endminute=$1
-#	dlog "end minute $1"
 	is_number $_endminute 
 	RET=$?
 	if [ $RET -eq 1 ]
@@ -179,25 +208,26 @@ function loop_until_minute  {
 		# every 2 sec check stop
 		check_stop "in loop_until_minute: $_minute "
 		_minute=$(date +%M)
-        done
-        return 0
+	done
+	return 0
 }
 
 
 # wait, until minute is 00 in next hour
 # exits, if stop is found
-# waittime 2 < t < 1 hour
 function loop_to_full_next_hour {
-        local _minute=$(date +%M)
+	local _minute=$(date +%M)
+
+	# if minute is '00', then count to 1 minute and ten to '00', until next full hour  
 	#  if [ $_minute == "00"  ] | $_minute == "15" | $_minute == "30" | $_minute == "45"  
-        if [ $_minute == "00" ]
-        then
+	if [ $_minute == "00" ]
+	then
 		# if full hour, then wait 1 minute
-                loop_until_minute "01"
-        fi
+		loop_until_minute "01"
+	fi
 	# wait until next full hour
-        loop_until_minute "00"
-        return 0
+	loop_until_minute "00"
+	return 0
 
 }
 
@@ -210,11 +240,10 @@ function successlog {
 	# defined in cfg.target_disk_list
 	# list of headers 
 	declare -a successline=( $SUCCESSLINE )
-
-
-        declare -a slist=("${!1}")
-        declare -a unslist=("${!2}")
-
+#set +u
+	declare -a slist=("${!1}")
+	declare -a unslist=("${!2}")
+#set -u
 	local line="" 
 	for _s in "${successline[@]}"
 	do
@@ -241,22 +270,22 @@ function successlog {
 	done
 
 
-	local ff=$successloglinestxt
-	local _TODAY=`date +%Y%m%d-%H%M`
+	local ff=$lv_successloglinestxt
+	local _TODAY=$( currentdate_for_log )
 #	dlog " $_TODAY: $line" 
 
-	# add line to successloglinestxt
+	# add line to lv_successloglinestxt
 	echo "$_TODAY: $line" >> $ff
 
-	# copy successloglinestxt to local folder, in any case, also if sshlogin is empty
-	dlog "cp $successloglinestxt  backup_messages_test/${file_successloglines}"
-	cp $successloglinestxt  backup_messages_test/${file_successloglines}
+	# copy lv_successloglinestxt to local folder, in any case, also if sshlogin is empty
+	dlog "cp $lv_successloglinestxt  ${bv_backup_messages_testfolder}/${file_successloglines}"
+	cp $lv_successloglinestxt  ${bv_backup_messages_testfolder}/${file_successloglines}
 
 
 	#if [ ! -z $sshlogin ] # in successlog
-	# if sshlogin is not empty, send successloglinestxt to remote Desktop
+	# if sshlogin is not empty, send lv_successloglinestxt to remote Desktop
 	# aus cfg: sshlogin=
-	if [  -n  "$sshlogin" ] 
+	if [  -n  "${sshlogin}" ] 
 	then
 		ssh_port=$( func_sshport )
 #		dlog "successlog : login: '${sshlogin}', host: '${sshhost}', target: '${sshtargetfolder}', port: '${ssh_port}'"
@@ -264,13 +293,10 @@ function successlog {
 		then
 			COMMAND="cp ${ff} ${sshtargetfolder}${file_successloglines}"
 			dlog "copy logs to local Desktop: $COMMAND"
-			#eval $COMMAND
-			#dlog "chown $sshlogin:$sshlogin ${sshtargetfolder}$ff"
-			COMMAND="rsync -av --delete backup_messages_test/ ${sshtargetfolder}"
+			COMMAND="rsync -av --delete ${bv_backup_messages_testfolder}/ ${sshtargetfolder}"
 			dlog "rsync command; $COMMAND"
-			eval $COMMAND
-			dlog "chown -R $sshlogin:$sshlogin ${sshtargetfolder}"
-			chown -R $sshlogin:$sshlogin ${sshtargetfolder}
+			dlog "chown -R ${sshlogin}:${sshlogin} ${sshtargetfolder}"
+			chown -R ${sshlogin}:${sshlogin} ${sshtargetfolder}
 		else
 			# is in cfg.ssh_login
 			# in 'successlog' do_ping_host 
@@ -282,30 +308,14 @@ function successlog {
 			if [ $RET -eq  0 ]
 			then
 				# copy to remote target folder
-				#COMMAND="rsync $ff -e 'ssh -p ${ssh_port}'  $sshlogin@$sshhost:${sshtargetfolder}${file_successloglines}"
-				#dlog "$COMMAND"
-				#eval $COMMAND
-				#RET=$?
-				#if [ $RET -gt 0 ]
-				#then
-				#	dlog "rsync failed, target for log messages down!  "
-				#	dlog "COMMAND:  $COMMAND"
-				#	dlog ""	
-				#fi
-				# copy message folder to remote target, with --delete 
-				#_sshport=$( func_sshport )
-				#_sshe="ssh -4 -p $_sshport" 
-				#_sshtemp=$_sshe
-				#_slash="'"
-				#_sshe="${_slash}${_sshtemp}${_slash}" 
-				dlog "rsync -av --delete -e 'ssh -4 -p 4194' backup_messages_test/ $sshlogin@$sshhost:${sshtargetfolder} -P"
-				#rsync -av --delete -e 'ssh -4 -p 4194' backup_messages_test/ $sshlogin@$sshhost:${sshtargetfolder} -P
-				rsync -a --delete -e 'ssh -4 -p 4194' backup_messages_test/ $sshlogin@$sshhost:${sshtargetfolder} -P
+				dlog "rsync -av --delete -e 'ssh -4 -p 4194' ${bv_backup_messages_testfolder}/ ${sshlogin}@${sshhost}:${sshtargetfolder} -P"
+				#rsync -a --delete -e 'ssh -4 -p 4194' ${bv_backup_messages_testfolder}/ ${sshlogin}@${sshhost}:${sshtargetfolder} -P >> $bv_rsynclogfile
+				rsync -a --delete -e 'ssh -4 -p 4194' ${bv_backup_messages_testfolder}/ ${sshlogin}@${sshhost}:${sshtargetfolder} -P 
 				RET=$?
 				if [ $RET -gt 0 ]
 				then
 					dlog "rsync failed, target for log messages is not available  "
-					dlog "COMMAND:  rsync -av --delete -e ssh -4 -p 4194 backup_messages_test/ $sshlogin@$sshhost:${sshtargetfolder}"
+					dlog "COMMAND:  rsync -av --delete -e ssh -4 -p 4194 ${bv_backup_messages_testfolder}/ ${sshlogin}@{$sshhost}:${sshtargetfolder}"
 					dlog ""
 				else
 					dlog "rsync was ok"
@@ -319,6 +329,7 @@ function successlog {
 	fi
 }
 
+
 function write_header(){
 
 	declare -a successline=( $SUCCESSLINE )
@@ -327,7 +338,7 @@ function write_header(){
 	local firstheader=${successline[0]}
 
 	# get count of lines without header
-	local count=$( cat $successloglinestxt | grep -v $firstheader | wc -l )
+	local count=$( cat $lv_successloglinestxt | grep -v $firstheader | wc -l )
 	local divisor=20
 	local n=$(( count % divisor ))
 
@@ -340,31 +351,31 @@ function write_header(){
         	do
 
 			# write line in field, width = 15
-        		txt=$( printf "%${SUCCESSLINEWIDTH}s" $_s )
+			txt=$( printf "%${SUCCESSLINEWIDTH}s" $_s )
 
 			# append formatted header to line
 			line1=${line1}${txt}
         	done
-		ff=$successloglinestxt
-        	_TODAY=`date +%Y%m%d-%H%M`
+		ff=$lv_successloglinestxt
+        local _TODAY=$( currentdate_for_log )
 		# append formatted header line
 		echo "$_TODAY: $line1" >> $ff
 	fi
 }
 
-show_disks_connected(){
+function list_connected_disks_by_uuid(){
 	local _oldifs=$IFS
 	IFS=$'\n'
 
 	#ls -1 /dev/disk/by-uuid/
-	for _d in $(ls -1 /dev/disk/by-uuid/)
+	for _uuid in $(ls -1 /dev/disk/by-uuid/)
 	do
-		_g=$(grep  ${_d}  uuid.txt)
+		_line=$(grep  ${_uuid}  uuid.txt)
 		# Following syntax deletes the longest match of $substring from front of $string
 		# ${string##substring}
-		if ! [ -z "${_g##*swap*}" ] && ! [ -z "${_g##*boot*}" ]
+		if ! [ -z "${_line##*swap*}" ] && ! [ -z "${_line##*boot*}" ]
 		then
-			dlog "    connected disk:  $_g"
+			dlog " all  connected disk:  $_line"
 		fi
 	done
 	IFS=$_oldifs
@@ -379,98 +390,87 @@ check_stop  "at start of loop through disklist (bk_disks.sh)"
 declare -a successlist
 declare -a unsuccesslist
 
-dlog "check all projects in disks: '$DISKLIST'"
+dlog "check all projects in disks: '$bv_disklist'"
 dlog ""
 
 dlog "show connected disks:"
 
-show_disks_connected
+list_connected_disks_by_uuid
 
 dlog ""
 
 # loop disk list
 
-dlog "execute list: $DISKLIST"
-tlog "execute list: $DISKLIST"
-for _disk in $DISKLIST
+# disklist is set in cfg.projects
+dlog "execute list: $bv_disklist"
+tlog "execute list: $bv_disklist"
+for _disk in $bv_disklist
 do
 	dlog ""
 	dlog "==== next disk: '$_disk' ===="
 
 
-	_FNOLD=$FILENAME
-	FILENAME="$_disk"
+	_FNOLD=$lv_cc_logname
+	lv_cc_logname="$_disk"
 	dlog ""
 	oldifs2=$IFS
 	IFS=','
 	RET=""
+	############################################################################
 	# call loop.sh to loop one disk ############################################
-	./bk_loop.sh "$_disk" 
+	./bk_loop.sh "$_disk"
 	############################################################################
         RET=$?
 	#dlog "RET nach loop: $RET"
 
 
-	# possible exit values
-	# ok, exit NOINTERVALSET
-	# ok, exit DISKLABELNOTFOUND
-	# ok, exit MOUNTDIRTNOTEXIST
-	# ok, exit DISKNOTUNMOUNTED
-	# ok, exit DISKNOTMOUNTED
+	# possible exit values from 'bk_loop.sh'
+	# exit BK_DISKLABELNOTGIVEN 	- disk label from caller is empty
+	# exit $BK_ARRAYSNOK         	- property arrays have errors
+	# exit $BK_DISKLABELNOTFOUND	- disk with uuid nit found in /dev/disk/by-uuid, disk ist not in system 
+	# exit $BK_NOINTERVALSET	- no backup time inteval configured in 'cfg.projects'
+	# exit $BK_TIMELIMITNOTREACHED	- for none project at this disk time limit is not reached
+	# exit $BK_DISKNOTUNMOUNTED	- ddisk couldn't be unmounted
+	# exit $BK_MOUNTDIRTNOTEXIST	- mount folder for backup disk is not present in '/mnt'
+	# exit $BK_DISKNOTMOUNTED	- disk couldn't be mounted 
+	# exit $BK_DISKNOTMOUNTED	- rsync error, see logs
+	# exit $BK_SUCCESS		- all was ok
 
-	# ok, exit RSYNCFAILS
-	# ok, exit SUCCESS
-
-	# exit ARRAYSNOK
-	#  after else exit TIMELIMITNOTREACHED
-	#   ans  DISKLABELNOTFOUND
 
 
 	IFS=$oldifs2
-	dlog ""
+	dlog " end of 'bk_loop.sh'"
 	msg=""
 	PROJECTERROR="false"
-	FILENAME=$_FNOLD
+	lv_cc_logname=$_FNOLD
 
-	if [[ $RET = "$NOINTERVALSET" ]]
+	if [[ $RET = "$BK_NOINTERVALSET" ]]
 	then
 		msg="for one project of disk '$_disk' time interval is not set"
 	fi
-	if [[ $RET = "$DISKLABELNOTFOUND" ]]
+	if [[ $RET = "$BK_DISKLABELNOTFOUND" ]]
 	then
 		# no error, normal use of disks
 		dlog "HD with label: '$_disk' not found ..." 
 	fi
-	if [[ $RET = "$MOUNTDIRTNOTEXIST" ]]
+	if [[ $RET = "$BK_MOUNTDIRTNOTEXIST" ]]
 	then
 		msg="mountpoint for HD with label: '$_disk' not found: '/mnt/$_disk' "
 	fi
 
-	# not in RET
-	#if test $RET -eq $NOFOLDERRSNAPSHOT·
-	#then
-	#	msg="error: folder 'rsnapshot' doesn't exist"
-	#fi
-	
-	# not in RET
-	#if test $RET -eq $NORSNAPSHOTROOT
-	#then
-	#	msg="snapshot root folder doesn't exist, see log"
-	#fi
-
-	if [[ $RET = "$DISKNOTMOUNTED" ]]
+	if [[ $RET = "$BK_DISKNOTMOUNTED" ]]
 	then
 		msg="HD with label: '$_disk' couldn't be mounted" 
 	fi
-	if [[ ${RET} == "$DISKNOTUNMOUNTED" ]]
+	if [[ ${RET} == "$BK_DISKNOTUNMOUNTED" ]]
 	then
 		msg="HD with label: '$_disk' couldn't be unmounted" 
 	fi
-	if [[ ${RET} == "$RSYNCFAILS" ]]
+	if [[ ${RET} == "$BK_RSYNCFAILS" ]]
 	then
 		msg="rsync error in disk: '$_disk'"
 		PROJECTERROR="true"
-		RET=$SUCCESS
+		RET=$BK_SUCCESS
 	fi
 	# test msg: msg="test abc"
 	#msg="test abc"
@@ -480,7 +480,7 @@ do
 		#dlog "$msg" 
 	fi
 
-	if [[ ${RET} == "$SUCCESS" ]]
+	if [[ ${RET} == "$BK_SUCCESS" ]]
 	then
 		if [[ $PROJECTERROR == "true" ]]
 		then
@@ -488,36 +488,37 @@ do
 		else
 			dlog "'$_disk' successfully done"
 		fi
-#		dlog   "cat successarraytxt: $( cat $successarraytxt )"
+#		dlog   "cat bv_successarray: $( cat $bv_successarray )"
 		# defined in  filenames.sh
-		# successarraytxt and unsuccessarraytxt contain 
+		# successarray and unsuccessarray contain 
 		# shortened names, like in header in var SUCCESSLINE="c:dserver ...."
-		if test -f "$successarraytxt"
+		if test -f "$bv_successarray"
 		then
 			oldifs3=$IFS
 			IFS=' '
-			successlist=( ${successlist[@]} $(cat $successarraytxt) )
+			successlist=( ${successlist[@]} $(cat $bv_successarray) )
 			IFS=$oldifs3
-			rm $successarraytxt
+			rm $bv_successarray
 		fi
-		if test -f "$unsuccessarraytxt"
+		if test -f "$bv_unsuccessarray"
 		then
 			oldifs3=$IFS
 			IFS=' '
-			unsuccesslist=( ${unsuccesslist[@]} $(cat $unsuccessarraytxt) )
+			unsuccesslist=( ${unsuccesslist[@]} $(cat $bv_unsuccessarray) )
 			IFS=$oldifs3
-			rm $unsuccessarraytxt
+			rm $bv_unsuccessarray
 		fi
 	else
-		if [[ "${RET}" == "$TIMELIMITNOTREACHED" ]]
+		if [[ "${RET}" == "$BK_TIMELIMITNOTREACHED" ]]
 		then
                 	dlog "'$_disk' no project has timelimit reached, wait for next loop"
                 else
-                	if [[ "${RET}" == "$DISKLABELNOTFOUND" ]]
+                	if [[ "${RET}" == "$BK_DISKLABELNOTFOUND" ]]
 			then
 				dlog "'$_disk' is not connected with the server"
 			else
-				dlog  "'$_disk' returns with errors, see log"
+				# none of exit values are checked
+				dlog  "'$_disk' returns with error: '$RET', see log"
 			fi
 		fi
 	fi
@@ -531,14 +532,25 @@ tlog "end list"
 
 
 #dlog "write success disk: $_disk"
-_length_successlist=${#successlist[@]}
-_length_unsuccesslist=${#unsuccesslist[@]}
+# x replaces successlist, if not empty,  and testet
+if [ -z ${successlist+x} ]
+then
+	_length_successlist=0
+else
+	_length_successlist=${#successlist[@]}
+fi
+if [ -z ${unsuccesslist+x} ]
+then
+	_length_unsuccesslist=0
+else
+	_length_unsuccesslist=${#unsuccesslist[@]}
+fi
 
 if test "$_length_successlist" -eq "0" -a "$_length_unsuccesslist" -eq "0"  
 then
-	dlog "successarrays are empty, don't write an entry to: $successloglinestxt"
+	dlog "successarrays are empty, don't write an entry to: $lv_successloglinestxt"
 else
-	dlog "successarrays are not empty, write success/error entry to: $successloglinestxt"
+	dlog "successarrays are not empty, write success/error entry to: $lv_successloglinestxt"
 	write_header
 	successlog  successlist[@] unsuccesslist[@] 
 fi
@@ -548,13 +560,13 @@ fi
 dlog "-- used time: $SECONDS seconds"
 
 # log used time in loop.log
-TODAY2=`date +%Y%m%d-%H%M`
+TODAY2=$( currentdate_for_log )
 counter1=$( get_loopcounter )
 projects=""
-if [ -f $executedprojects ]
+if [ -f $bv_executedprojectsfile ]
 then
-	projects=$( cat $executedprojects ) 
-	rm $executedprojects
+	projects=$( cat $bv_executedprojectsfile ) 
+	rm $bv_executedprojectsfile
 fi
 #dlog "projects: $projects"
 _seconds=$( printf  "%3d" $SECONDS )
@@ -566,7 +578,7 @@ dlog "loopmsg: $loopmsg "
 #echo "$loopmsg" >> loop.log
 
 
-IFS=$oldifs
+#IFS=$_oldifs
 
 # end full backup loop
 # lookup for waittimeinterval
@@ -576,34 +588,34 @@ dlog ""
 
 get_waittimeinterval
 
-dlog "waittime interval:  $waittimestart - $waittimeend "
+dlog "waittime interval:  $lv_waittimestart - $lv_waittimeend "
 
 
 hour=$(date +%H)
 
 
-# check for stop with 'execute_once'
-if [ $execute_once -eq 1 ]
+# check for stop with 'bv_test_execute_once'
+if [ $bv_test_execute_once -eq 1 ]
 then
-	# do_once_count=0
-	dlog "'execute once' set, stop loop, max count: '$do_once_count'"
-	exit $EXECONCESTOPPED
+	# bv_test_do_once_count=0
+	dlog "'execute once' set, stop loop, max count: '$bv_test_do_once_count'"
+	exit $BK_EXECONCESTOPPED
 fi
 
 
 
 # check for stop in wait interval
 
-dlog "if  $hour >= $waittimestart  && $hour  < $waittimeend "
-if [ "$hour" -ge "$waittimestart" ] && [ "$hour" -lt "$waittimeend"  ] && [ $use_minute_loop -eq 0 ] 
+dlog "if  $hour >= $lv_waittimestart  && $hour  < $lv_waittimeend "
+if [ "$hour" -ge "$lv_waittimestart" ] && [ "$hour" -lt "$lv_waittimeend"  ] && [ $bv_test_use_minute_loop -eq 0 ] 
 then
 	# in waittime interval or minute loop used
-	dlog "$text_marker $text_wait_interval_reached, current: $hour, begin wait interval: $waittimestart, end wait interval: $waittimeend"
+	dlog "$text_marker $text_wait_interval_reached, current: $hour, begin wait interval: $lv_waittimestart, end wait interval: $lv_waittimeend"
 	count=0
-	while [  $hour -lt $waittimeend ] 
+	while [  $hour -lt $lv_waittimeend ] 
         do
 
-		#dlog "time $(date +%H:%M:%S), wait until $waittimeend"
+		#dlog "time $(date +%H:%M:%S), wait until $lv_waittimeend"
 		hour=$(date +%H)
 		# every 30 min display a status message
 		# 30 min = 1800 sec 
@@ -614,7 +626,7 @@ then
 			mminute=$(date +%M)
 
 			#dlog "value of minute, in loop: $mminute"
-			dlog "$text_marker ${text_wait_interval_reached}, time $(date +%H:%M:%S), wait until $waittimeend"
+			dlog "$text_marker ${text_wait_interval_reached}, time $(date +%H:%M:%S), wait until $lv_waittimeend"
 		fi
 		count=$(( count+1 ))
 
@@ -629,9 +641,9 @@ then
 	dlog "$text_marker ${text_waittime_end}, next check at $(date +%H):00"
 	#dlog "$text_marker ${text_waittime_end}, next check at $(date -d '+1 hour' '+%H'):00"
 	#tlog "wait 1 hour"
-#	if [ $execute_once -eq 1 ]
+#	if [ $bv_test_execute_once -eq 1 ]
 #	then
-#		dlog "'execute_once': stop in 'loop_to_full_next_hour'"
+#		dlog "'test_execute_once': stop in 'loop_to_full_next_hour'"
 #	fi
 # wait one hour ?
 #	loop_to_full_next_hour
@@ -639,7 +651,7 @@ then
 else
 	# not in waittime interval
 	hour=$(date +%H:%M)
-	dlog "time '$hour' not in waittime interval: '$waittimestart - $waittimeend'"
+	dlog "time '$hour' not in waittime interval: '$lv_waittimestart - $lv_waittimeend'"
 
 	loopcounter=$( printf "%05d"  $( get_loopcounter ) )
 
@@ -647,50 +659,50 @@ else
 	# "waiting, backup ready"
 
 	# first show errors
-	if [ -s $internalerrorstxt ]
+	if [ -s $bv_internalerrors ]
 	then
 		dlog ""
 		dlog "show errors:"
-		dlog "$( cat $internalerrorstxt )"
+		dlog "$( cat $bv_internalerrors )"
 		dlog ""
-		dlog "$text_marker_error_in_waiting , next check at $(date +%H --date='-1 hours ago' ):00, loop: $loopcounter,  stop backup with './stop.sh'"
+		dlog "${text_marker_error_in_waiting}, next check at $(date +%H --date='-1 hours ago' ):00, loop: $loopcounter,  stop backup with './stop.sh'"
 	else
-		dlog "$text_marker_waiting , next check at $(date +%H --date='-1 hours ago' ):00, loop: $loopcounter,  stop backup with './stop.sh'"
+		dlog "${text_marker_waiting}, next check at $(date +%H --date='-1 hours ago' ):00, loop: $loopcounter,  stop backup with './stop.sh'"
 	fi
 	# display message and wait
 	# lastlogline, this is last line of log, if in wait state
-	if [ $use_minute_loop -eq 1 ]
+	if [ $bv_test_use_minute_loop -eq 1 ]
 	then
-		# use_minute_loop is set
-		tlog "wait minutes: $minute_loop_duration"
-		dlog "wait minutes: $minute_loop_duration"
+		# 'test_use_minute'_loop is set
+		tlog "wait minutes: $bv_test_minute_loop_duration"
+		dlog "wait minutes: $bv_test_minute_loop_duration"
 		# default=2
-		mlooptime=$minute_loop_duration
+		mlooptime=$bv_test_minute_loop_duration
 
 		if [ -z $mlooptime  ]
 		then
 			mlooptime=2
 		fi
-		dlog "'use_minute_loop' is set, wait '$mlooptime' minutes"
-		if [ $short_minute_loop -eq 1 ]
+		dlog "'test_use_minute_loop' is set, wait '$mlooptime' minutes"
+		if [ $bv_test_short_minute_loop -eq 1 ]
 		then
-			dlog "'short_minute_loop' set, skip immediately, not waiting '$mlooptime' minutes"
+			dlog "'test_short_minute_loop' set, skip immediately, not waiting '$mlooptime' minutes"
 		fi
 		 
-		if [ $short_minute_loop_seconds_10 -eq 1 ]
+		if [ $bv_test_short_minute_loop_seconds_10 -eq 1 ]
 		then
 			_seconds=$((  mlooptime * 10 ))
-			dlog "'short_minute_loop_seconds_10' is set, one minute ist shortened to 10 seconds, '$_seconds' seconds "
+			dlog "'test_short_minute_loop_seconds_10' is set, one minute ist shortened to 10 seconds, '$_seconds' seconds "
 		fi
 
 		loop_minutes $mlooptime 
 	else
 	        # wait until next full hour
-		# skipped if check_looptimes=0
+		# skipped if 'test_check_looptimes'=0
 		# stop is checked here
 		tlog "wait 1 hour"
 		#dlog "wait 1 hour", # don't enable this, 'is_stopped.sh' uses last line, and didn't work correct
-		if [ $check_looptimes -eq 1 ]
+		if [ $bv_test_check_looptimes -eq 1 ]
 		then
 			loop_to_full_next_hour
 		fi
@@ -701,10 +713,10 @@ dlog "=== disks end  ==="
 tlog "end"
 
 
-# exit NORMALDISKLOOPEND for successful loop
-# execute_once is 0
+# exit BK_NORMALDISKLOOPEND for successful loop
+# test_execute_once is 0
 
-exit $NORMALDISKLOOPEND
+exit $BK_NORMALDISKLOOPEND
 
 
 # EOF

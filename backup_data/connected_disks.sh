@@ -2,7 +2,7 @@
 
 # file: connected_disks.sh
 
-# bk_version 21.11.1
+# bk_version 22.01.1
 
 
 # Copyright (C) 2021 Richard Albrecht
@@ -31,7 +31,7 @@ temp=$(mktemp)
 for _d in $(ls -1 /dev/disk/by-uuid/)
 do
 	val=$( cat uuid.txt | awk  '{ print $2 }' )	
-#	echo "val : $val "
+	#echo "val : $val "
 	g=$(grep  "$_d"  uuid.txt) 
 	if ! [ -z "${g##*swap*}" ] && ! [ -z "${g##*boot*}" ]
 	then
@@ -39,6 +39,8 @@ do
 	fi
 done
 cat $temp | sort -k2
+
+echo "$temp"
 
 if test -f $temp 
 then

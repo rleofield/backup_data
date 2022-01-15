@@ -2,7 +2,7 @@
 
 # file: show_times.sh
 
-# bk_version 21.11.1
+# bk_version 22.01.1
 
 
 # Copyright (C) 2021 Richard Albrecht
@@ -34,6 +34,9 @@ cd $WORKINGFOLDER
 #SHOWTIMES_LOGFILE="_show_times.log"
 #export SHOWTIMES_LOGFILE 
 
+readonly bv_disklist=$DISKLIST
+
+
 echo "show times for all disks and all projects"
 #echo "result is in '$SHOWTIMES_LOGFILE'"
 
@@ -44,15 +47,15 @@ function log {
 }
 
 
-FILENAME="show_times"
+lv_cc_logname="show_times"
 
 function stdatelog {
-	if [  -z ${FILENAME} ]
+	if [  -z ${lv_cc_logname} ]
 	then
-		echo "${FILENAME} is empty"
+		echo "${lv_cc_logname} is empty"
 		exit
 	fi
-	local _msg="${FILENAME}: $1"
+	local _msg="${lv_cc_logname}: $1"
 	local _TODAY=`date +%Y%m%d-%H%M`
 	log "$_TODAY ==>  $_msg"
 }
@@ -60,16 +63,16 @@ function stdatelog {
 function errorlog {
 	local _TODAY=`date +%Y%m%d-%H%M`
 	local _msg=$( echo "$_TODAY err ==> '$1'" )
-	echo -e "$_msg" >> $ERRORLOG
+	echo -e "$_msg" >> $bv_errorlog
 }
 
 
 
 
-cd $WORKINGFOLDER
-if [ ! -d $WORKINGFOLDER ] && [ ! $( pwd ) = $WORKINGFOLDER ]
+cd $bv_workingfolder
+if [ ! -d $bv_workingfolder ] && [ ! $( pwd ) = $bv_workingfolder ]
 then
-	echo "WD '$WORKINGFOLDER'"
+	echo "WD '$bv_workingfolder'"
 	echo "WD is wrong"
 	exit 1
 fi
@@ -78,11 +81,11 @@ fi
 
 
 
-for _disk in $DISKLIST
+for _disk in $bv_disklist
 do
 	# clean up ssh messages
 	stdatelog ""
-	stdatelog "${FILENAME}: ==== next disk: '$_disk' ===="
+	stdatelog "${lv_cc_logname}: ==== next disk: '$_disk' ===="
 	oldifs2=$IFS
 	IFS=','
 	RET=""
@@ -90,9 +93,9 @@ do
         RET=$?
 	IFS=$oldifs2
 
-	if [[ $RET = "$DISKLABELNOTFOUND" ]]
+	if [[ $RET = "$BK_DISKLABELNOTFOUND" ]]
 	then
-		stdatelog "${FILENAME}: HD with label: '$_disk' not found"
+		stdatelog "${lv_cc_logname}: HD with label: '$_disk' not found"
         fi
 
 done

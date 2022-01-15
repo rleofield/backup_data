@@ -1,5 +1,5 @@
 # file: filenames.sh
-# bk_version 21.11.1
+# bk_version 22.01.1
 # included with 'source'
 
 
@@ -21,17 +21,24 @@
 
 
 # text file for success and unsuccess
-successarraytxt="successarray.txt"
-unsuccessarraytxt="unsuccessarray.txt"
-internalerrorstxt="internalerrors.txt"
+readonly bv_successarray="successarray.txt"
+readonly bv_unsuccessarray="unsuccessarray.txt"
+readonly bv_internalerrors="internalerrors.txt"
 
-readonly notifybasefile="Backup-HD"
+# in bk_disks.sh
+# readonly successloglinestxt="successloglines.txt"
+
+
+readonly bv_notifyfileprefix="Backup-HD"
 
 
 
 # now in bk_disks.sh
-#successloglinestxt="successloglines.txt"
-executedprojects="executedprojects.txt"
+readonly bv_executedprojectsfile="executedprojects.txt"
+
+# in cron_start_backup.sh
+# in bk_main
+
 
 # EOF
 

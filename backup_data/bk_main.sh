@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_main.sh
-# bk_version 21.11.1
+# bk_version 22.01.1
 
 
 # Copyright (C) 2021 Richard Albrecht
@@ -28,6 +28,13 @@
 #				./bk_archive.sh,    no history, rsync only
 
 
+# prefixes of variables in backup:
+# bv_*  - global vars, alle files
+# lv_*  - local vars, global in file
+# _*    - local in functions or loops
+# BK_*  - exitcodes, upper case, BK_
+
+
 . ./cfg.working_folder
 
 . ./src_test_vars.sh
@@ -36,30 +43,45 @@
 . ./src_log.sh
 . ./src_folders.sh
 
+# values: lv_iscron  = "cron" = backup was started via cronjob
+#         lv_iscron != "cron" = backup was started via commandline
+readonly lv_iscron=$1
+
+readonly lv_lockfilename="main_lock"
+
+# output goes to 'out_bk_main'
+# pwd and current time
+echo "working folder: $PWD"
+echo "time is:        $( currentdate_for_log )"
+# 
 
 
-echo "pwd $PWD"
+readonly lv_tracelogname="main"
+readonly lv_cc_logname="main"
 
-readonly iscron=$1
-
-readonly OPERATION="main"
-readonly FILENAME="$OPERATION"
-SECONDS=0
 tlog "start"
 
-_TODAY=`date +%Y%m%d-%H%M`
 
-echo "$_TODAY"
 
-if [ -d $WORKINGFOLDER ] && [ $PWD = $WORKINGFOLDER ]
-then
-	dlog ""
+function check_working_folder {
+	if [ -d $bv_workingfolder ] && [ $PWD = $bv_workingfolder ]
+	then
+		dlog ""
+	else
+		dlog "workingfolder '$bv_workingfolder' is wrong, stop, exit 1 "
+		exit 1
+	fi
+
+}
+
+function start_message {
+	local _call_source=$1
 	dlog "========================"
 	dlog "===  start of backup ==="
-	dlog "===  version 21.11.1 ==="
+	dlog "===  version 22.01.1 ==="
 	dlog "========================"
 
-	if [ $iscron == "cron" ]
+	if [ "$_call_source" = "cron" ]
 	then
 		dlog "------  is cron start    ------"
 	else
@@ -67,50 +89,81 @@ then
 	fi
 
 	dlog ""
-	dlog "--> WORKINGFOLDER: $WORKINGFOLDER"
-else
-	dlog "WORKINGFOLDER '$WORKINGFOLDER' is wrong, stop, exit 1 "
-	exit 1
-fi
+	dlog "--> workingfolder: $bv_workingfolder"
+}
+
+function check_if_already_running {
+	dlog "pgrep -u $USER   bk_main.sh "
+	pidcount=$(  pgrep -u $USER   "bk_main.sh" | wc -l )
+
+	# pid appears twice, because of the subprocess finding the pid
+	if [ $pidcount -lt 3 ]
+	then
+			dlog "backup is not running, start" 
+		else
+			dlog "backup is running, exit"
+			dlog "pid = $pidcount"
+			exit 1
+	fi
+
+}
 
 
 
+function check_main_lock {
+	local _call_source=$1
 
-dlog "pgrep -u $USER   bk_main.sh "
-pidcount=$(  pgrep -u $USER   "bk_main.sh" | wc -l )
-
-# pid appears twice, because of the subprocess finding the pid
-if [ $pidcount -lt 3 ]
-then
-        dlog "backup is not running, start" 
-    else
-        dlog "backup is running, exit"
-        dlog "pid = $pidcount"
-        exit 1
-fi
-
-if [ -f main_lock ]
-then
-        echo "backup is running, main_lock exists"
-        dlog "backup is running, main_lock exists"
-        exit 1
-fi
-
-if [ -f  rsnapshot.pid ]
-then
-        dlog "old rsnapshot.pid found, has backup_data crashed before?"
-        rm rsnapshot.pid
-fi
-
+	# remove main_lock, if is startet via cron_start_backup.sh
+	dlog "check '$lv_lockfilename', if exists"
+	if [ $_call_source = "cron" ]
+	then
+		dlog "check '$lv_lockfilename' for 'cron_start_backup'"
+	        if [ -f $lv_lockfilename ]
+		then
+			dlog " '$lv_lockfilename' exists, remove and continue"
+			dlog "remove $lv_lockfilename"
+			rm $lv_lockfilename
+        		dlog "$lv_lockfilename removed"
+		fi
+	else
+		# exit, if main_lock exists and is not startet via cron_start_backup.sh
+		dlog "check '$lv_lockfilename' for 'start_backup'"
+		if [ -f $lv_lockfilename ]
+		then
+			echo "backup is running, $lv_lockfilename exists"
+			dlog "backup is running, $lv_lockfilename exists, exit 1"
+			echo "exit 1"
+			dlog "exit 1"
+			exit 1
+		fi
+	fi
 
 
-# empty '$internalerrorstxt' = internalerrors.txt
-# do not empty in loop
+	
+}
+
+function check_and_remove_rsnapshot_pid_lock {
+	if [ -f  rsnapshot.pid ]
+	then
+		dlog "old rsnapshot.pid found, has backup_data crashed before?"
+		rm rsnapshot.pid
+	fi
+}
+
+
+# empty '$bv_internalerrors' = internalerrors.txt
+# do not clear in main loop
 # errors must be present until solved
-dlog " == "
-dlog " == truncate -s 0 $internalerrorstxt   ==" 
-truncate -s 0 $internalerrorstxt
-dlog " == "
+function clear_internalerrors_list {
+	dlog " == "
+	dlog " == truncate -s 0 $bv_internalerrors   ==" 
+	truncate -s 0 $bv_internalerrors
+	dlog " == "
+}
+
+
+
+
 
 function shatestfile(){
         local _file1=$1
@@ -129,175 +182,225 @@ function shatestfile(){
 }
 
 function shatestfiles(){
-        local _testfile=$1
+	local _testfile=$1
 	local exitval=0
-        while IFS=' ' read -r _lsum _file 
-        do
-                if [ -f $_file ]
-                then
-                        shatestfile  $_file $_lsum 
-                        RET=$?
-                        if [ $RET -eq 0 ]
-                        then
-                                dlog "$_file is ok"
+	local oldifs=$IFS
+	while IFS=' ' read -r _lsum _file 
+	do
+		if [ -f $_file ]
+		then
+			shatestfile  $_file $_lsum 
+			local RET=$?
+			if [ $RET -eq 0 ]
+			then
+				dlog "$_file is ok"
 			else
 				exitval=1
-                        fi
-                fi
-        done < <(cat $_testfile )
+			fi
+		fi
+	done < <(cat $_testfile )
+	IFS=$oldifs
 	return $exitval
+}
+
+function shatest(){
+	if [ -f "sha256sum.txt.sh" ]
+	then
+		dlog " ==  test sha256sums"
+		#RETSHA256=$( sha256sum -c --quiet sha256sum.txt.sh )
+		shatestfiles sha256sum.txt.sh
+		RETSHA256=$?
+		if [ ${RETSHA256} -gt 0  ]
+		then
+			dlog "sha256sum check fails, craate new 'sha256sum.txt.sh' by call of 'get_sha256.sh'"
+			dlog "and start with './start_backup.sh' again"
+			exit 0
+		else
+			dlog "sha256sum check ok"
+		fi
+	else
+		dlog "sha256sum check fails, craate new 'sha256sum.txt.sh' by call of 'get_sha256.sh'"
+		dlog "and start with './start_backup.sh' again"
+
+	fi
+}
+
+function list_test_flags(){
+	dlog " ==  list test flags and variables =="
+	dlog "maxfillbackupdiskpercent (70):    $bv_maxfillbackupdiskpercent"
+	dlog "no_check_disk_done (0):           $bv_test_no_check_disk_done"
+	dlog "check_looptimes (1):              $bv_test_check_looptimes"
+	dlog "execute_once (0):                 $bv_test_execute_once"
+	dlog "do_once_count (0):                $bv_test_do_once_count"
+	dlog "test_use_minute_loop (0):              $bv_test_use_minute_loop"
+	dlog "test_short_minute_loop (0):            $bv_test_short_minute_loop"
+	dlog "test_short_minute_loop_seconds_10 (0): $bv_test_short_minute_loop_seconds_10"
+	dlog "test_minute_loop_duration (2):         $bv_test_minute_loop_duration"
+	dlog "daily_rotate (1):                 $bv_daily_rotate"
+	dlog " == "
+}
+
+
+# check folder for rsnapshot configuration files
+function check_configuration_folders(){
+	local _folderlist="$bv_conffolder $bv_intervaldonefolder $bv_retainscountfolder $bv_backup_messages_testfolder $bv_donefolder $bv_excludefolder $bv_oldlogsfolder $bv_preconditionsfolder $bv_retainscountfolder"
+	for _folder in $_folderlist
+	do
+		dlog "check folder: '$_folder'"
+		if  [ ! -d $_folder   ]
+		then
+			dlog "folder: '$_folder' doesn't exist, exit 1"
+			dlog "===================="
+			exit 1
+		fi
+	done
 }
 
 
 
+function rotate_logs(){
+	# date in year month day
+	local _date=$(date +%Y-%m-%d)
+	local _oldlogdir=$bv_oldlogsfolder/$_date
 
-# create sha file, if needed
-# sha256sum *.sh > sha256.txt.sh
-if [ -f "sha256sum.txt.sh" ]
-then
-	dlog " ==  test sha256sums"
-	#RETSHA256=$( sha256sum -c --quiet sha256sum.txt.sh )
-	shatestfiles sha256sum.txt.sh
-	RETSHA256=$?
-	if [ ${RETSHA256} -gt 0  ]
+	# if _oldlogdir with date doesn't exist
+	if [ ! -d "$_oldlogdir" ]
 	then
-		dlog "sha256sum check fails, see: 'sha256sum.txt.sh'"
-		exit 0
-	else
-		dlog "sha256sum check ok"
+
+		if [ $bv_daily_rotate -eq 1 ]
+		then
+			dlog "rotate log to '$_oldlogdir'"
+			mkdir $_oldlogdir
+			mv aa_* $_oldlogdir
+			mv rr_* $_oldlogdir
+			mv $bv_logfile $_oldlogdir
+			mv $bv_errorlog $_oldlogdir
+			mv $bv_tracefile $_oldlogdir
+			if [ -f label_not_found.log ]
+			then
+				mv label_not_found.log "$_oldlogdir"
+			fi
+			# and create new and empty files
+			touch $bv_logfile
+			touch $bv_errorlog
+			touch $bv_tracefile
+			dlog "log rotated to '$_oldlogdir'"
+
+			# date: year month 01
+			local _date01=$(date +%Y-%m-01)
+			# if _date = first of month, save logs 
+			if [[ ${_date01} == ${_date} ]]
+			then
+				dlog "rotate monthly at '$_date'"
+				#mv successlog.txt "$_oldlogdir"
+				#touch successlog.txt 
+				mv successloglines.txt $_oldlogdir
+				touch successloglines.txt 
+			fi
+		fi
 	fi
-fi
+}
+
+function set_lock(){
+	local _runningnumber=$( printf "%05d"  $( get_loopcounter ) )
+	local _lock_date=`date +%Y%m%d-%H%M%S`
+	echo "${_lock_date}: create file '$lv_lockfilename'"
+	touch $lv_lockfilename
+	echo "$_runningnumber" > $lv_lockfilename
+
+}
+
+function release_lock(){
+	if [ -f $lv_lockfilename ]
+	then
+		local _release_date=`date +%Y%m%d-%H%M%S`
+		echo "$_release_date: remove file '$lv_lockfilename'"
+		rm $lv_lockfilename
+	fi
+}
+
+function increment_loop_counter(){
+	# increment counter after main_loop.sh and before exit
+	local _counter=$( get_loopcounter )
+	_counter=$(( _counter + 1 ))
+	echo "loop counter: $_counter" > loop_counter.log   
+
+}
+
+check_working_folder
+start_message $lv_iscron
+check_if_already_running
+check_main_lock $lv_iscron
+check_and_remove_rsnapshot_pid_lock
+clear_internalerrors_list 
+
+# if fails, create sha file, if needed
+# sha256sum *.sh > sha256sum.txt.sh
+shatest
+
 
 dlog ""
+list_test_flags
 
-dlog " ==  list test flags and variables =="
-dlog "maxfillbackupdiskpercent (90):    $maxfillbackupdiskpercent"
-dlog "no_check_disk_done (0):           $no_check_disk_done"
-dlog "check_looptimes (1):              $check_looptimes"
-dlog "execute_once (0):                 $execute_once"
-dlog "do_once_count (0):                $do_once_count"
-dlog "use_minute_loop (0):              $use_minute_loop"
-dlog "short_minute_loop (0):            $short_minute_loop"
-dlog "short_minute_loop_seconds_10 (0): $short_minute_loop_seconds_10"
-dlog "minute_loop_duration (2):         $minute_loop_duration"
-dlog "daily_rotate (1):                 $daily_rotate"
-dlog " == "
+# check folder for rsnapshot configuration files
+check_configuration_folders
 
-
-
-
-# folder for rsnapshot configuration files
-folderlist="$CONFFOLDER $intervaldonefolder $retainscountfolder $rsynclogfolder $backup_messages_test $donefolder $exclude $oldlogs $pre $retains_count"
-for ff in $folderlist
-do
-	dlog "check folder: '$ff'"
-	if  [ ! -d $ff   ]
-	then
-		dlog "folder: '$ff' doesn't exist, exit 1"
-		dlog "===================="
-		exit 1
-	fi
-done
-
-
-# loop, until 'bk_disks.sh' returns  not 0
+# loop, until 'bk_disks.sh' returns  not '$BK_NORMALDISKLOOPEND'
 
 do_once_counter=0
 
 while true
 do
 	dlog "" 
-	counter=$( get_loopcounter )
-	runningnumber=$( printf "%05d"  $( get_loopcounter ) )
-	tlog "counter $counter"
-	dlog " ===== start main loop ($runningnumber) =====" 
+	_runningnumber=$( printf "%05d"  $( get_loopcounter ) )
+	# is incremented after 'bk_disks.sh' in 'increment_loop_counter'
+	
+
+	tlog "counter $_runningnumber"
+	dlog " ===== start main loop ($_runningnumber) =====" 
 
 	# rotate log
-	# daily rotate
-	_date=$(date +%Y-%m-%d)
-	oldlogdir=oldlogs/$_date
-	if [ ! -d "$oldlogdir" ]
-	then
-		if [ $daily_rotate -eq 1 ]
-		then
-			dlog "rotate log to '$oldlogdir'"
-			mkdir "$oldlogdir"
-			mv aa_* "$oldlogdir"
-			mv rr_* "$oldlogdir"
-			mv $BK_LOGFILE "$oldlogdir"
-			mv $ERRORLOG "$oldlogdir"
-			mv $TRACEFILE "$oldlogdir"
-			mv label_not_found.log "$oldlogdir"
-			# and create new and empty files
-			touch $BK_LOGFILE
-			touch $ERRORLOG
-			touch $TRACEFILE
-			dlog "log rotated to '$oldlogdir'"
-#			dlog "date:  '$_date'"
-			_date01=$(date +%Y-%m-01)
-#			dlog "date01:  '$_date01'"
-			if [[ ${_date01} == ${_date} ]]
-			then
-				dlog "rotate monthly at '$_date'"
-				#mv successlog.txt "$oldlogdir"
-				#touch successlog.txt 
-				mv successloglines.txt "$oldlogdir"
-				touch successloglines.txt 
-				mv $rsynclogfolder "$oldlogdir"
-				if [ ! -d "$rsynclogfolder" ]
-				then
-					mkdir $rsynclogfolder
-				fi
-			fi
-		fi
-	fi
+	rotate_logs
 
 	dlog ""
 	
 	# set lock
-	LOCK_DATE=`date +%Y%m%d-%H%M%S`
-	echo "$LOCK_DATE: create file 'main_lock'"
-	touch main_lock
-	echo "$runningnumber" > main_lock
+	set_lock
 
-	# call 'bk_disks.sh' to loop over all backup disks ############################################
-	#_TODAY1=`date +%Y%m%d-%H%M`
-	#dlog "$runningnumber, start 'bk_disks.sh': $_TODAY1"
-	./bk_disks.sh $iscron
+	# call 'bk_disks.sh' to loop over all backup disks 
+	##########################################################################################
+	./bk_disks.sh $lv_iscron
 	##########################################################################################
 	RET=$?
 
-	# release lock
-	if [ -f main_lock ]
-	then
+	# exit values from 'bk_disks.sh'
+	# exit $BK_EXECONCESTOPPED - test 'exec once' stopped
+	# exit $BK_NORMALDISKLOOPEND  - 99, normal end
+	# exit $BK_STOPPED -   normal stop, file 'stop' detected
 
-		LOCK_DATE=`date +%Y%m%d-%H%M%S`
-		echo "$LOCK_DATE: remove file 'main_lock'"
-		rm main_lock
-	fi
+
+	# release lock
+	release_lock
 
 	# increment counter after main_loop.sh and before exit
-	counter=$( get_loopcounter )
-	counter=$(( counter + 1 ))
-	TODAY2=`date +%Y%m%d-%H%M`
-	echo "loop counter: $counter" > loop_counter.log   
-	#echo "loop counter: $counter" 
+	increment_loop_counter
+	_runningnumber=$( printf "%05d"  $( get_loopcounter ) )
 
 
 #       RET = NORMALDISKLOOPEND,  if all is ok and normal loop
-#       RET = STOPPED,            if stop ist executed by hand and execute_once = 0
-#       RET = EXECONCESTOPPED,    if stop ist executed by execute_once = 1
+#       RET = STOPPED,            if stop ist executed by hand and 'test_execute_once' = 0
+#       RET = EXECONCESTOPPED,    if stop ist executed by 'test_execute_once' = 1
 
 	endmsg=""
-	if [ $RET -eq $NORMALDISKLOOPEND ]
+	if [ $RET -eq $BK_NORMALDISKLOOPEND ]
 	then
 		endmsg="all is ok, normal loop"
 	fi
-	if [ $RET -eq $STOPPED ]
+	if [ $RET -eq $BK_STOPPED ]
 	then
 		endmsg="stop ist executed manually"
 	fi
-	if [ $RET -eq $EXECONCESTOPPED ]
+	if [ $RET -eq $BK_EXECONCESTOPPED ]
 	then
 		endmsg="stop, is exec_one loop only"
 	fi
@@ -306,79 +409,80 @@ do
 	sleep 0.5
 	
 	#  all was ok, check for next loop
-	if [ $RET -eq $NORMALDISKLOOPEND ] 
+	if [ $RET -eq $BK_NORMALDISKLOOPEND ] 
 	then
-		if [ -s $internalerrorstxt ]
+		if [ -s $bv_internalerrors ]
 		then
 			dlog "" 
 			dlog "errors in backup loop: "
 			dlog "" 
 			dlog "errors:" 
-			dlog "$( cat $internalerrorstxt )"
+			dlog "$( cat $bv_internalerrors )"
 			dlog "" 
-			dlog "$text_marker_error, last loop counter: '$counter'"
+			dlog "$text_marker_error, last loop counter: '$_runningnumber'"
 			dlog "" 
 		fi
 	fi	
 
-	# STOPPED, exit
-	if [ $RET -eq $STOPPED ]
+	# BK_STOPPED, exit
+	if [ $RET -eq $BK_STOPPED ]
 	then
-		if [ -s $internalerrorstxt ]
+		if [ -s $bv_internalerrors ]
 		then
 			dlog "" 
 			dlog "--- stop was set, errors in backup: "
 			dlog "" 
 			dlog "errors:" 
-			dlog "$( cat $internalerrorstxt )" 
+			dlog "$( cat $bv_internalerrors )" 
 			dlog "" 
-			dlog "$text_marker_error_in_stop, last loop counter: '$counter', RET=$RET "
+			dlog "$text_marker_error_in_stop, last loop counter: '$_runningnumber', RET=$RET "
 		else
-			dlog "$text_marker_stop, end reached, start backup again with './start_backup.sh"
+			dlog "$text_marker_stop, end reached, start backup again with './start_backup.sh'"
 		fi
 		# normal stop via stop.sh
-		# no 'do_once_count' is set in 'src_test_vars.sh'
+		# no 'test_do_once_count' is set in 'src_test_vars.sh'
 		#dlog "stopped with 'stop' file"
 		tlog "end, return from bk_disks: $RET"
 		sync
 		exit 1
 	fi
 
-	if [ $RET -eq $EXECONCESTOPPED ]
+	if [ $RET -eq $BK_EXECONCESTOPPED ]
 	then
-		if [ -s $internalerrorstxt ]
+		if [ -s $bv_internalerrors ]
 		then
 			dlog "" 
-			dlog "'execute_once' was set, errors in backup: "
+			dlog "'test_execute_once' was set, errors in backup: "
 			dlog "" 
 			dlog "errors:" 
-			dlog "$( cat $internalerrorstxt )" 
+			dlog "$( cat $bv_internalerrors )" 
 			dlog "" 
-			dlog "$text_marker_error, last loop counter: '$counter', RET=$RET "
+			dlog "$text_marker_error, last loop counter: '$_runningnumber', RET=$RET "
 		fi
 
 
-		# check, if _'do_once_count' is set
-		if [ $do_once_count -gt 0 ]
+		# check, if _'test_do_once_count' is set
+		if [ $bv_test_do_once_count -gt 0 ]
 		then
 			# increment 'do_once_counter' and check nr of counts
 			((do_once_counter=do_once_counter+1))
 			dlog "do_once_counter = $do_once_counter"
-			if [ $do_once_counter -lt $do_once_count ]
+			if [ $do_once_counter -lt $bv_test_do_once_count ]
 			then
-				# 'do_once_count' is not reached, start new loop
-				dlog "$text_marker_test_counter, count loops not reached, '$do_once_counter -lt $do_once_count' "
+				# 'test_do_once_count' is not reached, start new loop
+				dlog "$text_marker_test_counter, 'test_do_once_count' loops not reached, '$do_once_counter -lt $bv_test_do_once_count' "
 				sleep 5
+				# goto end of loop
 			else
-				# 'do_once_count' is reached, exit
-				dlog "$text_marker_stop, end, do_once_count loops reached, '$do_once_counter -eq $do_once_count' "
+				# 'test_do_once_count' is reached, exit
+				dlog "$text_marker_stop, end, 'test_do_once_count' loops reached, '$do_once_counter -eq $bv_test_do_once_count' "
 				sync
 				exit 1
 			fi
 		else
-			# 'execute_once' is set, exit
-			dlog "$text_marker_stop, end reached, 'execute_once', RET: '$RET', exit 1 "
-			tlog "end, 'execute_once', return from bk_disks: $RET"
+			# 'test_execute_once' is set, exit
+			dlog "$text_marker_stop, end reached, 'test_execute_once', RET: '$RET', exit 1 "
+			tlog "end, 'test_execute_once', return from bk_disks.sh: $RET"
 			sync
 			exit 1
 		fi
@@ -387,7 +491,7 @@ do
 	# no stop set
 	dlog " ----> goto next loop  <----"
 	tlog " ----> goto next loop  <----"
-	sleep 10
+	sleep 5
 
 done
 

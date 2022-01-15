@@ -3,7 +3,7 @@
 
 # file: show_disks.sh
 
-# bk_version 21.11.1
+# bk_version 22.01.1
 
 # Copyright (C) 2021 Richard Albrecht
 # www.rleofield.de
@@ -30,10 +30,12 @@
 . ./src_filenames.sh
 
 SHOW_DISKS_LOGFILE="list_disks_log.log"
-FILENAME="show_disks"
+lv_cc_logname="show_disks"
+
+readonly bv_disklist=$DISKLIST
 
 
-#DISKLIST is from cfg.target_disk_list
+#bv_disklist is from cfg.target_disk_list
 
 function log {
    local msg=$1
@@ -44,26 +46,26 @@ function log {
 
 function dlog {
         local _TODAY=`date +%Y%m%d-%H%M`
-        log "${_TODAY} -> ${FILENAME}: $1"
+        log "${_TODAY} -> ${lv_cc_logname}: $1"
 }
 
 function sddatelog {
         local _TODAY=`date +%Y%m%d-%H%M`
-        log "${_TODAY} -> ${FILENAME}: $1"
+        log "${_TODAY} -> ${lv_cc_logname}: $1"
 }
 
 function errorlog {
         local _TODAY=`date +%Y%m%d-%H%M`
 	msg=$( echo "$_TODAY err ==> '$1'" )
-	echo -e "$msg" >> $ERRORLOG
+	echo -e "$msg" >> $bv_errorlog
 }
 
 
 
-cd $WORKINGFOLDER
-if [ ! -d $WORKINGFOLDER ] && [ ! $( pwd ) = $WORKINGFOLDER ]
+cd $bv_workingfolder
+if [ ! -d $bv_workingfolder ] && [ ! $( pwd ) = $bv_workingfolder ]
 then
-	echo "WD '$WORKINGFOLDER'"
+	echo "WD '$bv_workingfolder'"
 	echo "WD is wrong"
 	exit 1
 fi
@@ -94,8 +96,8 @@ function check_disk_label {
 
 sddatelog ""
 sddatelog "== Liste der verbundenen Disks == "
-sddatelog "= Disks: '$DISKLIST' = "
-for _disk in $DISKLIST
+sddatelog "= Disks: '$bv_disklist' = "
+for _disk in $bv_disklist
 do
         LABEL=$_disk
         check_disk_label $_disk
@@ -105,8 +107,7 @@ do
         then
                 RET="${RET} ist nicht verbunden"
 		aw="awk '{ print $1 }'"
-#		echo "find oldlogs -name "cc_log*" | grep -v save | xargs grep $_disk | grep 'is mounted' | sort | $aw | cut -d '/' -f 2 | tail -f -n1"
-		F=$( find oldlogs -name "cc_log*" | grep -v save | xargs grep $_disk | grep 'is mounted' | sort | awk '{ print $1 }'| cut -d '/' -f 2 | tail -f -n1 )
+		F=$( find $bv_oldlogsfolder -name "cc_log*" | grep -v save | xargs grep $_disk | grep 'is mounted' | sort | awk '{ print $1 }'| cut -d '/' -f 2 | tail -f -n1 )
         	sddatelog "$RET, letztes Backup war: $F "
         else
                 RET="${RET} ist verbunden"

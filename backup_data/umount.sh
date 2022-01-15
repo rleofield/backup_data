@@ -2,7 +2,7 @@
 
 
 # file: umount.sh
-# bk_version 21.11.1
+# bk_version 22.01.1
 
 # Copyright (C) 2021 Richard Albrecht
 # www.rleofield.de
@@ -20,46 +20,46 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
 
+# exit 0, if ok
+# exit 1, if umount or cryptsetup fails
 
 
 . ./src_log.sh
 
 
-FILENAME=$(basename "$0" .sh)
+disklabel=$1
+lv_cc_logname="$disklabel:umount"
 
-label=$1
-#FILENAME="umount:$label"
-FILENAME="$label:umount"
-
-
-if [[ "$label" == *luks ]]
+# check, if is luks device, has 'luks' at end of label
+if [[ "$disklabel" == *luks ]]
 then
 	dlog "is luks"
-	dlog "LUKS: 'umount /mnt/$label'"
-	umount /mnt/$label
+	dlog "LUKS: 'umount /mnt/$disklabel'"
+	umount /mnt/$disklabel
 	RET=$?
 	if test $RET -eq 0
 	then
-		dlog "LUKS: 'cryptsetup luksClose $label'"
-		cryptsetup luksClose $label
+		dlog "LUKS: 'cryptsetup luksClose $disklabel'"
+		cryptsetup luksClose $disklabel
 		RET=$?
 		if test $RET -ne 0
 		then
-			dlog "LUKS: 'cryptsetup luksClose $label' fails"
+			dlog "LUKS: 'cryptsetup luksClose $disklabel' fails"
 			exit 1
 		fi
 	else
-		dlog "LUKS: 'umount /mnt/$label' fails"
+		dlog "LUKS: 'umount /mnt/$disklabel' fails"
 		exit 1
 	fi
 else
+	# not a luks device
 	dlog "is not luks, umount normal"
-	dlog "'umount /mnt/$label'"
-	umount /mnt/$label
+	dlog "'umount /mnt/$disklabel'"
+	umount /mnt/$disklabel
 	RET=$?
 	if test $RET -ne 0
 	then
-		dlog "'umount /mnt/$label' fails"
+		dlog "'umount /mnt/$disklabel' fails"
 		exit 1
 	fi
 fi

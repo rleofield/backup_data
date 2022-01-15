@@ -1,5 +1,5 @@
 # file: src_folders.sh
-# bk_version 21.11.1
+# bk_version 22.01.1
 # included with 'source'
 
 # Copyright (C) 2021 Richard Albrecht
@@ -21,47 +21,36 @@
 # 9 folders
 
 # 1. folder for rsnapshot configuration files
-
-readonly CONFFOLDER="conf"
-#export CONFFOLDER
+readonly bv_conffolder="conf"
 
 # 2. folder for log of done backups
-readonly intervaldonefolder="interval_done"
-#export intervaldonefolder
+readonly bv_intervaldonefolder="interval_done"
 
 # 3. folder for count if retains
 # files to store count of retains for one retain value
 # number of lines is used as count
-readonly retainscountfolder="retains_count"
-#export retainscountfolder
-
+readonly bv_retainscountfolder="retains_count"
 
 # 4. folder for own rsnapshot logs
-readonly rsynclogfolder="rsynclog"
-#export rsynclogfolder
-
+# not used
+#readonly bv_rsynclogfolder="rsynclog"
+# used for general rsync commands
+#readonly bv_rsynclogfile="${bv_rsynclogfolder}/rsync.log"
 
 # 5. for test messages, send to PC-Desktop, if configured, see 'cfg.ssh_login'
-# found
-readonly backup_messages_test="backup_messages_test"
-#export backup_messages_test
+readonly bv_backup_messages_testfolder="backup_messages_test"
 
 # 6. date of last backup per project 'label_projekt'
-#readonly done="done"
-readonly donefolder="done"
-#export donefolder
+readonly bv_donefolder="done"
 
-# 7. exclude files for rsync/rsnasphot
-readonly exclude="exclude"
-#export exclude
+# 7. bv_excludefolder files for rsync/rsnasphot
+readonly bv_excludefolder="exclude"
 
 # 8. storage for old daily logfiles, never deleted
-readonly oldlogs="oldlogs"
-#export oldlogs
+readonly bv_oldlogsfolder="oldlogs"
 
 # 9. ssh tests to chcke if a remote host is alive and ready for backup
-readonly pre="pre"
-#export pre
+readonly bv_preconditionsfolder="pre"
 
 
 

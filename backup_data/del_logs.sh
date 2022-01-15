@@ -3,7 +3,7 @@
 
 # file: del_logs.sh
 
-# bk_version 21.11.1
+# bk_version 22.01.1
 
 
 # Copyright (C) 2021 Richard Albrecht
@@ -22,6 +22,9 @@
 #------------------------------------------------------------------------------
 
 
+echo "didn't work correct, don't execute "
+#exit 1
+
 . ./cfg.working_folder 
 . ./cfg.loop_time_duration
 . ./cfg.target_disk_list
@@ -32,19 +35,21 @@
 rm cc_log.log
 rm stop
 
+readonly bv_disklist=$DISKLIST
+
 # loop disk list
-for _disk in $DISKLIST
+for _disk in $bv_disklist
 do
         PROJEKTLABELS=${a_projects[$_disk]}
         for p in $PROJEKTLABELS
         do
                 lpkey=${_disk}_${p}
                 echo "rm aa, rr, count, done with $lpkey"
-		rm aa_${lpkey}.log
-		rm rr_${lpkey}.log
-		rm retains_count/${lpkey}_*
-		rm $donefolder/${lpkey}_done.log
-		rm interval_done/${lpkey}_done.txt
+	echo "rm aa_${lpkey}.log"
+	echo "rm rr_${lpkey}.log"
+	echo "rm $bv_retainscountfolder/${lpkey}_*"
+	echo "rm $bv_donefolder/${lpkey}_done.log"
+	echo "rm $bv_intervaldonefolder/${lpkey}_done.txt"
 
                 echo "--------"
         done

@@ -2,7 +2,7 @@
 
 # file: start_backup.sh
 
-# bk_version 21.11.1
+# bk_version 22.01.1
 
 # Copyright (C) 2021 Richard Albrecht
 # www.rleofield.de
@@ -28,7 +28,8 @@
 #				./bk_rsnapshot.sh,  do rsnapshot
 
 
-# -- start backup from cronjob with @boot
+
+# -- start backup from cronjob with @reboot
 # removes main_lock, if exist
 # do not start manually
 
@@ -37,7 +38,7 @@ if [ ! -d /var/log/cron ]
 then
 	mkdir /var/log/cron
 fi
-
+echo "abc"
 
 readonly callfilename=$(basename "$0")
 
@@ -46,21 +47,25 @@ LLFILE="/var/log/cron/${callfilename}.crontab"
 
 # param = message
 function cron_dlog {
-        local _TODAY=`date +%Y%m%d-%H%M`
+	# YYYYmmdd-HHMM
+    local _TODAY=`date +%Y%m%d-%H%M`
 	local _msg="$_TODAY -- $1"
 	echo -e "$_msg" >> ${LLFILE}
 }
 
 
-cron_dlog "start of: $callfilename"
-
 cron_dlog ""
+cron_dlog ""
+cron_dlog "======================="
+cron_dlog "start of: $callfilename"
+cron_dlog "======================="
+
 cron_dlog ""
 
 if [[ $(id -u) != 0 ]]
 then
         cron_dlog "we are not root, use root for backup"
-        exit
+        exit 1
 fi
 
 if [ ! -f  /usr/bin/gawk ]
@@ -105,7 +110,7 @@ fi
 
 if [ ! -d $STARTFOLDER ]
 then
-	cron_dlog "'WORKINGFOLDER'  in '/etc/rlf_backup_data.rc' not found '$STARTFOLDER', exit 1"	
+	cron_dlog "'WORKINGFOLDER' entry in '/etc/rlf_backup_data.rc' not found '$STARTFOLDER', exit 1"	
 	exit 1
 fi
 
@@ -117,10 +122,10 @@ cd $STARTFOLDER
 cron_dlog "write WORKINGFOLDER from '/etc/rlf_backup_data_rc' to file 'cfg.working_folder'" 
 
 # create file 'cfg.working_folder'
-echo "# WORKINGFOLDER from /etc/rlf_backup_data_rc" > cfg.working_folder
-echo "# bk_version 21.11.1" >> cfg.working_folder
-echo "WORKINGFOLDER=$WORKINGFOLDER" >> cfg.working_folder
-echo "export WORKINGFOLDER" >> cfg.working_folder
+echo "# BK_WORKINGFOLDER from /etc/rlf_backup_data_rc" > cfg.working_folder
+echo "# bk_version 22.01.1" >> cfg.working_folder
+echo "bv_workingfolder=\"$STARTFOLDER\"" >> cfg.working_folder
+#echo "export bv_workingfolder " >> cfg.working_folder
 
 
 #  start 'bk_main.sh' in background and returns
@@ -128,6 +133,7 @@ echo "export WORKINGFOLDER" >> cfg.working_folder
 
 
 # check, if already running, look for process 'bk_main.sh'
+cron_dlog "check, if already running, lookup for process 'bk_main.sh'"
 cron_dlog "ps aux | grep bk_main.sh | grep -v grep | wc -l "
 wc=$( ps aux | grep bk_main.sh | grep -v grep | wc -l )
 
@@ -139,6 +145,7 @@ then
 	cron_dlog "==  end == "
 	exit 1
 fi
+cron_dlog "process 'bk_main.sh' is not running, start"
 
 cron_dlog ""
 cron_dlog "working folder is: '$(pwd)'"
@@ -148,22 +155,6 @@ cron_dlog "in cron_start_backup.sh"
 cron_dlog "Backup is not running, start in '$STARTFOLDER'"
 
 cron_dlog ""
-
-if [ $callfilename == "cron_start_backup.sh" ]
-then
-	cron_dlog "try to remove 'main_lock'"
-	if [ -f main_lock ]
-	then
-		cron_dlog "remove main_lock"
-		rm main_lock
-		cron_dlog "main_lock removed"
-	fi
-	
-	cron_dlog "$_TODAY"
-	cron_dlog "sleep 1m"
-	sleep 1m
-fi
-
 
 cron_dlog "start main with: nohup ./bk_main.sh 'cron' > out_bk_main"
 

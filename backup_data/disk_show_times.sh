@@ -3,7 +3,7 @@
 
 # file: show_times_disk.sh
 
-# bk_version 21.11.1
+# bk_version 22.01.1
 
 
 # Copyright (C) 2021 Richard Albrecht
@@ -34,7 +34,7 @@ readonly LABEL=$1
 . ./src_filenames.sh
 . ./src_folders.sh
 
-readonly maxLASTDATE="2021-03-01T00:00"
+readonly lv_max_last_date="2021-12-01T00:00"
 
 if [ -z $LABEL  ]
 then
@@ -53,14 +53,14 @@ function log {
 
 
 function stdatelog {
-        local _TODAY=`date +%Y%m%d-%H%M`
+        local _TODAY=$( date +%Y%m%d-%H%M )
         log "$_TODAY ==>  $1"
 }
 
 function errorlog {
-        local _TODAY=`date +%Y%m%d-%H%M`
+        local _TODAY=$( date +%Y%m%d-%H%M )
         msg=$( echo "$_TODAY err ==> '$1'" )
-        echo -e "$msg" >> $ERRORLOG
+        echo -e "$msg" >> $bv_errorlog
 }
 
 
@@ -88,14 +88,14 @@ then
 fi
 if test "$arrays_ok" -eq "1" 
 then
-	exit $ARRAYSNOK
+	exit $BK_ARRAYSNOK
 fi
 
 # changed later, if use_mediamount=0
 MOUNTDIR=/mnt/$LABEL
 MARKERDIR=$MOUNTDIR/marker
 
-readonly FILENAME="disk:$LABEL"
+readonly lv_cc_logname="disk:$LABEL"
 
 
 # diff = old - new 
@@ -119,7 +119,7 @@ function check_disk_label {
         # 1 = error
         local goodlink=1
 	local uuid=$( cat "uuid.txt" | grep -w $_LABEL | awk '{print $2}' )
-	#local uuid=$( gawk -v pattern="$_LABEL" '$1 ~ pattern  {print $NF}' $WORKINGFOLDER/uuid.txt )
+	#local uuid=$( gawk -v pattern="$_LABEL" '$1 ~ pattern  {print $NF}' $bv_workingfolder/uuid.txt )
 
         #disklink="/dev/disk/by-label/$_LABEL"
         local disklink="/dev/disk/by-uuid/$uuid"
@@ -231,11 +231,11 @@ function check_disk_done {
         # 0 = success
         # 1 = error
         local _DONEINTERVAL=1
-        local _DONEFILE="./${donefolder}/${_key}_done.log"
+        local _DONEFILE="./${bv_donefolder}/${_key}_done.log"
         #stdatelog "DONEFILE: '$_DONEFILE'"
         local _LASTLINE=""
         #echo "in function check_disk_done "
-        _LASTLINE="$maxLASTDATE"
+        _LASTLINE="$lv_max_last_date"
 
         if test -f $_DONEFILE
         then
@@ -262,9 +262,9 @@ function check_pre_host {
 	local _LABEL=$1
 	local _p=$2
 
-        local _precondition=pre/${_LABEL}_${_p}.pre.sh
+        local _precondition=bv_preconditionsfolder/${_LABEL}_${_p}.bv_preconditionsfolder.sh
 
-	#stdatelog "pre: $_LABEL $_p"
+	#stdatelog "bv_preconditionsfolder: $_LABEL $_p"
 	#stdatelog "cpre: $_precondition"
 
         if [[  -f $_precondition ]]
@@ -287,24 +287,24 @@ check_disk_label $LABEL
 goodlink=$?
 
 stdatelog ""
-stdatelog "${FILENAME}: test disk ========== '$LABEL' =========="
+stdatelog "${lv_cc_logname}: test disk ========== '$LABEL' =========="
 if test $goodlink -ne 0
 then
 	# disk label/uuid not found, write label file
-	stdatelog "${FILENAME}: disk '$LABEL' wasn't found in '/dev/disk/by-uuid'"
+	stdatelog "${lv_cc_logname}: disk '$LABEL' wasn't found in '/dev/disk/by-uuid'"
 fi
 
 
 PROJEKTLABELS=${a_projects[$LABEL]}
 
 DONE_REACHED=0
-DONE_NOT_REACHED=1
+lv_done_not_reached=1
 ispre=1
 mindiff=100000
 minexpected=10000
 declare -A nextprojects
 nextprojekt=""
-#DONE=$donefolder
+#DONE=$bv_donefolder
 #stdatelog "DONE: '$DONE'"
 
 # find projects in time		
@@ -316,8 +316,8 @@ do
 #stdatelog "key: $lpkey"
 
         tcurrent=`date +%Y-%m-%dT%H:%M`
-        DONE_FILE="$WORKINGFOLDER/${donefolder}/${lpkey}_done.log"
-        LASTLINE=$maxLASTDATE
+        DONE_FILE="$bv_workingfolder/${bv_donefolder}/${lpkey}_done.log"
+        LASTLINE=$lv_max_last_date
         if [ -f $DONE_FILE  ]
         then
                 # last line in done file
@@ -352,19 +352,19 @@ do
                 if test $ispre -eq 0
                 then
                         # all is ok,  do backup
-                        stdatelog "${FILENAME}: $txt   $fn0 last, next in $fndelta,  programmed  $pdiff_minutes_print,  reached, source is ok"
+                        stdatelog "${lv_cc_logname}: $txt   $fn0 last, next in $fndelta,  programmed  $pdiff_minutes_print,  reached, source is ok"
                         nextprojects["$p"]=$p
                 #       isdone=true
 
                 else
-                        stdatelog "${FILENAME}: $txt   $fn0 last, next in $fndelta,  programmed  $pdiff_minutes_print,  reached, source not available"
+                        stdatelog "${lv_cc_logname}: $txt   $fn0 last, next in $fndelta,  programmed  $pdiff_minutes_print,  reached, source not available"
                 fi
         fi
 
-        if test "$DISKDONE" -eq $DONE_NOT_REACHED
+        if test "$DISKDONE" -eq $lv_done_not_reached
         then
                 diskdonetext="not"
-                stdatelog "${FILENAME}: $txt   $fn0 last, next in $fndelta,  programmed  $pdiff_minutes_print,  do nothing"
+                stdatelog "${lv_cc_logname}: $txt   $fn0 last, next in $fndelta,  programmed  $pdiff_minutes_print,  do nothing"
         fi
 
 done

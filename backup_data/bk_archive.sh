@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_archive.sh
-# bk_version 21.11.1
+# bk_version 22.01.1
 
 
 # Copyright (C) 2021 Richard Albrecht
@@ -28,6 +28,13 @@
 #				./bk_rsnapshot.sh,  do rsnapshot   
 #				./bk_archive.sh,    no history, rsync only,  <- this file
 
+# prefixes of variables in backup:
+# bv_*  - global vars, alle files
+# lv_*  - local vars, global in file
+# _*    - local in functions or loops
+# BK_*  - exitcodes, upper case, BK_
+
+
 . ./cfg.working_folder
 
 . ./src_exitcodes.sh
@@ -35,27 +42,42 @@
 . ./src_folders.sh
 . ./src_log.sh
 
+
+# exitvalues
+# exit $BK_RSYNCFAILS  - one of the the backup lines fails
+
+
+lv_rsync_command_logfilename=""
+
+function write_rsync_command_log() {
+	local msg="$1"
+	echo "$msg" >> ${lv_rsync_command_logfilename}
+}
+
+
 # parameter
 # $1 = $LABEL
 # $2 = $PROJECT)
-readonly DISK=$1
-readonly PROJECT=$2
-if [ ! $DISK ] || [ ! $PROJECT ]
+# par1 = label of backup-disk
+readonly lv_disklabel=$1
+# par2 = name of the project·
+readonly lv_project=$2
+
+readonly lv_lpkey=${lv_disklabel}_${lv_project}
+
+
+if [ ! $lv_disklabel ] || [ ! $lv_project ]
 then
-	dlog "DISK '$DISK' or PROJECT '$PROJECT' not set in 'bk_archive.sh'"
+	dlog "disk label '$lv_disklabel' or project '$lv_project' not set in 'bk_archive.sh'"
 	exit 1
 fi
 
 
-
-readonly projectkey=${DISK}_${PROJECT}
-
-readonly OPERATION="archive"
-readonly FILENAME="${DISK}:$PROJECT:${OPERATION}"
+readonly lv_tracelogname="archive"
+readonly lv_cc_logname="${lv_disklabel}:${lv_project}:archive"
 
 
-
-tlog "start: $projectkey"
+tlog "start: $lv_lpkey"
 
 # rsnapshot exit values
 # 0 All operations completed successfully
@@ -63,97 +85,106 @@ tlog "start: $projectkey"
 # 2 Some warnings occurred, but the backup still finished
 
 
-#readonly TODAY_LOG=`date +%Y-%m-%dT%H:%M:%S`
-TODAY_LOG=`date +%Y-%m-%dT%H:%M`
+# lv_logdate=`date +%Y-%m-%dT%H:%M:%S`
+lv_logdate=$( currentdateT )
 
 
 dlog "== start bk_archive.sh =="
 
-readonly ARCHIVE_CONFIG=${projectkey}.arch
-readonly wf=$WORKINGFOLDER
+readonly lv_cfg_archive=${lv_lpkey}.arch
+readonly lv_workingfolder=$bv_workingfolder
 
-#archive_root /mnt/fluks/rs/ls5eth/
-#rsync_command_log>      aa_fluks_ls5.log
-#rsync_log>      rr_fluks_ls5.log
-#rsync_args>     -av --numeric-ids --relative·
-#ssh_args>       -p 22
-#exclude_file>   fluks_ls5
-#backup> rleo@ls5eth:/media/rleo/ls5ssd/bilder>  >       .
-#backup> rleo@ls5eth:/media/rleo/ls5ssd/pdf>     >       .
-#backup> rleo@ls5eth:/media/rleo/ls5ssd/videos>  >       .
+#   entries in config file
+# archive_root /mnt/fluks/rs/ls5eth/
+# rsync_command_log	aa_fluks_ls5.log
+# rsync_log		rr_fluks_ls5.log
+# rsync_args		-av --numeric-ids --relative·
+# ssh_args		-p 22
+# exclude_file		fluks_ls5
+# backup	 		rleo@ls5eth:/media/rleo/ls5ssd/bilder  	.
+# backup	 		rleo@ls5eth:/media/rleo/ls5ssd/pdf     	.
+# backup	 		rleo@ls5eth:/media/rleo/ls5ssd/videos  	.
 
+readonly lv_archiveconfigname="${bv_conffolder}/${lv_cfg_archive}"
 
-# archive_root as arg2
-readonly ARCHIVE_ROOT=$(cat ./$CONFFOLDER/${ARCHIVE_CONFIG} | grep ^archive_root | grep -v '#' | awk '{print $2}')
-# rsync_command as arg2
-readonly RSYNC_LOGFILE=$(cat ./$CONFFOLDER/${ARCHIVE_CONFIG} | grep ^rsync_command_log | grep -v '#' | awk '{print $2}')
-# rsync_log as arg2
-readonly RSYNC_LOG=$(cat ./$CONFFOLDER/${ARCHIVE_CONFIG} | grep ^rsync_log | grep -v '#' | awk '{print $2}')
-# all args in line, except arg1
-readonly RSYNC_ARGS=$(cat ./$CONFFOLDER/${ARCHIVE_CONFIG} | grep ^rsync_args | grep -v '#' | awk '{ $1=""; print }')
-# exclude_file as arg2
-readonly EXCLUDE_FILE=$(cat ./$CONFFOLDER/${ARCHIVE_CONFIG} | grep ^exclude_file | grep -v '#' | awk '{ print $2}')
+# get archive_root 
+readonly lv_archive_root=$(cat ./${lv_archiveconfigname} | grep ^archive_root | grep -v '#' | awk '{print $2}')
 
-# no pre file for archive
-dlog "archive root:  $ARCHIVE_ROOT"
-dlog "rsync logfile: $RSYNC_LOGFILE"
-dlog "rsync log:     $RSYNC_LOG"
-dlog "rsync args:    $RSYNC_ARGS"
-dlog "exclude file:  exclude/$EXCLUDE_FILE"
+# get rsync_command 
+readonly lv_temp=$(cat ./${lv_archiveconfigname} | grep ^rsync_command_log | grep -v '#' | awk '{print $2}')
+lv_rsync_command_logfilename=${lv_workingfolder}/${lv_temp}
+
+# get rsync log name 
+readonly lv_temp2=$(cat ./${lv_archiveconfigname} | grep ^rsync_log | grep -v '#' | awk '{print $2}')
+readonly lv_rsync_log=${lv_workingfolder}/${lv_temp2}
 
 
-echo "-- $TODAY_LOG, start -- " >> ${wf}/${RSYNC_LOGFILE}
-echo "-- $TODAY_LOG, start backup from './${CONFFOLDER}/${ARCHIVE_CONFIG}' -- " >> ${wf}/${RSYNC_LOGFILE}
+# get rsync args in line 
+# get all entries, except first
+readonly lv_rsync_args=$(cat ./${lv_archiveconfigname} | grep ^rsync_args | grep -v '#' | awk '{ $1=""; print }')
 
-# 3 local arrays
-declare -A backups
-declare -A backuptarget
+# get exclude file name
+readonly lv_temp3=$(cat ./${lv_archiveconfigname} | grep ^exclude_file | grep -v '#' | awk '{ print $2}')
+readonly lv_excludefilename="${bv_excludefolder}/${lv_temp3}"
 
-readonly backupslist=$(  cat ./$CONFFOLDER/${ARCHIVE_CONFIG} | grep -w ^backup )
-#dlog " backups: $backupslist "
-OIFS=$IFS
+# no bv_preconditionsfolder file for archive
+dlog "archive root:  $lv_archive_root"
+dlog "rsync command logfile: $lv_rsync_command_logfilename"
+dlog "rsync log:     ${lv_rsync_log}"
+dlog "rsync args:    ${lv_rsync_args}"
+dlog "exclude file:  ${lv_excludefilename}"
+
+
+write_rsync_command_log "-- $lv_logdate, start -- " 
+write_rsync_command_log "-- $lv_logdate, start backup from './${lv_archiveconfigname}' -- " 
+
+
+readonly list_of_backuplines=$(  cat ./${lv_archiveconfigname} | grep -w ^backup )
+oldifs=$IFS
 IFS='
 '
 # convert to array of 'retain' lines
 # 0 = 'backup', 1 = source, 2 = target, may be .
-readonly backuplines=($backupslist)
-IFS=$OIFS
-dlog "# number of backup entries  './${CONFFOLDER}/${ARCHIVE_CONFIG}' : ${#backuplines[@]}"
+readonly backuplinesarray=($list_of_backuplines)
+IFS=$oldifs
+dlog "# number of backup entries  in './${lv_archiveconfigname}' : ${#backuplinesarray[@]}"
 
-n=0
+lineounter=0
 RET=0
 _ok=0
-for i in "${backuplines[@]}"
+
+
+for _line in "${backuplinesarray[@]}"
 do
-        # split to array with ()
-	_line=($i)
+	# split to array with ()
+	_linearray=($_line)
 
 	# 0 = keyword 'backup', 1 = source, 2 = target
-	_source=${_line[1]}
-	backuptarget[$n]=${_line[2]}
-	if test -z ${backuptarget[$n]}
+	_source=${_linearray[1]}
+	_target=${_linearray[2]}
+
+	if test -z ${_target}
 	then
-		backuptarget[$n]="."
+		_target="."
+	fi
+	if test $_target = "." 
+	then
+		_target=""
 	fi
 
 	tlog "do: $_source"
 	dlog "source : $_source"
 
-	_target=${backuptarget[$n]}
-	if test $_target = "." 
-	then
-		_target=""
-	fi
-	dlog "target: ${ARCHIVE_ROOT}${_target}"
+	dlog "target: ${lv_archive_root}${_target}"
 
-	rcommand="rsync $RSYNC_ARGS   $_source   ${ARCHIVE_ROOT}${_target} --log-file=${wf}/${RSYNC_LOG}"
-	if [ -f "exclude/${EXCLUDE_FILE}" ]
+	rcommand="rsync ${lv_rsync_args}   $_source   ${lv_archive_root}${_target} --log-file=${lv_rsync_log}"
+	if [ -f "${lv_excludefilename}" ]
 	then
-		#	--exclude-from=/usr/local/bin/backup_data/exclude/dluks_dserver
-		rcommand="rsync $RSYNC_ARGS  --exclude-from=exclude/${EXCLUDE_FILE}  $_source   ${ARCHIVE_ROOT}${_target} --log-file=${wf}/${RSYNC_LOG}"
+		#	                          --exclude-from=/usr/local/bin/backup_data/bv_excludefolder/dluks_dserver
+		rcommand="rsync ${lv_rsync_args}  --exclude-from=${lv_excludefilename}  $_source   ${lv_archive_root}${_target} --log-file=${lv_rsync_log}"
 	fi
 	dlog "rsync command: $rcommand"
-	echo "$rcommand" >> ${wf}/${RSYNC_LOGFILE}
+	write_rsync_command_log "$rcommand" 
 	eval $rcommand
 	RET=$?
 	if test $RET -ne 0
@@ -164,39 +195,60 @@ do
 		dlog "rsync ok, source: $_source"
 	fi
 
-	(( n++ ))
+	(( lineounter++ ))
 done
 
 runningnumber=$( printf "%05d"  $( get_loopcounter ) )
+lv_logdate=$( currentdateT )
 
-TODAY_LOG=`date +%Y-%m-%dT%H:%M`
 
+# remove old logs
+rm $lv_archive_root/${lv_lpkey}_created_at*
 
-# lösche old logs
-rm $ARCHIVE_ROOT/${projectkey}_created_at*
+readonly final_created_at_filename_base="$lv_archive_root/${lv_lpkey}_created_at_${lv_logdate}_number_$runningnumber"
 
 if test $_ok -eq 0 
 then
-	echo "created at: ${TODAY_LOG}, loop: $runningnumber" > $ARCHIVE_ROOT/${projectkey}_created_at_${TODAY_LOG}_number_$runningnumber.txt
+	echo "created at: ${lv_logdate}, loop: $runningnumber" > ${final_created_at_filename_base}.txt
 else
-	echo "created_at: ${TODAY_LOG}, loop: $runningnumber, errors in rsync, see log" > $ARCHIVE_ROOT/${projectkey}_created_at_${TODAY_LOG}_number_${runningnumber}_with_errors.txt
-	dlog "bk_archive.sh ends with errors, see '${wf}/${RSYNC_LOG}'"
+	echo "created_at: ${lv_logdate}, loop: $runningnumber, errors in rsync, see log" > ${final_created_at_filename_base}_with_errors.txt
+	dlog "bk_archive.sh ends with errors, see '${lv_rsync_command_logfilename}'"
 	tlog "end, error"
-	exit $RSYNCFAILS
+	exit $BK_RSYNCFAILS
 fi
 
 
-
-echo "-- $TODAY_LOG, end backup from './${CONFFOLDER}/${ARCHIVE_CONFIG}' -- " >> ${wf}/${RSYNC_LOGFILE}
-echo "-- $TODAY_LOG, end -- " >> ${wf}/${RSYNC_LOGFILE}
+write_rsync_command_log "-- $lv_logdate, end backup from '${lv_archiveconfigname}' -- " 
+write_rsync_command_log "-- $lv_logdate, end -- " 
 
 
 dlog "== end bk_archive.sh =="
 tlog "end" 
-#dlog "== RSYNCFAILS: $RSYNCFAILS,  end bk_archive.sh =="
 
 exit 0 
 
+# rsync errors
+#       0      Success
+#       1      Syntax or usage error
+#       2      Protocol incompatibility
+#       3      Errors selecting input/output files, dirs
+#       4      Requested  action not supported: an attempt was made to manipulate 64-bit files on a platform·
+#              that cannot support them; or an option was specified that is supported by the client and not by the server.
+#       5      Error starting client-server protocol
+#       6      Daemon unable to append to log-file
+#       10     Error in socket I/O
+#       11     Error in file I/O
+#       12     Error in rsync protocol data stream
+#       13     Errors with program diagnostics
+#       14     Error in IPC code
+#       20     Received SIGUSR1 or SIGINT
+#       21     Some error returned by waitpid()
+#       22     Error allocating core memory buffers
+#       23     Partial transfer due to error
+#       24     Partial transfer due to vanished source files
+#       25     The --max-delete limit stopped deletions
+#       30     Timeout in data send/receive
+#       35     Timeout waiting for daemon connection
 
 
 

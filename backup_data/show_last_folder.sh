@@ -3,7 +3,7 @@
 
 # file: show_last_folder.sh
 
-# bk_version 21.11.1
+# bk_version 22.01.1
 
 # Copyright (C) 2021 Richard Albrecht
 # www.rleofield.de
@@ -30,10 +30,10 @@ IFS="$(printf '\n\t')"
 . ./src_filenames.sh
 
 
-cd $WORKINGFOLDER
-if [ ! -d $WORKINGFOLDER ] && [ ! $( pwd ) = $WORKINGFOLDER ]
+cd $bv_workingfolder
+if [ ! -d $bv_workingfolder ] && [ ! $( pwd ) = $bv_workingfolder ]
 then
-	echo "WD '$WORKINGFOLDER'"
+	echo "WD '$bv_workingfolder'"
 	echo "WD is wrong"
 	exit 1
 fi

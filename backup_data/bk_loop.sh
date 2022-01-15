@@ -2,7 +2,7 @@
 
 
 # file: bk_loop.sh
-# bk_version 21.11.1
+# bk_version 21.12.1
 
 # Copyright (C) 2021 Richard Albrecht
 # www.rleofield.de
@@ -28,10 +28,12 @@
 #				./bk_archive.sh,    no history, rsync only
 
 
-# comment: delete 
-# comment:   rm retains_count/*
-# comment:   rm done/*
-# comment: before first use
+# prefixes of variables in backup:
+# bv_*  - global vars, alle files
+# lv_*  - local vars, global in file
+# _*    - local in functions or loops
+# BK_*  - exitcodes, upper case, BK_
+
 
 
 . ./cfg.working_folder
@@ -47,160 +49,130 @@
 . ./src_global_strings.sh
 . ./src_folders.sh
 
+# exit values
+# exit BK_DISKLABELNOTGIVEN 	- disk label from caller is empty
+# exit $BK_ARRAYSNOK         	- property arrays have errors
+# exit $BK_DISKLABELNOTFOUND	- disk with uuid nit found in /dev/disk/by-uuid, disk ist not in system 
+# exit $BK_NOINTERVALSET	- no backup time inteval configured in 'cfg.projects'
+# exit $BK_TIMELIMITNOTREACHED	- for none project at this disk time limit is not reached
+# exit $BK_DISKNOTUNMOUNTED	- ddisk couldn't be unmounted
+# exit $BK_MOUNTDIRTNOTEXIST	- mount folder for backup disk is not present in '/mnt'
+# exit $BK_DISKNOTMOUNTED	- disk couldn't be mounted 
+# exit $BK_DISKNOTMOUNTED	- rsync error, see logs
+# exit $BK_SUCCESS		- all was ok
 
-TODAY=`date +%Y-%m-%dT%H:%M`
-readonly LABEL=$1
 
-if [ -z $LABEL ]
+
+
+
+# par1 = Label der Backup-HD
+readonly lv_disklabel=$1
+
+if [ -z $lv_disklabel ]
 then
-	exit 1;
+	exit BK_DISKLABELNOTGIVEN;
 fi
 
-# use media mount '/media/user/label' instead of '/mnt/label'
+readonly properties=${a_properties[$lv_disklabel]}
+
+
+# use media mount '/media/user/label' instead of '/mnt/label'?
 # 0 = use
 # 1 = don't use, use /mnt
 # default=1, don't use
-# 1, if PL
-# 1, if HS
-readonly use_mediamount=1
+readonly lv_use_mediamount=1
 
-arrays_ok=0
-readonly OPERATION="loop"
-readonly FILENAME="$LABEL:${OPERATION}"
-readonly NOTIFYSENDLOG="notifysend.log"
-
-# now in src_filenames.sh
-#readonly notifybasefile="Backup-HD"
-
-#readonly successlogtxt="successlog.txt"
-readonly maxLASTDATE="2021-09-01T00:00"
-
-tlog "start: '$LABEL'"
+readonly lv_tracelogname="loop"
+readonly lv_cc_logname="$lv_disklabel:loop"
+readonly lv_notifysendlog="tempnotifysend.log"
+readonly lv_max_last_date="2021-12-01T00:00"
 
 
-if test ${#a_properties[@]} -eq 0 
-then
-	dlog "Array 'a_properties' doesn't exist"
-	arrays_ok=1
-#else
-#	dlog "Array 'a_properties' exists"
-fi
-if test ${#a_projects[@]} -eq 0 
-then
-	dlog "Array 'a_projects' doesn't exist"
-	arrays_ok=1
-#else
-#	dlog "Array 'a_projects' exists"
-fi
-if test ${#a_interval[@]} -eq 0 
-then
-	dlog "Array 'a_interval' doesn't exist"
-	arrays_ok=1
-#else
-#	dlog "Array 'a_interval' exists"
-
-fi
-if test ${#a_waittime[@]} -eq 0 
-then
-	dlog "Array 'a_waittime' doesn't exist"
-	# should be tolerated
-	#arrays_ok=1
-#else
-#	dlog "Array 'a_waittime' exists"
-
-fi
-
-if test "$arrays_ok" -eq "1" 
-then
-	dlog "err in Arrays"
-	exit $ARRAYSNOK
-fi
+tlog "start: '$lv_disklabel'"
 
 
-# defaults
-loopwaittimestart="09"
-loopwaittimeend="09"
-
-
-function get_waittimeinterval {
-	local key=$1
-	local v=${a_waittime[${key}]}
-	local _oldifs=$IFS
-	IFS='-'
-	IFS='-'
-	#local darr=($v)
-	local darr=($v)
+# check, get_projectwaittimeinterval() only for disk done 
+# result is in, value is in hours
+#	lv_loopwaittimestart
+# 	lv_loopwaittimeend
+function get_projectwaittimeinterval {
+	#set -x
+	local lpkey=$1
+	local v=${a_waittime[${lpkey}]}
+	
 	# read configured values from cfg.projects
-	loopwaittimestart="09"
-	loopwaittimeend="09"
-	if [ ${#darr[@]} = 2 ]
+	lv_loopwaittimestart="09"
+	lv_loopwaittimeend="09"
+
+	if [[ $v ]]
 	then
-		loopwaittimestart=${darr[0]}
-		loopwaittimeend=${darr[1]}
+	
+		local _oldifs=$IFS
+		IFS='-'
+		local darr=($v)
+		IFS=$_oldifs
+		if [ ${#darr[@]} = 2 ]
+		then
+			lv_loopwaittimestart=${darr[0]}
+			lv_loopwaittimeend=${darr[1]}
+		fi
 	fi
-	IFS=$_oldifs
+
+	#set +x
 }
 
 
-# changed later, if use_mediamount=0,  = use 
-MOUNTDIR=/mnt/$LABEL
-MARKERDIR=$MOUNTDIR/marker
-
-# set. if rsync fails with '$RSYNCFAILS' 
-error_in_rsync=0
-
-readonly properties=${a_properties[$LABEL]}
-
-
-dlog ""
-dlog "===== process disk, label: '$LABEL' ====="
-readonly oldifs=$IFS
-IFS=','
-parray=($properties)
-IFS=$oldifs
-readonly ausgabe=$( echo ${parray[@]} )
-
-# not used
-# used for future ideas
-#local_in_array=0
-
-#if test $local_in_array -eq 1
-#then
-#	dlog "label: '$LABEL'  "
-#	dlog "properties: '$ausgabe',  'local' is set in properties: '$local_in_array' = 1  (local disks only)"
-#fi
-
+function check_existence_of_arrays_in_cfg(){
+	local _arrays_ok=0
+	if test ${#a_properties[@]} -eq 0 
+	then
+		dlog "Array 'a_properties' doesn't exMOUNTDIRt"
+		arrays_ok=1
+	fi
+	if test ${#a_interval[@]} -eq 0 
+	then
+		dlog "Array 'a_interval' doesn't exist"
+		arrays_ok=1
+	fi
+	if test ${#a_waittime[@]} -eq 0 
+	then
+		dlog "Array 'a_waittime' doesn't exist"
+		# should be tolerated
+		#arrays_ok=1
+	fi
+	return $_arrays_ok
+}
 
 
 function sendlog {
-        local msg=$1
-        local _TODAY=`date +%Y%m%d-%H%M`
-        echo -e "$_TODAY  == Notiz: $msg" >> $NOTIFYSENDLOG
+        local _msg=$1
+        local _logdate=$( currentdate_for_log )
+        echo -e "$_logdate  == Notiz: $_msg" >> $lv_notifysendlog
 }
 
-
+# par: $lv_notifysendlog $lv_disklabel $notifyfilepostfix
 function sshnotifysend {
-        local _disk=$1
-        local _ok=$2
 
-        if [ ! -f $NOTIFYSENDLOG ] 
-        then
+	local _file=$1
+	local _disk=$2
+	local _notifyfilepostfix=$3
+	if [ ! -f $_file ] 
+	then
 		return 0
 	fi
 
-        local _TODAY=`date +%Y%m%d-%H%M`
-        local temp="${notifybasefile}_${_disk}_${_TODAY}_${_ok}.log"
-        dlog "    send message of disk: '$_disk'"
-        dlog "tempfile: ${temp}"
-        $( cat $NOTIFYSENDLOG > $temp )
+	local _logdate=$( currentdate_for_log )
+	local _tempfilename="${bv_notifyfileprefix}_${_disk}_${_logdate}_${_notifyfilepostfix}.log"
+	dlog "    send message of disk '$_disk' to '${bv_backup_messages_testfolder}'"
+	dlog "tempfile: ${_tempfilename}"
+	cat $_file > $_tempfilename 
 
 
 	# default,  copy to local folder
-        COMMAND="cp $temp backup_messages_test/"
-        dlog "copy notify file to local folder: $COMMAND"
-        eval $COMMAND
-        rm $temp
-
+	local COMMAND="cp ${_tempfilename} ${bv_backup_messages_testfolder}/"
+	dlog "copy notify file to local folder: $COMMAND"
+	eval $COMMAND
+	rm $_tempfilename
 }
 
 
@@ -208,26 +180,27 @@ function sshnotifysend {
 # par2 = new
 # diff = new - old,   in minutes
 # minutes for
-#      h = 60, d = 1440, w=10080, m=43800, y=525600
-# parameter: dateold, datenew in date format
+#      h = 60, d = 1440, w = 10080, m = 43800, y = 525600
+# parameter: dateold, datenew in unix-date format
+#            dateold is before datenew
+# format YYYY-mm-ddThh:mm
 function time_diff_minutes() {
-        local old=$1
-        local new=$2
-	#dlog "tdiff old: $old"
-	#dlog "tdiff new: $new"
-        # convert the date "1970-01-01 hour:min:00" in seconds from Unix Date Stamp to seconds
-        # "1980-01-01 00:00"
-        local sec_old=$(date +%s -d $old)
-        local sec_new=$(date +%s -d $new)
-	#dlog "sec old: $sec_old"
-	#dlog "sec new: $sec_new"
+	local _old=$1
+	local _new=$2
+
+	# convert the date hour:min:00" in seconds from 
+	#	Unix Date Stamp to seconds, "1970-01-01T00:00:00Z"
+	#	Unix Date Stamp to seconds, or "1970-01-01T00:01:00"  
+	local _sec_old=$( date2seconds $_old )
+	local _sec_new=$( date2seconds $_new)
+	
 	# convert to minutes
-	ret=$(( (sec_new - sec_old) / 60 ))
-	if test $ret -lt 0 
+	local _minutes=$(( (_sec_new - _sec_old) / 60 ))
+	if test $_minutes -lt 0 
 	then
-		dlog "done diff ist kleiner als Null !!!!!!!!!!!!!!!!!!!!!!!!"
+		dlog "done: diff is smaller then zero !!!!!!!!!!!!!!!!!!!!!!!!"
 	fi
-        echo "$ret"
+	echo "$_minutes"
 }
 
 
@@ -235,372 +208,436 @@ function time_diff_minutes() {
 # 0 = success
 # 1 = error, disk not in uuid list
 function check_disk_label {
-        local _LABEL=$1
-        #if test $local_in_array -eq 1
-	#then
-		# used for future ideas
-		# dlog "return 0, array"
-        #	return 0
-	#else
-		# '^[[:blank:]]*[^[:blank:]#;]'
-# 		https://unix.stackexchange.com/questions/60994/how-to-grep-lines-which-does-not-begin-with-or
-#		How to grep lines which does not begin with “#” or “;”
-		#local uuid=$( cat "uuid.txt" | grep  '^[[:blank:]]*[^[:blank:]#;]'  |  grep -w $_LABEL | awk '{print $2}' )
-		local uuid=$( cat "uuid.txt" | grep -w $_LABEL | awk '{print $2}' )
-		# local uuid=$( gawk -v pattern="$_LABEL" '$1 ~ pattern  {print $NF}' uuid.txt )
-		# better
-		# uuid=$( gawk -v pattern="$_LABEL" '$1 ~ "(^|[[:blank:]])" pattern "([[:blank:]]|$)"  {print $NF}' uuid.txt )
-		# echo "uuid: $uuid"
-	        # test, if symbolic link
-#        	dlog "if test -L /dev/disk/by-uuid/$uuid"
-        	if test -L "/dev/disk/by-uuid/$uuid"
-	        then
-	#		dlog "return 0"
-			return 0
-	        fi
-	#fi
-	#		dlog "return 1"
-        return 1
+	local _disk_label=$1
+	#	https://unix.stackexchange.com/questions/60994/how-to-grep-lines-which-does-not-begin-with-or
+	#	How to grep lines which does not begin with “#” or “;”
+	#	local uuid=$( cat "uuid.txt" | grep  '^[[:blank:]]*[^[:blank:]#;]'  |  grep -w $_disk_label | awk '{print $2}' )
+	local uuid=$( cat "uuid.txt" | grep -w $_disk_label | awk '{print $2}' )
+	# 	better
+	# 		uuid=$( gawk -v pattern="$_disk_label" '$1 ~ "(^|[[:blank:]])" pattern "([[:blank:]]|$)"  {print $NF}' uuid.txt )
+	# echo "uuid: $uuid"
+
+	# test, if symbolic link exists
+	if test -L "/dev/disk/by-uuid/$uuid"
+	then
+		return 0
+	fi
+	return 1
 }
 
 # parameter: string with time value, dd:hh:mm 
+# value in array: string with time value, dd:hh:mm 
+#                                      or hh:mm 
+#                                      or mm 
 # return:    minutes
 function decode_pdiff_local {
-	local v=$1
+	local _interval=$1
 	local _oldifs=$IFS
 	IFS=':' 
 
-	local a=($v)
-	local l=${#a[@]}
+	# split into array
+	local _array=(${_interval})
+	local _length=${#_array[@]}
 
 	# mm only
-	local r_=${a[0]}
-	if test $l -eq 2 
+	local _minutes=${_array[0]}
+
+	# test, if hh:mm
+	if test $_length -eq 2 
 	then
-		# hh:mm
-        	r_=$(( ( ${a[0]} * 60 ) + ${a[1]} ))
+		# is hh:mm
+		_minutes=$(( ( ${_array[0]} * 60 ) + ${_array[1]} ))
 	fi
-        if test $l -eq 3
-        then
+	if test $_length -eq 3
+	then
 		# dd:hh:mm
-                r_=$(( ( ( ${a[0]} * 24 )  * 60 + ${a[1]} * 60  ) + ${a[2]} ))
-        fi
+		_minutes=$(( ( ( ${_array[0]} * 24 )  * 60 + ${_array[1]} * 60  ) + ${_array[2]} ))
+	fi
 
 	IFS=$_oldifs
-	echo $r_
+	echo $_minutes
 
 }
 
-# key is 'disklabel_project'  in a_interval array
-# return project interval in minutes 
-function decode_pdiff {
-	local _key=$1
-	local _interval=${a_interval[${_key}]}
-	local _r2=$( decode_pdiff_local ${_interval} )
-	echo $_r2
+# par: 'disklabel_project'  in a_interval array
+# value in array: string with time value, dd:hh:mm 
+#                                      or hh:mm 
+#                                      or mm 
+# return:  minutes 
+function decode_programmed_interval {
+	
+	local _lpkey=$1
+	local _intervalvalue=${a_interval[${_lpkey}]}
+	local _minutes=$( decode_pdiff_local ${_intervalvalue} )
+	echo $_minutes
+	
 }
 
-encode_diff_var=""
-encode_state=""
 
-function encode_diff {
+function encode_diff_to_string {
 
 	# testday is in minutes
-        local testday=$1
+	local testday=$1
 	local ret=""
-	local negativ="false"
-	#bb=$(  ./cpp/rs_cpp_encode_pdiff ${testday}  )
+	local is_negative=1 # = "false"
 
-
-	#dlog " encode_diff, testday: $testday"
 	if test $testday -lt 0
 	then
-		#dlog "is negative '$testday'"
 		testday=$(( $testday * (-1) ))
-		negativ="true"
+		is_negative=0 # = "true"
 	fi
 
-        local hour=60
-        local day=$(( hour * 24 ))
+	# all in minutes
+	local hour=60
+	local day=$(( hour * 24 ))
 	local days=$(( testday/day  ))
-        local remainder=$(( testday - days*day   ))
-	local hours=$(( remainder/hour   ))
-        local minutes=$(( remainder - hours*hour  ))
 
-        if test $days -eq 0
+	local remainder=$(( testday - days*day   ))
+	local hours=$(( remainder/hour   ))
+	local minutes=$(( remainder - hours*hour  ))
+
+	if test $days -eq 0
 	then
-    	  	if test $hours -eq 0
-        	then
-                        ret=$minutes
-			encode_state="minutes"
+		if test $hours -eq 0
+		then
+			ret=$( printf "%02d"  $minutes )
 		else
 			ret=$( printf "%02d:%02d"  $hours $minutes )
-			encode_state="hours"
 		fi
 	else
 		ret=$( printf "%02d:%02d:%02d"  $days $hours $minutes )
-		encode_state="days"
 	fi
 
 	# add minus sign, if negative 
-	if test "$negativ" = "true" 
+	if test $is_negative -eq 0 # = "true" 
 	then
 		ret="-$ret"
-	fi	
-	#dlog "bb:  $bb"
-        encode_diff_var="$ret"
+	fi
+	local lv_encoded_diff_var="$ret"
+	echo "$lv_encoded_diff_var"
+
+}
+
+function encode_diff_unit {
+
+	# testday is in minutes
+	local testday=$1
+	local ret=""
+
+	local hour=60
+	local day=$(( hour * 24 ))
+
+	local days=$(( testday/day  ))
+	local remainder=$(( testday - days*day   ))
+	local hours=$(( remainder/hour   ))
+	local minutes=$(( remainder - hours*hour  ))
+
+	if test $days -eq 0
+	then
+		if test $hours -eq 0
+		then
+			ret="minutes"
+		else
+			ret="hours"
+		fi
+	else
+		ret="days"
+	fi
+
+	local lv_state="$ret"
+	echo "$lv_state"
 }
 
 
-# parameter
-# $1 = Disklabel
-# $2 = Projekt
-# return 0, 1, 2, 3  
-# 0 = success, no daytime
-# 1 = error
-# done in main
-# 	2 = daytime not reached
-# 	3 = reached, but daytime
-
-readonly DONE_REACHED=0
-readonly DONE_NOT_REACHED=1
-readonly WAITTIME=2
-DONE_TEST_MODE=0
+readonly PROJECT_DONE_REACHED=0
+readonly PROJECT_DONE_NOT_REACHED=1
+readonly PROJECT_DONE_WAITINTERVAL_REACHED=2
 
 
+# par1 = disklabel_project_key
+# 0 = success, reached
+# 1 = not reched
+# 2 = in project waittime interval
+# called by check_disk_done()
+function check_disk_done_last_done() {
+	local _lpkey=$1
 
-function check_disk_done_last_done {
-
-	if [ $no_check_disk_done -eq 1 ]
+	if [ $bv_test_no_check_disk_done -eq 1 ]
 	then
 		#dlog ""
 		#dlog "    test mode, done is not checked"
 		#dlog ""
-		DONE_TEST_MODE=1
-		return $DONE_REACHED
+		return $PROJECT_DONE_REACHED
 	fi
 
-	local _lpkey=$1
 
-	local _LASTLINE=""
-	local _current=`date +%Y-%m-%dT%H:%M`
+	# format: YYYY-MM-DDThh:mm
+	local _currenttime=$( currentdateT )
+	local _done_file="./${bv_donefolder}/${_lpkey}_done.log"
+	
+	# format YYYY-mm-ddThh:mm
+	local _last_done_time="$lv_max_last_date"
+	#echo "last time: $_last_done_time"
 
-	# 0 = success, backup was done
-	# 1 = error
-	local _DONEFILE="./${donefolder}/${_lpkey}_done.log"
-	#dlog "DONEFILE: '$_DONEFILE'"
-	local _LASTLINE=""
-	#echo "in function check_disk_done "
-	_LASTLINE="$maxLASTDATE"
-
-	if test -f $_DONEFILE
+	# get last line in done file
+	if test -f $_done_file
 	then
-		_LASTLINE=$(cat $_DONEFILE | awk  'END {print }')
+		_last_done_time=$(cat $_done_file | awk  'END {print }')
+		if [ -z "$_last_done_time" ]
+		then
+			_last_done_time="$lv_max_last_date"
+		fi
 	fi
 
 	# here waittime check
-	# 01.09.21, erweiterung
-	# check, get_waittimeinterval() only for disk done 
-	get_waittimeinterval $_lpkey
+	# check, get_projectwaittimeinterval() only for disk done 
+	# result is in, value is in hours
+	#	lv_loopwaittimestart
+	# 	lv_loopwaittimeend
+	get_projectwaittimeinterval $_lpkey
 	local hour=$(date +%H)
-	local wstart=$loopwaittimestart
-	local wend=$loopwaittimeend
-	if [ "$hour" -ge "$wstart" ] && [ "$hour" -lt "$wend"  ] && [ $use_minute_loop -eq 0 ]
+	local wstart=$lv_loopwaittimestart
+	local wend=$lv_loopwaittimeend
+	if [ "$hour" -ge "$wstart" ] && [ "$hour" -lt "$wend"  ] && [ $bv_test_use_minute_loop -eq 0 ]
 	then
-		return $WAITTIME
+	#	dlog "PROJECT_DONE_WAITINTERVAL_REACHED"
+		return $PROJECT_DONE_WAITINTERVAL_REACHED
 	fi
 
-	if [ -z "$_LASTLINE" ]
-	then
-		_LASTLINE="$maxLASTDATE"
-	fi
-	#dlog "_LASTLINE: '$_LASTLINE'"
-	local _DIFF=$(time_diff_minutes  $_LASTLINE  $_current  )
-	local _pdiff=$( decode_pdiff ${_lpkey} )
+	#dlog "_last_done_time: '$_last_done_time'"
+	local _DIFF=$( time_diff_minutes  $_last_done_time  $_currenttime  )
+	local _pdiff=$( decode_programmed_interval ${_lpkey} )
 
 	if test $_DIFF -ge $_pdiff
 	then
 		# diff was greater than reference, take as success
-		return $DONE_REACHED
+		return $PROJECT_DONE_REACHED
 	fi
-	return $DONE_NOT_REACHED
+	return $PROJECT_DONE_NOT_REACHED
 }
 
 
+# par1 = disklabel_project_key
 # 0 = success, reached
 # 1 = not reched
+# 2 = in project waittime interval
 function check_disk_done {
 	local _lpkey=$1
 
-        # 0 = success
-        # 1 = error
+	# 0 = success
+	# 1 = error
 	# check, if time interval is over
 	check_disk_done_last_done ${_lpkey} 
 	local RET=$?
-        return $RET
+	return $RET
 }
 
 # check preconditon for project
 # source exists
 # remote host exists
 # or more
-# 0 - ok
+# 0 - ok, or checkfile doesn't exist
 # 1 - nok, host or disk doesn't exist, ssh login wrong
 function check_pre_host {
 
-        local _LABEL=$1
-        local _p=$2
+	local _lpkey=$1
+	local _precondition=$bv_preconditionsfolder/${_lpkey}.pre.sh
 
-        local _precondition=pre/${_LABEL}_${_p}.pre.sh
-
-        if [[  -f $_precondition ]]
-        then
-                eval $_precondition
-                _RET=$?
-                if [ $_RET -ne 0 ]
-                then
-                        return 1
-                else
+	if [[  -f $_precondition ]]
+	then
+		eval $_precondition
+		local _RET=$?
+		if [ $_RET -ne 0 ]
+		then
+			return 1
+		else
 			# ok
-                        return 0
-                fi
-        fi
+			return 0
+		fi
+	fi
 	# ok, file doesn't exist
-        return 0
+	return 0
 }
 
 
 
-# remove intermediate files
-# readonly NOTIFYSENDLOG="notifysend.log"
-dlog "remove old notify log for disk ' $LABEL': '$NOTIFYSENDLOG'"
-if test -f $NOTIFYSENDLOG
+
+# start of code
+
+check_existence_of_arrays_in_cfg
+arrays_ok=$?
+if [ $arrays_ok -eq 0 ]
 then
-	rm $NOTIFYSENDLOG
+	dlog "property arrays ok"
+else
+	dlog "error in property arrays"
+	exit $BK_ARRAYSNOK
 fi
 
 
-dlog "-- UUID check: is HD '$LABEL' connected to the PC?" 
+dlog ""
+dlog "===== process disk, label: '$lv_disklabel' ====="
+
+
+# changed later, if lv_use_mediamount=0,  = use 
+# chek for foleder 'marker' at mounted backup disk
+lv_mountfolder=/mnt/$lv_disklabel
+lv_markerfolder=$lv_mountfolder/marker
+
+# set. if rsync fails with '$BK_RSYNCFAILS' 
+error_in_rsync=0
+
+
+
+
+# remove old "notifysend.log"
+# readonly lv_notifysendlog="notifysend.log", set in line 75
+dlog "remove old notify log for disk ' $lv_disklabel': '$lv_notifysendlog'"
+if test -f $lv_notifysendlog
+then
+	rm $lv_notifysendlog
+fi
+
+
+# test, if uuid of disk is in device list:  /dev/disk/by-uuid
+# get from 'uuid.txt' and look up in device list 
+dlog "-- UUID check: is HD '$lv_disklabel' connected to the PC?" 
 
 # call 'check_disk_label'
-check_disk_label $LABEL
+check_disk_label $lv_disklabel
 goodlink=$?
 
-uuid=$( cat "uuid.txt" | grep -w $LABEL | awk '{print $2}' )
-label_not_found_file="label_not_found.log"
-label_not_found_date=`date +%Y%m%d-%H%M`
+uuid=$( cat "uuid.txt" | grep -w $lv_disklabel | awk '{print $2}' )
+
 if [[ $goodlink -eq 0 ]]
 then
-	dlog "-- UUID check: disk '$LABEL' with UUID '$uuid' found in /dev/disk/by-uuid" 
-	tlog "disk '$LABEL' with UUID '$uuid' found" 
-#	echo "$label_not_found_date: disk '$LABEL' with UUID '$uuid' found in '/dev/disk/by-uuid'" >> $label_not_found_file
+	dlog "-- UUID check: disk '$lv_disklabel' with UUID '$uuid' found in /dev/disk/by-uuid" 
+	tlog "disk '$lv_disklabel' with UUID '$uuid' found" 
 else
-	dlog "-- UUID check: disk '$LABEL' with UUID '$uuid' not found in /dev/disk/by-uuid, exit '$DISKLABELNOTFOUND'" 
-	tlog " disk '$LABEL' with UUID '$uuid' not found " 
-	echo "$label_not_found_date: disk '$LABEL' with UUID '$uuid' not found in '/dev/disk/by-uuid', exit '$DISKLABELNOTFOUND'" >> $label_not_found_file
-        exit $DISKLABELNOTFOUND
+	dlog "-- UUID check: disk '$lv_disklabel' with UUID '$uuid' not found in /dev/disk/by-uuid, exit '$BK_DISKLABELNOTFOUND'" 
+	tlog " disk '$lv_disklabel' with UUID '$uuid' not found " 
+        exit $BK_DISKLABELNOTFOUND
 fi
+# disk with label and uuid found in device list
+# --
 
+# next is look up for dirty projects of this disk
+# projects - last time ist later then project time interval 
+# exit, if interval ist not set
 
+readonly disk_project_list=${a_projects[$lv_disklabel]}
 
-PROJEKTLABELS=${a_projects[$LABEL]}
-
-dlog "-- disk '$LABEL', check projects: '$PROJEKTLABELS'"
+dlog "-- disk '$lv_disklabel', check projects: '$disk_project_list'"
 
 # start of disk, disk is unmounted
+# find, if interval is reached, if not, exit
 
-# find, if interval is reached, if not exit
 
-ispre=1
-declare -a nextprojects
+declare -a dirty_projects_array
 
 # build list of last times for backup per projekt in disk
 # don't check the existence of the disk, this is done later
 dlog ""
-dlog "               dd:hh:mm                 dd:hh:mm               dd:hh:mm"
-pcount=0
-for p in $PROJEKTLABELS
+
+# write headline
+dlog "                 dd:hh:mm                dd:hh:mm               dd:hh:mm"
+
+dirtyprojectcount=0
+min_one_project_found=0
+
+
+# print list of all projects in disk
+#   and show, if valid
+#   collect dirty projects (in time)
+for _project in $disk_project_list
 do
 	# project key = disklabel_project
-	lpkey=${LABEL}_${p}
+	_lpkey=${lv_disklabel}_${_project}
 
 	# check, if  time interval entry exists	
-	l_interval=${a_interval[${lpkey}]}
-	if [ -z "$l_interval" ]
+	_interval=${a_interval[${_lpkey}]}
+	if [ -z "$_interval" ]
 	then
-		dlog "ERROR: in 'cfg.projects' in array 'a_interval', '$lpkey' is not set, "
-		exit $NOINTERVALSET
+		dlog "ERROR: in 'cfg.projects' in array 'a_interval', '$_lpkey' is not set, "
+		exit $BK_NOINTERVALSET
 	fi
 	
-	tcurrent=`date +%Y-%m-%dT%H:%M`
-	DONE_FILE="./${donefolder}/${lpkey}_done.log"
+	_tcurrent=$( currentdateT )
+	_done_file="./${bv_donefolder}/${_lpkey}_done.log"
 
-	LASTLINE=$maxLASTDATE
-	if test -f $DONE_FILE 
+	_last_done_time=$lv_max_last_date
+	if test -f $_done_file 
 	then
 		# last line in done file
-		LASTLINE=$(cat $DONE_FILE | awk  'END {print }')  	
+		_last_done_time=$(cat $_done_file | awk  'END {print }')  	
 	fi
-	if [ -z "$_LASTLINE" ]
+	if [ -z "$_last_done_time" ]
 	then
-        	_LASTLINE="$maxLASTDATE"
+        	_last_done_time="$lv_max_last_date"
 	fi
 
-	pdiff=$(  decode_pdiff ${lpkey} )
-	done_diff_minutes=$(   time_diff_minutes  "$LASTLINE"  "$tcurrent"  )
-	deltadiff=$(( pdiff - done_diff_minutes ))
 
-	# ret , 0 = do backup, 1 = interval not reached, 2 = daytime not reached
+	# ret 'check_disk_done', 0 = do backup, 1 = interval not reached, 2 = waittime interval not reached
+	# PROJECT_DONE_REACHED=0
+	# PROJECT_DONE_NOT_REACHED=1
+	# PROJECT_DONE_WAITINTERVAL_REACHED=2
+	check_disk_done $_lpkey 
+	_project_done_state=$?
 
-	DONE_TEST_MODE=0
-	check_disk_done $lpkey 
-	RET=$?
-	#dlog "DONE_RET: $RET"
-	DISKDONE=$RET
-	# test only
-	#dlog "PROJECT: ${p}"
-	txt=$( printf "%-12s\n"  $( echo "${p}," ) )
-	n0=$( printf "%5s\n"  $done_diff_minutes )
-	pdiff_print=$( printf "%5s\n"  $pdiff )
-	ndelta=$( printf "%6s\n"  $deltadiff )
+	# print disklabel to field of 14
+	disk_label_print=$( printf "%-14s\n"  $( echo "${_lpkey}" ) )
 
-	encode_diff $ndelta
-	fndelta=$encode_diff_var 
-	fndelta=$( printf "%8s\n"  $fndelta )
-	encode_diff  $n0
-	fn0=$encode_diff_var
-	fn0=$( printf "%8s"  $fn0 )
-	encode_diff  $pdiff_print 
-	pdiff_minutes_print=$encode_diff_var
-	pdiff_minutes_print=$( printf "%8s"  $pdiff_minutes_print )
 
-	#dlog "if test DISKDONE -eq DONE_REACHED"
-	timeline=$( echo "$txt   $fn0 last, next in $fndelta,  programmed  $pdiff_minutes_print," )
-	if test $DISKDONE -eq $DONE_REACHED
+	project_interval_minutes=$(  decode_programmed_interval ${_lpkey} )
+
+
+	# 1. entry, last
+	# diff = tcurrent - last_done_time,   in minutes
+	done_diff_minutes=$(   time_diff_minutes  "$_last_done_time"  "$_tcurrent"  )
+	encoded_diffstring=$( encode_diff_to_string  $done_diff_minutes )
+	done_diff_print8=$( printf "%8s"  $encoded_diffstring )
+
+	# 2. entry, next
+	deltadiff=$(( project_interval_minutes - done_diff_minutes ))
+	delta_diff_print=$( printf "%6s\n"  $deltadiff )
+	encoded_diffstring=$( encode_diff_to_string $delta_diff_print )
+	next_diff_print9=$( printf "%9s\n"  $encoded_diffstring )
+
+	# 3. entry, programmed
+	encoded_diffstring=$( encode_diff_to_string  $project_interval_minutes )
+	project_interval_minutes_print8=$( printf "%8s"  $encoded_diffstring )
+
+	# example: 01:15:32 last, next in    08:28,  programmed  02:00:00,  do nothing
+	timeline=$( echo "$disk_label_print   $done_diff_print8 last, next in $next_diff_print9,  programmed  $project_interval_minutes_print8," )
+
+	# projectdone is reached, check reachability via check_pre_host
+	if test $_project_done_state -eq $PROJECT_DONE_REACHED
 	then
 		# reached, if done_ 
 		# - test $_DIFF -ge $_pdiff,          = wait time reached
-		# - if [ $no_check_disk_done -eq 1 ]  = 'no_check_disk_done' is set
+		# - if [ $bv_test_no_check_disk_done -eq 1 ]  = 'bv_test_no_check_disk_done' is set
 		# - if [ $do_once -eq 1 ]             = 'do_once' is set
-		# check. if reachable, add to list 'nextprojects'
-		check_pre_host $LABEL $p 
-		ispre=$?
-		if test $ispre -eq 0
+		# check. if reachable, add to list 'dirty_projects_array'
+		check_pre_host $_lpkey
+		_ispre=$?
+		if test $_ispre -eq 0
 		then
-			tlog "    in time: $p"
+			tlog "    in time: $_project"
 			# all is ok,  do backup	
-			if [ $DONE_TEST_MODE -eq 1 ]
+			if [ $bv_test_no_check_disk_done -eq 1 ]
 			then
 				dlog "${timeline} reached, source is ok, test mode, done not checked"
 			else
 				dlog "${timeline} reached, source is ok"
 			fi
-			nextprojects[pcount]=$p
-			pcount=$(( pcount + 1 ))
+			dirty_projects_array[dirtyprojectcount]=$_project
+			dirtyprojectcount=$(( dirtyprojectcount + 1 ))
+			min_one_project_found=1
+
 		#	isdone=true
 		else
-			tlog "    in time: $p, but unavailable"
-			if [ $DONE_TEST_MODE -eq 1 ]
+			tlog "    in time: $_project, but unavailable"
+			if [ $bv_test_no_check_disk_done -eq 1 ]
 			then
 				dlog "${timeline} reached, but source is not available, test mode, done not checked"
 			else
@@ -608,32 +645,43 @@ do
 			fi
 		fi
 	fi
-	if test "$DISKDONE" -eq $DONE_NOT_REACHED
+
+	# normal projectdone not reached
+	if test "$_project_done_state" -eq $PROJECT_DONE_NOT_REACHED
 	then
-		tlog "not in time: $p"
+		tlog "not in time: $_project"
 		dlog "$timeline do nothing"
 	fi
-	if test "$DISKDONE" -eq $WAITTIME
-	then
-		tlog "in wait interval: $p"
-		dlog "$timeline wait,  from $loopwaittimestart to $loopwaittimeend"
-	fi
-	DONE_TEST_MODE=0
 
+	# waittime interval reached
+	if test "$_project_done_state" -eq $PROJECT_DONE_WAITINTERVAL_REACHED
+	then
+		tlog "in wait interval: $_project"
+		dlog "$timeline wait,  from $lv_loopwaittimestart to $lv_loopwaittimeend"
+	fi
 done
 
-# in 'nextprojects' are all projects where we need a backup
-# if no project needs backup, return
-lnextprojects=${#nextprojects[@]}
+# in 'dirty_projects_array' are all projects where we need a backup
+# --
+ 
+dlog ""
 
-if test $lnextprojects -eq 0
+
+# if none of the  project needs a backup, return 'BK_TIMELIMITNOTREACHED'
+
+if test $min_one_project_found -eq 0
 then
-	dlog "== end disk '$LABEL', nothing to do =="
+	dlog "== end disk '$lv_disklabel', nothing to do =="
 	dlog ""
-	exit $TIMELIMITNOTREACHED
+	exit $BK_TIMELIMITNOTREACHED
 fi
 
-# ======== check mount, do backup if ok ====
+# 'dirty_projects_array' has some entries, process backup
+# _length_nextprojects is > 0
+_length_nextprojects=${#dirty_projects_array[@]}
+
+
+# ======== check mount, do backup, if ok ====
 # start of backup
 # - mount disk
 # - do rsnapshot with bk_project.sh and bk_rsnapshot.sh
@@ -641,353 +689,407 @@ fi
 #
 
 # remove old notifyfiles in backup_messages_test
-dlog "rm backup_messages_test/${notifybasefile}_${LABEL}_*"
-rm backup_messages_test/${notifybasefile}_${LABEL}_*
+dlog "rm ${bv_backup_messages_testfolder}/${bv_notifyfileprefix}_${lv_disklabel}_*"
+rm ${bv_backup_messages_testfolder}/${bv_notifyfileprefix}_${lv_disklabel}_*
 
+dlog "time limit for at least one project is reached, projects: ${dirty_projects_array[*]}"
 
-
-#dlog "next projects: ${nextprojects[*]}"
-dlog "time limit for at least one project is reached, projects: ${nextprojects[*]}"
-
-if [ -f $executedprojects ]
+# copy projectlist to bk_disks.sh for loopmessage only
+if [ -f $bv_executedprojectsfile ]
 then
-	_msg=$( cat $executedprojects )
-	echo "$_msg, $LABEL: ${nextprojects[*]}" > $executedprojects
+	#dlog "filename: executedprojects.txt"
+	_msg=$( cat $bv_executedprojectsfile )
+	echo "$_msg, $lv_disklabel: ${dirty_projects_array[*]}" > $bv_executedprojectsfile
 else
-	echo "$LABEL: ${nextprojects[*]}" >  $executedprojects
+	#dlog "filename2: executedprojects.txt"
+	echo "$lv_disklabel: ${dirty_projects_array[*]}" >  $bv_executedprojectsfile
 fi
-dlog " continue with test of mount state of disk: '$LABEL'"
+
+dlog " continue with test of mount state of disk: '$lv_disklabel'"
 dlog ""
 
+# check mountdir at /mnt
+dlog "check mountdir"
 
-	# check mountdir at /mnt
-	dlog "check mountdir"
+function umount_media_folder(){
+	local mmMTAB=$1
+	dlog "is mounted at media: $mmMTAB"
+	local mmMOUNT=$( echo "$mmMTAB" | awk '{ print $2 }' )
+	dlog "try umount: $mmMOUNT"
+	umount $mmMOUNT
+	local mountRET=$?
+	if [ "$mountRET" -ne 0 ]
+	then
+		dlog "umount fails: 'umount $mmMOUNT'"
+		return $BK_DISKNOTUNMOUNTED
+	fi
+
+	local mmLUKSLABEL="$lv_disklabel"
+	local mmMAPPERLABEL="/dev/mapper/$mmLUKSLABEL"
+	dlog "try mapper with HD label: $mmMAPPERLABEL"
+	if [  -L "$mmMAPPERLABEL" ]
+	then
+		dlog "luks mapper exists: $mmMAPPERLABEL"
+		dlog "do luksClose:   cryptsetup luksClose $mmLUKSLABEL"
+		cryptsetup luksClose $mmLUKSLABEL
+	else
+		dlog "luks mapper doesn't exist: $mmMAPPERLABEL"
+
+	fi
+	mmLUKSLABEL="luks-$mmuuid"
+	mmMAPPERLABEL="/dev/mapper/$mmLUKSLABEL"
+	dlog "try mapper with uuid: $mmMAPPERLABEL"
+	if [  -L "$mmMAPPERLABEL" ]
+	then
+		dlog "luks mapper exists: $mmMAPPERLABEL"
+		dlog "do luksClose:   cryptsetup luksClose $mmLUKSLABEL"
+		cryptsetup luksClose $mmLUKSLABEL
+	fi
+	return $BK_SUCCESS
+
+}
 
 
 	# first, check mount at /media/user
-	dlog "cat /etc/mtab  | grep media | grep $LABEL  | awk '{ print $2 }'"
+#set +u
+dlog "cat /etc/mtab  | grep media | grep $lv_disklabel  | awk '{ print $2 }'"
 
-	MEDIAMOUNT=$( cat /etc/mtab  | grep media | grep $LABEL  | awk '{ print $2 }')
-	if test  "$MEDIAMOUNT" != ""
+
+_mtab_mount_media=$( cat /etc/mtab  | grep media | grep $lv_disklabel  | awk '{ print $2 }')
+
+#set -u
+
+if test  "$_mtab_mount_media" != ""
+then
+	dlog "mediamount exists: $_mtab_mount_media"
+
+	# use media mount instead of /mnt?
+	# 0 = use
+	# 1 = don't use, eg. gt 0, use /mnt
+	# umount media and mount mnt
+	if test $lv_use_mediamount -gt 0  
 	then
-		dlog "mediamount exists: $MEDIAMOUNT"
-
-		# use media mount instead of /mnt
-		# 0 = use
-		# 1 = don't use, eg. gt 0, use /mnt
-		if test $use_mediamount -gt 0  
+		# try to umount media folder
+		mmuuid=$( cat "uuid.txt" | grep -w $lv_disklabel | awk '{print $2}' )
+		mmMTAB=$( cat /etc/mtab  |  grep media | grep $lv_disklabel )
+		if [ ! -z "$mmMTAB" ]
 		then
-			# try to umount media folder
-			mmuuid=$( cat "uuid.txt" | grep -w $LABEL | awk '{print $2}' )
-			mmMTAB=$( cat /etc/mtab  |  grep media | grep $LABEL )
-			if [ ! -z "$mmMTAB" ]
+			umount_media_folder "$mmMTAB"
+			RET=$?
+			if [ $RET -eq $BK_DISKNOTUNMOUNTED ]
 			then
-				dlog "is mounted at media: $mmMTAB"
-				mmMOUNT=$( echo "$mmMTAB" | awk '{ print $2 }' )
-				dlog "try umount: $mmMOUNT"
-				umount $mmMOUNT
-				mountRET=$?
-				if [ "$mountRET" -ne 0 ]
-				then
-					dlog "umount fails: 'umount $mmMOUNT'"
-					exit $DISKNOTUNMOUNTED
-				fi
-
-				mmLUKSLABEL="$LABEL"
-				mmMAPPERLABEL="/dev/mapper/$mmLUKSLABEL"
-				dlog "try mapper with HD label: $mmMAPPERLABEL"
-				if [  -L "$mmMAPPERLABEL" ]
-				then
-					dlog "luks mapper exists: $mmMAPPERLABEL"
-					dlog "do luksClose:   cryptsetup luksClose $mmLUKSLABEL"
-					cryptsetup luksClose $mmLUKSLABEL
-				else
-					dlog "luks mapper doesn't exist: $mmMAPPERLABEL"
-
-				fi
-				mmLUKSLABEL="luks-$mmuuid"
-				mmMAPPERLABEL="/dev/mapper/$mmLUKSLABEL"
-				dlog "try mapper with uuid: $mmMAPPERLABEL"
-				if [  -L "$mmMAPPERLABEL" ]
-				then
-					dlog "luks mapper exists: $mmMAPPERLABEL"
-					dlog "do luksClose:   cryptsetup luksClose $mmLUKSLABEL"
-					cryptsetup luksClose $mmLUKSLABEL
-				fi
-			else
-				# check mount at /mnt
-				mmMTAB=$( cat /etc/mtab  |  grep mnt | grep $LABEL )
-				if [ ! -z "$mmMTAB" ]
-				then
-					mmMOUNT=$( echo "$mmMTAB" | awk '{ print $2 }' )
-					dlog "no mediamount with '$LABEL', mountpoint ia at: $MOUNT"
-				fi
+				exit $BK_DISKNOTUNMOUNTED
 			fi
 		else
-			# ok use media folder
-			dlog "media mount '$MEDIAMOUNT' exists"
-			MOUNTDIR=$MEDIAMOUNT
-			MARKERDIR=$MOUNTDIR/marker
+			# check mount at /mnt
+			mmMTAB=$( cat /etc/mtab  |  grep mnt | grep $lv_disklabel )
+			if [ ! -z "$mmMTAB" ]
+			then
+				mmMOUNT=$( echo "$mmMTAB" | awk '{ print $2 }' )
+				dlog "no mediamount with '$lv_disklabel', mountpoint is at: $MOUNT"
+			fi
 		fi
-	# if test  "$MEDIAMOUNT" != ""
-	fi  
-
-	# is /mnt, if media folder not found
-	tlog "mount: '$MOUNTDIR'"
-	dlog "mount folder   '$MOUNTDIR'" 
-	dlog "marker folder  '$MARKERDIR'" 
-
-	if test ! -d $MOUNTDIR 
-	then
-       		dlog " mount folder  '$MOUNTDIR' doesn't exist" 
-	        exit $MOUNTDIRTNOTEXIST
-	fi
-
-	# mount HD
-	if test -d $MARKERDIR 
-	then
-		# is fixed disk
-        	dlog " -- HD '$LABEL' is mounted at '$MOUNTDIR'"
 	else
-        	dlog " marker folder '$MARKERDIR' doesn't exist, try mount" 
-		./mount.sh $LABEL 
-        	RET=$?
-		if test $RET -ne 0
-		then
-                	dlog " == end, couldn't mount disk '$LABEL' to  '$MOUNTDIR', mount error =="
-		fi	
-        	if test ! -d $MARKERDIR 
-        	then
-			dlog " mount,  markerdir '$MARKERDIR' not found"
-	                dlog " == end, couldn't mount disk '$LABEL' to  '$MOUNTDIR', no marker folder =="
-        	        exit $DISKNOTMOUNTED
-        	fi
+		# ok use media folder
+		dlog "media mount '$_mtab_mount_media' exists"
+		lv_mountfolder=$_mtab_mount_media
+		lv_markerfolder=$lv_mountfolder/marker
 	fi
+fi  
 
-	dlog " -- disk '$LABEL' is mounted, marker folder '$MARKERDIR' exists"
 
-# disk is mounted 
+# show results
+tlog "mount: '$lv_mountfolder'"
+dlog "mount folder   '$lv_mountfolder'" 
+dlog "marker folder  '$lv_markerfolder'" 
 
-## place for disk size
-dsmaxfree=$maxfillbackupdiskpercent
-
-dlog "---> max allowed used space: '${dsmaxfree}%'"
-#dlog "free_space=$( df -h | grep -w $LABEL | awk '{print $4}')"
-dsdevice=$( blkid | grep -w $LABEL| awk '{print $1}'| sed 's/.$//')
-
-dsfree_space=$( df -h | grep -w $LABEL | awk '{print $4}')
-
-#dlog "used_space_percent=$( df -h | grep -w $LABEL | awk '{print $5}')"
-dstempused=$( df -h | grep -w $LABEL | awk '{print $5}')
-dstemp=${dstempused%?}
-dsused_space_percent=$dstemp
-
-diskfull=$SUCCESS
-
-export -p > ex.txt
-
-if [ $dsmaxfree -lt $dsused_space_percent ]
+if test ! -d $lv_mountfolder 
 then
-	dlog "---"
-	dlog "!!!  disk: '$LABEL', max allowed used space '${dsmaxfree}%' is lower than current used space '${dsused_space_percent}%', continue with next disk !!!"
-	dlog "---"
-	diskfull=$FREEDISKSPACETOOSMALL
-	#dlog "diskfull: $diskfull"
-	#dlog "diskfull: $FREEDISKSPACETOOSMALL"
-
+	dlog " mount folder  '$lv_mountfolder' doesn't exist" 
+	exit $BK_MOUNTDIRTNOTEXIST
 fi
 
+# mount HD
+if test -d $lv_markerfolder 
+then
+	# is fixed disk
+	dlog " -- HD '$lv_disklabel' is mounted at '$lv_mountfolder'"
+else
+	dlog " marker folder '$lv_markerfolder' doesn't exist, try mount" 
+	./mount.sh $lv_disklabel 
+	RET=$?
+	if test $RET -ne 0
+	then
+		dlog " == end, couldn't mount disk '$lv_disklabel' to  '$lv_mountfolder', mount error =="
+	fi	
+	
+	# check, if ok, if not, then disk is not mounted
+	if test ! -d $lv_markerfolder 
+	then
+		dlog " mount,  markerdir '$lv_markerfolder' not found"
+		dlog " == end, couldn't mount disk '$lv_disklabel' to  '$lv_mountfolder', no marker folder =="
+		exit $BK_DISKNOTMOUNTED
+	fi
+fi
 
-dsfreemsg="free space: $dsfree_space, used space: ${dsused_space_percent}%"
-dlog "---> $dsfreemsg"
+dlog " -- disk '$lv_disklabel' is mounted, marker folder '$lv_markerfolder' exists"
+
+# mount check and mount of backup disk is ready
+# --
 
 
-## end disk size
+#  check for disk size, disk must be mounted
+# set LV_DISKFULL, if disk is full
+maxdiskspacepercent=$bv_maxfillbackupdiskpercent
 
-#if [ ! $diskfull -eq $FREEDISKSPACETOOSMALL ]
-#then
-#	dlog "true message:  max allowed used space '${dsmaxfree}%' is lower than current used space "
-#else
-#	dlog "else message:  max allowed used space '${dsmaxfree}%' is lower than current used space "
-#fi
 
+dlog "---> max allowed used space: '${maxdiskspacepercent}%'"
+
+# line in 'df -h'
+# 1               2     3     4     5   6
+# /dev/sdb1       1,9T  1,4T  466G  75% /mnt/adisk
+ 
+# dsdevice=$( blkid | grep -w $lv_disklabel| awk '{print $1}'| sed 's/.$//')
+diskfreespace=$( df -h | grep -w $lv_disklabel | awk '{print $4}')
+
+temp1=$( df -h | grep -w $lv_disklabel | awk '{print $5}')
+# remove % char
+temp2=${temp1%?}
+usedspacepercent=$temp2
+
+# LV_DISKFULL = $BK_SUCCESS
+# or
+# LV_DISKFULL = $BK_FREEDISKSPACETOOSMALL
+LV_DISKFULL=$BK_SUCCESS
+
+
+if [ $maxdiskspacepercent -lt $usedspacepercent ]
+then
+	dlog "---"
+	dlog "!!!  disk: '$lv_disklabel', max allowed used space '${maxdiskspacepercent}%' is lower than current used space '${usedspacepercent}%', continue with next disk !!!"
+	dlog "---"
+	LV_DISKFULL=$BK_FREEDISKSPACETOOSMALL
+fi
+
+dlog "---> free space: ${diskfreespace}, used space: ${usedspacepercent}%"
 
 # done to false
-done=false
+# checked in 941
+projectdone=false
+
+# par 1 = disklabel
+# par 2 = projekt
+function strip_disk_or_luks_from_disklabel(){
+	local _disklabel=$1
+	local ll="${_disklabel}"
+	if [[ "$ll" = *"disk"* ]]; 
+	then
+		local tt1=${ll::-4} 
+		ll=$tt1
+	fi
+	if [[ "$ll" = *"luks"* ]]; 
+	then
+		local tt2=${ll::-4} 
+		ll=$tt2
+	fi
+	local var="${ll}"
+	echo "${var}"
+}
 
 
+function find_next_project(){
+	# set external vars to a start values
+	diff_next_project=10000
+	next_project=""
+
+	for _project in $disk_project_list
+	do
+		local lpkey=${lv_disklabel}_${_project}
+		local DONE_FILE="./${bv_donefolder}/${lpkey}_done.log"
+		local LASTLINE=$lv_max_last_date
+		if test -f $DONE_FILE
+		then
+			LASTLINE=$(cat $DONE_FILE | awk  'END {print }')
+		fi
+
+		# get configured project delta time
+		local pdiff=$(decode_programmed_interval ${lpkey} )
+		# get current delta after last done, in LASTLINE is date in %Y-%m-%dT%H:%M
+		local tcurrent=$( currentdateT )
+		local diff_since_last_backup=$(time_diff_minutes  $LASTLINE  $tcurrent  )
+		local deltadiff=$(( pdiff - diff_since_last_backup ))
+
+		# look for minimum
+		if ((deltadiff < diff_next_project ))
+		then
+			# copy to external vars
+			diff_next_project=$deltadiff
+			next_project=$_project
+		fi
+	done
+}
 
 
 declare -A projecterrors
 declare -a successlist
 declare -a unsuccesslist
 
-
-if [ ! $diskfull -eq $FREEDISKSPACETOOSMALL ]
+# do backup, if disk is not full
+#   disk is full, see else part
+if [ ! $LV_DISKFULL -eq $BK_FREEDISKSPACETOOSMALL ]
 then
-	dlog "execute projects in time and with valid pre check: ${nextprojects[*]}"
+	# in 'dirty_projects_array' are all projects, which need backup
+	# do backup for each project
 
-	# in 'nextprojects' are all projects to backup
+	dlog "execute projects in time and with valid precondition check: ${dirty_projects_array[*]}"
+
+	# in 'dirty_projects_array' are all projects to backup
 	# call bk_project for each
-	for p in "${nextprojects[@]}"
+	for _project in "${dirty_projects_array[@]}"
 	do
 
 		dlog ""
-		lpkey=${LABEL}_${p}
+		lpkey=${lv_disklabel}_${_project}
 		# second check, first was in first loop
 		# is already checked, see above
 		DISKDONE=0 
-		ispre=0
 
-		pdiff=$( decode_pdiff ${lpkey} )
+		pdiff=$( decode_programmed_interval ${lpkey} )
 
 		# check current time
-		tcurrent=`date +%Y-%m-%dT%H:%M`
+		tcurrent=$( currentdateT )
+
 		# set lastline to "2021-09-01T00:00"
-        	LASTLINE=$maxLASTDATE
-		DONE_FILE="./${donefolder}/${lpkey}_done.log"
+		LASTLINE=$lv_max_last_date
+		DONE_FILE="./${bv_donefolder}/${lpkey}_done.log"
 		# read last line fron done file
-	        if test -f $DONE_FILE
-        	then
-                	LASTLINE=$(cat $DONE_FILE | awk  'END {print }')
-	        fi
+		if test -f $DONE_FILE
+		then
+			LASTLINE=$(cat $DONE_FILE | awk  'END {print }')
+		fi
 		# get delta from lastline and current time
 		DIFF=$(time_diff_minutes  $LASTLINE  $tcurrent  )
 
-        	if test "$DISKDONE" -eq 0
-	        then
-			dlog "=== disk: '$LABEL', start of project '$p' ==="
-			tlog "do: '$p'"
+		if test "$DISKDONE" -eq 0
+		then
+			dlog "=== disk: '$lv_disklabel', start of project '$_project' ==="
+			tlog "do: '$_project'"
+			# #############################################################################
 			# calls bk_project.sh #########################################################
-			./bk_project.sh $LABEL $p 
+			./bk_project.sh $lv_disklabel $_project
 			# #############################################################################
 			RET=$?
-			#dlog "RET: $RET"
-			#dlog "NOFOLDERRSNAPSHOT=14 : $NOFOLDERRSNAPSHOT"
+			#dlog "RET of bk_project.sh: $RET"
+			#    'rsnapshot_root'  doesn't exist 
+			#	RET= $BK_NORSNAPSHOTROOT = 12
+			#    interval from caller is invalid
+			#    	RET = BK_NOINTERVALSET = 9			
+			#    after .sync, rsync error
+			#    	RET = BK_RSYNCFAILS = 8
+			#    if 'No space left on device' foubnd in log
+			# 	RET = BK_DISKFULL = 13
+
 
 			# check free space
-			_maxfree=$maxfillbackupdiskpercent
-			_used_space_percent=$( df -h | grep -w $LABEL | awk '{print $5}')
-			_temp=${_used_space_percent%?}
-			_used_space_percent=$_temp
+			maxdiskspacepercent=$bv_maxfillbackupdiskpercent
+			# data must be collected before disk is unmounted
+			# line in 'df -h'
+			# 1               2     3     4     5   6
+			# /dev/sdb1       1,9T  1,4T  466G  75% /mnt/adisk
+
+			_temp15=$( df -h | grep -w $lv_disklabel | awk '{print $5}')
+			_temp16=${_temp15%?}
+			_used_space_percent=$_temp16
 			#  handle disk full err
-			if [ $_maxfree -lt $_used_space_percent ]
+			# dlog "  $maxdiskspacepercent -lt $_used_space_percent "
+			if [ $maxdiskspacepercent -lt $_used_space_percent ]
 			then
-				RET=$DISKFULL
-				#dlog "set RET to DISKFULL, allowed space of disk '${_maxfree}%' is lower than current free space '${_used_space_percent}%'"
-			fi	
-
-
-			if test $RET -eq $DISKFULL
-			then
-				projecterrors[${p}]="rsync error, no space left on device, check harddisk usage: $LABEL $p"
-				dlog " !! no space left on device, check configuration for $LABEL $p !!"
-				dlog " !! no space left on device, check file 'rr_${LABEL}_${p}.log' !!"
+				RET=$BK_DISKFULL
+				#dlog "set RET to BK_DISKFULL, allowed space of disk '${maxdiskspacepercent}%' is lower than current free space '${_used_space_percent}%'"
 			fi
-			if test $RET -eq $RSYNCFAILS
+			if test $RET -eq $BK_DISKFULL
 			then
-				projecterrors[${p}]="rsync error, check configuration or data source: $LABEL $p"
-				dlog " !! rsync error, check configuration for '$LABEL', project: '$p' !!)"
-				dlog " !! rsync error, check file 'rr_${LABEL}_${p}.log'  !! "
+				projecterrors[${_project}]="rsync error, no space left on device, check harddisk usage: $lv_disklabel, $_project"
+				dlog " !! no space left on device, check configuration for $lv_disklabel, $_project !!"
+				dlog " !! no space left on device, check file 'rr_${lpkey}.log' !!"
+				LV_DISKFULL=$BK_FREEDISKSPACETOOSMALL
 			fi
-			if test $RET -eq $ERRORINCOUNTERS
+			if test $RET -eq $BK_RSYNCFAILS
 			then
-				projecterrors[${p}]="retain error, one value is lower than two, check configuration of retain values: $LABEL $p"
-				dlog " !! retain error, check configuration for $LABEL $p !!"
-				dlog " !! retain error, check file 'rr_${LABEL}_${p}.log'  !! "
+				projecterrors[${_project}]="rsync error, check configuration or data source: $lv_disklabel, $_project"
+				dlog " !! rsync error, check configuration for '$lv_disklabel', project: '$_project' !!)"
+				dlog " !! rsync error, check file 'rr_${lpkey}.log'  !! "
 			fi
-
-		
-			if test $RET -eq $NOFOLDERRSNAPSHOT
+			if test $RET -eq $BK_ERRORINCOUNTERS
 			then
-				projecterrors[${p}]="error, folder '$rsynclogfolder' is not present"
-				dlog " folder '$rsynclogfolder' doesn't exist"
+				projecterrors[${_project}]="retain error, one value is lower than two, check configuration of retain values: $lv_disklabel $_project"
+				dlog " !! retain error, check configuration for $lv_disklabel $_project !!"
+				dlog " !! retain error, check file 'rr_${lpkey}.log'  !! "
 			fi
-			if test $RET -eq $NORSNAPSHOTROOT
+			if test $RET -eq $BK_NORSNAPSHOTROOT
 			then
 				projecterrors[${p}]="snapshot root folder doesn't exist, see log"
 				dlog "snapshot root folder doesn't exist, see log"
-#				exit $NORSNAPSHOTROOT
+				#exit $BK_NORSNAPSHOTROOT
 			fi
 
-			done=true
+			projectdone=true
 			if test $RET -ne 0
 			then
-				done=false
-				dlog "done = false"
+				projectdone=false
+				dlog "projectdone = false"
 			fi
 
-
-
-			current=`date +%Y-%m-%dT%H:%M`
-			__TODAY=`date +%Y%m%d-%H%M`
-			if test "$done" == "true"
+			if test "$projectdone" == "true"
 			then
-				# set current at last line to done file
-				# done entry is written in bk_project.sh, 101 for archive
-				# done entry is written in bk_project.sh, 450 for projects
-				
-			        dlog "all ok, disk: '$LABEL', project '$p'"
-				sendlog "HD: '$LABEL' mit Projekt '$p' gelaufen, keine Fehler"
+				# projectdone entry is written in bk_project.sh, 101 for archive
+				# projectdone entry is written in bk_project.sh, 450 for projects
+
+			        dlog "all ok, disk: '$lv_disklabel', project '$_project'"
+				sendlog "HD: '$lv_disklabel' mit Projekt '$_project' gelaufen, keine Fehler"
 				# write success to a single file 
-				#echo "$__TODAY ==> '$LABEL' mit '$p' ok" >> $successlogtxt
 
 				# collect success for report at end of main loop
-				ll="${LABEL}"
-
 				# shorten label, if label ends with luks or disk
-				if [[ "$ll" = *"disk"* ]]; 
-				then
-					tt=${ll::-4} 
-					ll=$tt
-				fi
-				if [[ "$ll" = *"luks"* ]]; 
-				then
-					tt=${ll::-4} 
-					ll=$tt
-				fi
-				var="${ll}:$p"
-				successlist=( "${successlist[@]}" "$var" )
+				var=$( strip_disk_or_luks_from_disklabel ${lv_disklabel} )
+				successlist=( "${successlist[@]}" "${var}:$_project" )
 				dlog "successlist: $( echo ${successlist[@]} )"
-
-			#echo "$__TODAY" > ./$donefolder/${LABEL}_${p}_done.log
-			#dlog "write last date: ./$donefolder/${LABEL}_${p}_done.log"
-
 			else
 				# error in rsync
-				error_in_rsync=$RSYNCFAILS
-				dlog "error: disk '$LABEL', project '$p'"
-				sendlog "HD: '$LABEL' mit Projekt  '$p' hatte Fehler"
-				sendlog "siehe File: 'rr_${LABEL}_$p.log' im Backup-Server"
-				errorlog "HD: '$LABEL' mit Projekt  '$p' hatte Fehler" 
+				error_in_rsync=$BK_RSYNCFAILS
+				dlog "error: disk '$lv_disklabel', project '$_project'"
+				sendlog "HD: '$lv_disklabel' mit Projekt  '$_project' hatte Fehler"
+				sendlog "siehe File: 'rr_${lv_disklabel}_$_project.log' im Backup-Server"
+				errorlog "HD: '$lv_disklabel' mit Projekt  '$_project' hatte Fehler" 
+
 				# write unsuccess to a single file 
-				#echo "$__TODAY ==> '$LABEL' mit '$p' not ok" >> $successlogtxt
-			
 				# collect unsuccess for report at end of main loop
-				ll="${LABEL}"
-				if [[ "$ll" = *"disk"* ]]; 
-				then
-					tt=${ll::-4} 
-					ll=$tt
-				fi
-				if [[ "$ll" = *"luks"* ]]; 
-				then
-					tt=${ll::-4} 
-					ll=$tt
-				fi
-				var="${ll}:$p"
-				unsuccesslist=( "${unsuccesslist[@]}" "$var" )
+				var=$( strip_disk_or_luks_from_disklabel ${lv_disklabel} )
+				unsuccesslist=( "${unsuccesslist[@]}" "${var}:$_project" )
 				dlog "unsuccesslist: $( echo ${unsuccesslist[@]} )"
 			fi
 		fi
 	done
-
- 
-#  end of  [ ! $diskfull -eq $FREEDISKSPACETOOSMALL ]
+	#  end of  [ ! $LV_DISKFULL -eq $BK_FREEDISKSPACETOOSMALL ]
+	# backup of all dirty project are done
+	# if errors, these are logged
+	# --
 else
+	# in 'dirty_projects_array' are all projects, which need backup
+	# don't do backup, disk is full
+	# write to errorlist
+	for _project in "${dirty_projects_array[@]}"
+	do
+		# write unsuccess to a single file 
+		# collect unsuccess for report at end of main loop
+		var=$( strip_disk_or_luks_from_disklabel ${lv_disklabel} )
+		unsuccesslist=( "${unsuccesslist[@]}" "${var}:$_project" )
+		dlog "unsuccesslist: $( echo ${unsuccesslist[@]} )"
+	done
 
-	dlog "---> don't execute projects: '${nextprojects[*]}', disk full"
-	dlog "---> max allowed used space '${dsmaxfree}%' is lower than current used space '${dsused_space_percent}%', continue with next disk"
+	dlog "---> don't execute projects: '${dirty_projects_array[*]}', disk full"
+	dlog "---> max allowed used space '${maxdiskspacepercent}%' is lower than current used space '${usedspacepercent}%', continue with next disk"
+	# --
 fi
 
 # all backups are done
@@ -995,129 +1097,116 @@ fi
 
 
 # find min diff after backup ist done, done file exists here
-mindiff=10000
-minp=""
-for p in $PROJEKTLABELS
-do
-	lpkey=${LABEL}_${p}
-	DONE_FILE="./${donefolder}/${lpkey}_done.log"
-	#dlog "donefile: $DONE_FILE"
-	LASTLINE=$maxLASTDATE
-        if test -f $DONE_FILE
-        then
-                LASTLINE=$(cat $DONE_FILE | awk  'END {print }')
-        fi
+# find next project in time line
 
-	# get project delta time
-	pdiff=$(decode_pdiff ${lpkey} )
-	# get current delta after last done, in LASTLINE is date in %Y-%m-%dT%H:%M
-	tcurrent=`date +%Y-%m-%dT%H:%M`
-	DIFF=$(time_diff_minutes  $LASTLINE  $tcurrent  )
-	deltadiff=$(( pdiff - DIFF ))
-#	dlog "$p, configured value $pdiff"
-#	dlog "$p, lastline   value $DIFF"
-#	dlog "$p, delta=pdiff-DIFF $deltadiff, mindiff: $mindiff"
-	if ((deltadiff < mindiff ))
-	then
-		mindiff=$deltadiff
-		minp=$p
-	fi
-	#dlog "after b delta $deltadiff, mindiff: $mindiff"
-	#dlog "programmed diff: $pdiff, lastDIFF: $DIFF, mindiff: $mindiff, delta: $deltadiff"
-done
-
+find_next_project
 
 # data must be collected before disk is unmounted
-used_space_percent=$( df -h | grep -w $LABEL | awk '{print $5}')
-temp=${used_space_percent%?}
-used_space_percent=$temp
-free_space=$( df -h | grep -w $LABEL | awk '{print $4}')
+# line in 'df -h'
+# 1               2     3     4     5   6
+# /dev/sdb1       1,9T  1,4T  466G  75% /mnt/adisk
+
+temp3=$( df -h | grep -w $lv_disklabel | awk '{print $5}')
+# remove % sign 
+temp4=${temp3%?}
+usedspacepercent=$temp4
+diskfreespace=$( df -h | grep -w $lv_disklabel | awk '{print $4}')
+maxdiskspacepercent=$bv_maxfillbackupdiskpercent
+
 
 # clean up
 notifyfilepostfix="keine_Fehler_alles_ok"
 
-if test -d $MARKERDIR 
+# umount backup disk, if configured in 'cfg.projects'
+
+# check for umount of backup disk
+if test -d $lv_markerfolder 
 then
-	#ucommand=$( grep -e properties cfg.projects | grep fluks | cut -d '=' -f 2 | sed 's/"//' | sed 's/"$//' )
-	umount_is_inarray=$(echo ${parray[@]} | grep -w -o "umount" | wc -l )
-	RET=1
-	if test $umount_is_inarray -eq 1 
+	readonly oldifs=$IFS
+	IFS=','
+	parray=($properties)
+	IFS=$oldifs
+
+	umount_is_configured=$(echo ${parray[@]} | grep -w -o "umount" | wc -l )
+	if test $umount_is_configured -eq 1 
 	then
-		dlog "umount  $MOUNTDIR"
-		./umount.sh  $LABEL
+		dlog "umount  $lv_mountfolder"
+		./umount.sh  $lv_disklabel
 		RET=$?
 		if test $RET -ne 0
 		then
-			msg="HD '$LABEL' wurde nicht korrekt getrennt, bitte nicht entfernen"
+			msg="HD '$lv_disklabel' wurde nicht korrekt getrennt, bitte nicht entfernen"
 			dlog "$msg"
 			sendlog $msg
 			notifyfilepostfix="Fehler_HD_nicht_getrennt"
 		else
-			#rmdir  $MOUNTDIR
-			dlog "'$LABEL' all is ok"
-			sendlog "HD '$LABEL': alles ist ok"
+			#rmdir  $mountfolder
+			dlog "'$lv_disklabel' all is ok"
+			sendlog "HD '$lv_disklabel': alles ist ok"
 
 			# set in cfg.loop_time_duration
 			nextdiff=$MIN_WAIT_FOR_NEXT_LOOP
-			# if duration < next project, then use next project mindiff as next time
-			if ((nextdiff < mindiff ))
+			# if duration < next project, then use next project 'diff_next_project' as next time
+			if ((nextdiff < diff_next_project ))
 			then
-			        nextdiff=$mindiff
+			        nextdiff=$diff_next_project
 			fi
-			encode_diff $nextdiff 
-			_nextdiff=$encode_diff_var
-			sendlog "HD mit Label '$LABEL' kann in den nächsten '${_nextdiff}' Minuten vom Server entfernt werden "
+			encoded_diffstring=$( encode_diff_to_string $nextdiff )
+			sendlog "HD mit Label '$lv_disklabel' kann in den nächsten '${encoded_diffstring}' Minuten vom Server entfernt werden "
 		fi
-		if [ -d $MARKERDIR ]
+
+		# check, if really unmounted
+		if [ -d $lv_markerfolder ]
 		then
-			dlog "disk is still mounted: '$LABEL', at: '$MOUNTDIR' "
+			dlog "disk is still mounted: '$lv_disklabel', at: '$lv_mountfolder' "
 			dlog ""
-			dlog "'$LABEL' ist noch verbunden, umount error"
-			sendlog "HD mit Label: '$LABEL' konnte nicht ausgehängt werden, bitte nicht entfernen"
-			TODAY=`date +%Y%m%d-%H%M`
-			sendlog "=======  $TODAY  ======="
+			dlog "'$lv_disklabel' ist noch verbunden, umount error"
+			sendlog "HD mit Label: '$lv_disklabel' konnte nicht ausgehängt werden, bitte nicht entfernen"
+			logdate=$( currentdate_for_log )
+			sendlog "=======  $logdate  ======="
 			notifyfilepostfix="HD_konnte_nicht_getrennt_werden_Fehler"
 			
 		fi
 	else
-		dlog "no umount configured, maybe this is a fixed disk  at $MOUNTDIR"
-		dlog "next run of '$minp' in '${mindiff}' minutes"
-		sendlog "'umount' wurde nicht konfiguriert, HD '$LABEL' ist noch verbunden, at $MOUNTDIR"
+		dlog "no umount configured, maybe this is a fixed disk  at $lv_mountfolder"
+		dlog "next run of '$next_project' in '${diff_next_project}' minutes"
+		sendlog "'umount' wurde nicht konfiguriert, HD '$lv_disklabel' ist noch verbunden, at $lv_mountfolder"
 	fi
 else
 	dlog "is local disk, no umount"
 fi
 
+# umount, if configured,  is ready
 
+# --
 
-dlog "== end disk with '$LABEL' =="
+# write some messaes to log
+# write message to User-Desktop, if configured in 'cfg.ssh_login'
+
+dlog "== end disk with '$lv_disklabel' =="
 dlog ""
-encode_state="empty"
-encode_diff_var="empty"
 
-# don't call with $(  ), the subshell cant't change 'encode_state' 
-encode_diff $mindiff 
-_mind=$encode_diff_var
+encoded_diffstring=$( encode_diff_to_string $diff_next_project )
+diff_unit=$( encode_diff_unit $diff_next_project )
 
-Tagen_Stunden_Minuten="nichts"
+printable_diff_unit="nichts"
 
-
-if test $encode_state = "minutes" 
+if test $diff_unit = "minutes" 
 then
-	Tagen_Stunden_Minuten="Minuten"
+	printable_diff_unit="Minuten"
 fi
-if test $encode_state = "hours" 
+if test $diff_unit = "hours" 
 then
-	Tagen_Stunden_Minuten="Stunden:Minuten"
+	printable_diff_unit="Stunden:Minuten"
 fi
-if test $encode_state = "days" 
+if test $diff_unit = "days" 
 then
-	Tagen_Stunden_Minuten="Tagen:Stunden:Minuten"
+	printable_diff_unit="Tagen:Stunden:Minuten"
 fi
 
-
+#set -x
 # change to full message
-msg="HD mit Label '$LABEL', nächster Lauf eines Projektes ('$minp')  auf dieser HD ist in '${_mind}' $Tagen_Stunden_Minuten"
+msg="HD mit Label '$lv_disklabel', nächster Lauf eines Projektes ('$next_project')  auf dieser HD ist in '${encoded_diffstring}' $printable_diff_unit"
 dlog "====================================================================================================="
 dlog "$msg"
 sendlog "$msg"
@@ -1125,38 +1214,65 @@ sendlog "$msg"
 sendlog "waittime interval:  $waittimeinterval "
 
 
-msg="freier Platz auf HD '$LABEL': $free_space, belegt: ${used_space_percent}%"
+msg="freier Platz auf HD '$lv_disklabel': $diskfreespace, belegt: ${usedspacepercent}%"
 dlog "$msg"
 sendlog "$msg"
 
+# check again, after backup
+if [ $maxdiskspacepercent -lt $usedspacepercent ]
+then
+	#dlog "---"
+	#dlog "!!!  disk: '$lv_disklabel', max allowed used space '${maxdiskspacepercent}%' is lower than current used space '${usedspacepercent}%', continue with next disk !!!"
+	#dlog "---"
+	LV_DISKFULL=$BK_FREEDISKSPACETOOSMALL
+fi
 
-maxfree=$maxfillbackupdiskpercent
-msg="max. reservierter Platz auf HD '$LABEL' in Prozent '${maxfree}%'"
+
+
+if [ $LV_DISKFULL -eq $BK_FREEDISKSPACETOOSMALL ]
+then
+	msg="!!!  Festplatte '$lv_disklabel': ist voll, kein Backup mehr möglich. !!!"
+	dlog "$msg"
+	sendlog "$msg"
+	notifyfilepostfix="Festplatte_ist_voll_kein_Backup_möglich"
+	
+fi
+
+msg="max. reservierter Platz auf HD '$lv_disklabel' in Prozent '${maxdiskspacepercent}%'"
 dlog "$msg"
 sendlog "$msg"
 
 dlog "====================================================================================================="
 
 hour=$(date +%H)
-TODAY=`date +%Y%m%d-%H%M`
-sendlog "=======  $TODAY  ======="
+TODAY3=$( currentdate_for_log )
+sendlog "=======  $TODAY3  ======="
 
 #  handle disk full err
-if [ $maxfree -lt $used_space_percent ]
+if [ $maxdiskspacepercent -lt $usedspacepercent ]
 then
-	msg="max. reservierter Platz auf HD '$LABEL' in Prozent '${maxfree}%'"
+	msg="max. reservierter Platz auf HD '$lv_disklabel' in Prozent '${maxdiskspacepercent}%'"
 	dlog "$msg"
 	projecterrors[------]="maximaler reservierter Platz auf der Backup-Festplatte wurde überschritten: "
-	projecterrors[-----]="   max erlaubter Platz '${maxfree}%' ist kleiner als verwendeter Platz  '${used_space_percent}%'"
+	projecterrors[-----]="   max erlaubter Platz '${maxdiskspacepercent}%' ist kleiner als verwendeter Platz  '${usedspacepercent}%'"
 fi
 
-if test ${#projecterrors[@]} -gt 0 
+
+# x replaces projecterrors, if not empty,  and testet
+if [ -z ${projecterrors+x} ]
+then
+	projecterrorssize=0
+else
+	projecterrorssize=${#projecterrors[@]}
+fi
+
+if test ${projecterrorssize} -gt 0 
 then
 
 	#  handle disk full err
-	if [ $maxfree -lt $used_space_percent ]
+	if [ $maxdiskspacepercent -lt $usedspacepercent ]
 	then
-		dlog "allowed space of disk '${maxfree}%' is lower than current free space '${used_space_percent}%'"
+		dlog "allowed space of disk '${maxdiskspacepercent}%' is lower than current free space '${usedspacepercent}%'"
 		notifyfilepostfix="Backup-Festplatte_ist_zu_voll"
 	else
 		notifyfilepostfix="Fehler_in_Projekten"
@@ -1170,30 +1286,39 @@ then
 	done
 	sendlog "---"
 fi
-
+dlog ""
 # send to local folder 'backup_messages_test'
 # create temp file with postfix in name
-sshnotifysend $LABEL $notifyfilepostfix 
+sshnotifysend $lv_notifysendlog $lv_disklabel $notifyfilepostfix 
 
-# end of loop, remove NOTIFYSENDLOG
-rm $NOTIFYSENDLOG
+#set +x
+
+# end of loop, remove lv_notifysendlog
+if test -f $lv_notifysendlog
+then
+	rm $lv_notifysendlog
+fi
 
 # write collected success labels to disk
 # don't delete files, is > redirection
 # files are used in bk_disks
-echo ${successlist[@]} > $successarraytxt
-echo ${unsuccesslist[@]} > $unsuccessarraytxt
+echo ${successlist[@]} > $bv_successarray
+echo ${unsuccesslist[@]} > $bv_unsuccessarray
 
-if [[ $error_in_rsync == $RSYNCFAILS ]]
+if [[ $error_in_rsync == $BK_RSYNCFAILS ]]
 then
-	tlog "end: fails, '$LABEL'"
-	dlog "end: fails, '$LABEL'"
-	exit $RSYNCFAILS
+	tlog "end: fails, '$lv_disklabel'"
+	dlog "end: fails, '$lv_disklabel'"
+		exit $BK_DISKNOTMOUNTED
 fi
 
-tlog "end: ok,    '$LABEL'"
-dlog "end: ok,    '$LABEL'"
-exit $SUCCESS
+tlog "end: ok,    '$lv_disklabel'"
+dlog "end: ok,    '$lv_disklabel'"
+exit $BK_SUCCESS
+
+# end loop over projects for backup disk
+# --
+
 
 # EOF
 

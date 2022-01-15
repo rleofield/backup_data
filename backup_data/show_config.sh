@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: show_config.sh
-# bk_version 21.11.1
+# bk_version 22.01.1
 
 
 # Copyright (C) 2021 Richard Albrecht
@@ -26,10 +26,10 @@
 . ./cfg.projects
 
 
-cd $WORKINGFOLDER
-if [ ! -d $WORKINGFOLDER ] && [ ! $( pwd ) = $WORKINGFOLDER ]
+cd $bv_workingfolder
+if [ ! -d $bv_workingfolder ] && [ ! $( pwd ) = $bv_workingfolder ]
 then
-	echo "WD '$WORKINGFOLDER'"
+	echo "WD '$bv_workingfolder'"
 	echo "WD is wrong"
 	exit 1
 fi
@@ -114,35 +114,30 @@ function encode_diff {
         echo "$ret"
 }
 
-#projects=""
-
 function do_label {
 	local _disk=$1
-#	echo "disk: $_disk"
-	local PROJEKTLABELS=${a_projects[$_disk]}
-	for p in $PROJEKTLABELS
+	# a_projects is in 'cfg.projects'
+	local _project_list=${a_projects[$_disk]}
+	for _project in $_project_list
 	do
-#		echo "p: ${_disk}_$p"
-		projects+=(${_disk}_$p)
-
+		projects+=(${_disk}_$_project)
 	done
 
 }
 
 
-WORKINGDIR=$WORKINGFOLDER
 
-cd  ${WORKINGDIR}
- 
-CONFFOLDER="${WORKINGDIR}/conf"
+readonly lv_conffolder="${bv_workingfolder}/conf"
+readonly bv_disklist=$DISKLIST
 
-
-for _disk in $DISKLIST
+#  collect complete projectnames, label_project, for all disks
+for _disk in $bv_disklist
 do
 #	echo "disk: $_disk"
 	do_label $_disk
 done
 
+echo "found projects"
 echo "${projects[@]}"
 
 
@@ -150,39 +145,41 @@ dlog(){
 	echo "$RSNAPSHOT -->  $1"
 }
 
-for RSNAPSHOT in ${projects[@]}
+for _project in ${projects[@]}
 do
 
-
-
-#	echo "retainslist= cat ${CONFFOLDER}/${RSNAPSHOT}.conf "
-	if [ -f ${CONFFOLDER}/${RSNAPSHOT}.conf ]
+	_projekt_conf=${lv_conffolder}/${_project}.conf
+	if [ -f ${_projekt_conf} ]
 	then
-		retainslist=$( cat ${CONFFOLDER}/${RSNAPSHOT}.conf | grep ^retain )
-		backupslist=$( cat ${CONFFOLDER}/${RSNAPSHOT}.conf | grep ^backup )
+		retainslist=$( cat ${_projekt_conf} | grep ^retain )
+		backupslist=$( cat ${_projekt_conf} | grep ^backup )
 		#echo "$retainslist"
-		OIFS=$IFS
+		_oldifs=$IFS
 IFS='
 '
 		lines=($retainslist)
 		backups=($backupslist)
+
+
+		echo ""
+		echo ""
+		dlog "Project: == $_project =="
+#		cfg="${_projekt_conf}"
+
+		# lookup for backup disk root folder
+		_backup_root=$(awk  '/^snapshot_root/&&!/^'#'/  {print $2}' ${_projekt_conf})
+
+
+		dlog "root folder: $_backup_root"
+		# retainpositions in line:
+		# 0 = keyword 'retain', 1 = level= e.g. eins,zwei,drei, 2 = count
+		n=0
+		IFS=$_oldifs
+		ncount=0
+		
 		declare -A retainscount
 		declare -A retains
 
-
-		echo ""
-		echo ""
-		dlog "Project: == $RSNAPSHOT =="
-		cfg="$CONFFOLDER/${RSNAPSHOT}.conf"
-		#RSNAPSHOT_ROOT=$(cat ${cfg} | grep ^snapshot_root | awk '{print $2}')
-		RSNAPSHOT_ROOT=$(awk  '/^snapshot_root/&&!/^'#'/  {print $2}' ${cfg})
-
-
-		dlog "root folder: $RSNAPSHOT_ROOT"
-		# 0 = keyword 'retain', 1 = level= e.g. eins,zwei,drei, 2 = count
-		n=0
-		IFS=$OIFS
-		ncount=0
 		for i in "${lines[@]}"
 		do
 			# split to array with ()
@@ -192,17 +189,13 @@ IFS='
 			retains[$n]=${_line[1]}
 			(( n++ ))
 		done
-#		echo "n: $n"
-		#if [ $n -ne 4 ]
-		#then
-	#		exit 1
-	#	fi
+
 		dlog "-----------------"
-		pdiff=$( decode_pdiff ${RSNAPSHOT})
-		ncount=$(( retainscount[0] )) 
+		pdiff=$( decode_pdiff ${_project})
+		ncount=$(( retainscount[0] ))
 
 
-		t=$( printf "%3d"  $ncount )
+		#t=$( printf "%3d"  $ncount )
 		dlog "retain 0 = ${retainscount[0]} times, every $(encode_diff $pdiff), total $( printf "%3d"  $ncount )"
 		rr=$(( pdiff * retainscount[0] ))
 		ncount=$(( ncount * retainscount[1] )) 
@@ -223,6 +216,7 @@ IFS='
 		do
 			dlog "$i"
 		done
+		cfg="${_projekt_conf}"
 		dlog "$( cat ${cfg} | grep ^logfile )" 
 		dlog "$( cat ${cfg} | grep ^rsync_short_args )"
 		dlog "$( cat ${cfg} | grep ^rsync_long_args )"
@@ -244,21 +238,21 @@ IFS='
 		
 done
 
-#exit
+
 
 
 echo ""
 echo "all disks"
-cat cfg.target_disk_list | grep -v '#' | grep DISKLIST
+cat cfg.projects | grep -v '#' | grep bv_disklist
 echo ""
 echo "all Projects"
-cat cfg.projects | grep -v declare | grep a_projects
+cat cfg.projects | grep -v declare | grep -v '#' | grep a_projects
 echo ""
 echo "all intervals"
-cat cfg.projects | grep -v declare | grep -v pdiff | grep a_interval
+cat cfg.projects | grep -v declare | grep -v '#'| grep -v pdiff | grep a_interval
 echo ""
 echo "all wait times"
-cat cfg.projects | grep -v declare | grep -v pdiff | grep a_waittime
+cat cfg.projects | grep -v declare | grep -v '#' | grep -v pdiff | grep a_waittime
 	
 
 # EOF
