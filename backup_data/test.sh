@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: test.sh
-# bk_version 21.11.1
+# bk_version 22.01.1
 
 
 # Copyright (C) 2021 Richard Albrecht
@@ -29,10 +29,10 @@
 readonly errlog="test_errors.log"
   
 
-cd $WORKINGFOLDER 2> "$errlog"  || exit
-if [ ! -d $WORKINGFOLDER ] && [ ! "$( pwd )" = $WORKINGFOLDER ]
+cd $bv_workingfolder 2> "$errlog"  || exit
+if [ ! -d $bv_workingfolder ] && [ ! "$( pwd )" = $bv_workingfolder ]
 then
-	echo "WD '$WORKINGFOLDER'"
+	echo "WD '$bv_workingfolder'"
 	echo "WD is wrong"
 	exit 1
 fi
@@ -44,12 +44,13 @@ dlog(){
         echo "$RSNAPSHOT -->  $1"
 }
 
+readonly bv_disklist=$DISKLIST
 
 
 # loop disk list
-echo "loop disk list: \"$DISKLIST\""
+echo "loop disk list: \"$bv_disklist\""
 echo ""
-for _disk in $DISKLIST
+for _disk in $bv_disklist
 do
 	
 	echo " ====  check disk: $_disk  ===="
@@ -92,7 +93,7 @@ do
 
 
 		dlog "check reachability"
-		dlog "  pre/$lpkey.pre.sh" 
+		dlog "  bv_preconditionsfolder/$lpkey.bv_preconditionsfolder.sh" 
 		pre/${lpkey}.pre.sh
 		RET=$?
 		if [ $RET -eq 0 ]

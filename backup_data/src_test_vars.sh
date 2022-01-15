@@ -1,5 +1,5 @@
 # file: src_test_vars.sh
-# bk_version 21.11.1
+# bk_version 22.01.1
 # included with 'source'
 
 # Copyright (C) 2021 Richard Albrecht
@@ -27,14 +27,13 @@
 
 # ==
 # == max fill of backupdisk in percent ==
-# default = 90
+# default = 70
 
 # used in
-#     bk_disks.sh:405:        maxfree=$maxfillbackupdiskpercent
-#     bk_loop.sh:717: dsmaxfree=$maxfillbackupdiskpercent
-#     bk_loop.sh:793:         _maxfree=$maxfillbackupdiskpercent
-#     bk_loop.sh:1046:maxfree=$maxfillbackupdiskpercent
-readonly maxfillbackupdiskpercent=90
+#	bk_loop.sh:773:dsmaxfree=$bv_maxfillbackupdiskpercent
+#	bk_loop.sh:870:                 _maxfree=$bv_maxfillbackupdiskpercent
+#	bk_loop.sh:1134:maxfree=$bv_maxfillbackupdiskpercent
+readonly bv_maxfillbackupdiskpercent=70
 
 
 
@@ -45,15 +44,17 @@ readonly maxfillbackupdiskpercent=90
 # default = 0
 
 # checked in
-#    bk_loop.sh:360: if [ $no_check_disk_done -eq 1 ]
-#    bk_main.sh:101: if [ $no_check_disk_done -eq 1 ]
-readonly no_check_disk_done=0
+#   bk_loop.sh:367: 
+#   if [ $bv_test_no_check_disk_done -eq 1 ]
+readonly bv_test_no_check_disk_done=0
+
 
 ## hour loop and minute loop skipped if 0
-# in bk_disks.sh:693:                if [ $check_looptimes -eq 1 ]
-
 # default = 1
-readonly check_looptimes=1
+
+# checked in
+#   bk_disks.sh:701:                if [ $bv_test_check_looptimes -eq 1 ]
+readonly bv_test_check_looptimes=1
 
 
 #####################################
@@ -65,25 +66,26 @@ readonly check_looptimes=1
 
 # stops after one loop
 # default = 0
-readonly execute_once=0
+readonly bv_test_execute_once=0
 
 
 
 # ==
 # == do_once_count ==
 
-
 # stops after count loops
 # default = 0
 
-# 'execute_once' must be 1
+# 'bv_test_execute_once' must be 1
 #  only in 'bk_main'
-readonly do_once_count=0
+#   bk_main.sh:456:         if [ $bv_test_do_once_count -gt 0 ]
+#   bk_main.sh:461:                 if [ $do_once_counter -lt $bv_test_do_once_count ]
+readonly bv_test_do_once_count=0
 
 
 #####################################
 ## shorten wait time in loop 
-## execute_once=0
+## bv_test_execute_once=0
 #####################################
 
 # ==
@@ -92,15 +94,23 @@ readonly do_once_count=0
 # 1 = use loop of one minute, not one hour
 # 0 = use one hour loop
 # default = 0
-readonly use_minute_loop=0
+
+# used in
+#   bk_disks.sh:670:        if [ $bv_test_use_minute_loop -eq 1 ]
+#   bk_loop.sh:409: if [ "$hour" -ge "$wstart" ] && [ "$hour" -lt "$wend"  ] && [ $bv_test_use_minute_loop -eq 0 ]
+readonly bv_test_use_minute_loop=0
 
 
 # ==
 # == short_minute_loop ==
 
-# don't count seconds in minute loop, return immediately, needs use_minute_loop=1
+# don't count seconds in minute loop, return immediately, needs bv_test_use_minute_loop=1
 # default = 0
-readonly short_minute_loop=0
+
+# used in
+#   bk_disks.sh:151:        if [ $bv_test_short_minute_loop -eq 0 ]
+#   bk_disks.sh:683:                if [ $bv_test_short_minute_loop -eq 1 ]
+readonly bv_test_short_minute_loop=0
 
 
 # ==
@@ -109,10 +119,14 @@ readonly short_minute_loop=0
 # dto for a 10 second interval
 # 1 = use loop of 10 seconds, not one minute
 # 
-# 'short_minute_loop' must be 0
-# 'use_minute_loop' must be 1
+# 'bv_test_short_minute_loop' must be 0
+# 'bv_test_use_minute_loop' must be 1
 # default = 0
-readonly short_minute_loop_seconds_10=0
+
+# used in
+#   bk_disks.sh:145:        if [ $bv_test_short_minute_loop_seconds_10 -eq 1 ]
+#   bk_disks.sh:688:                if [ $bv_test_short_minute_loop_seconds_10 -eq 1 ]
+readonly bv_test_short_minute_loop_seconds_10=0
 
 
 # ==
@@ -120,22 +134,14 @@ readonly short_minute_loop_seconds_10=0
 
 
 # minutes looptime 
-# default = 2,  needs 'use_minute_loop=1'
+# default = 2,  needs 'bv_test_use_minute_loop=1'
 
-readonly minute_loop_duration=2
+# used in 
+#   bk_disks.sh:676:                mlooptime=$bv_test_minute_loop_duration
+readonly bv_test_minute_loop_duration=2
 
 
 
-# ==
-# == daily_rotate ==
-
-# do daily rotate
-# default = 1, rotate logs
-# checked in
-# bk_disks.sh:338:        if [ $daily_rotate -eq 1 ]
-# bk_main.sh:111: if [ $daily_rotate -eq 1 ]
-
-readonly daily_rotate=1
 
 
 # EOF

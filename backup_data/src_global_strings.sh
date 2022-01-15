@@ -1,5 +1,5 @@
 # file: global_strings.sh
-# bk_version 21.11.1
+# bk_version 22.01.1
 # included with 'source'
 
 
@@ -19,12 +19,10 @@
 #------------------------------------------------------------------------------
 
 
-# prefix for created 'at text' in file created at after rsync success
-#readonly prefix_created_at="created at: "
 
 # not used
 # 
-LABELEXTERN="extern"
+# LABELEXTERN="extern"
 
 
 #  IFS=$' \t\n'

@@ -1,6 +1,6 @@
 
 # file: src_ssh.sh
-# bk_version 21.11.1
+# bk_version 22.01.1
 # included with 'source'
 
 # Copyright (C) 2021 Richard Albrecht
@@ -64,7 +64,7 @@ function func_sshport {
 	echo $p
 }
 
-# send $notifybasefile="Backup-HD" ...
+# send $bv_notifyfileprefix="Backup-HD" ...
 function do_sshnotifysend {
 	local _temp=$1
 	local p=$( func_sshport )

@@ -2,7 +2,7 @@
 
 # file: is_stopped.sh
 
-# bk_version 21.11.1
+# bk_version 22.01.1
 
 # Copyright (C) 2021 Richard Albrecht
 # www.rleofield.de
@@ -20,13 +20,13 @@
 
 
 # bei hs
-# WAITING=100
+# BK_WAITING=100
 # STOPPED=101
-# WAITINTERVAL=102
-# RUNNING=105  
-# FATAL=255
+# BK_WAITINTERVAL=102
+# BK_RUNNING=105  
+# BK_FATAL=255
 
-# if [ ! $RET -eq $RUNNING  ] is ok
+# if [ ! $RET -eq $BK_RUNNING  ] is ok
 
 
 
@@ -36,62 +36,62 @@
 . ./src_exitcodes.sh
 . ./src_log.sh
 
-cd $WORKINGFOLDER
-if [ ! -d $WORKINGFOLDER ] && [ ! $( pwd ) = $WORKINGFOLDER ]
+cd $bv_workingfolder
+if [ ! -d $bv_workingfolder ] && [ ! $( pwd ) = $bv_workingfolder ]
 then
-        echo "WD '$WORKINGFOLDER'"
+        echo "WD '$bv_workingfolder'"
         echo "WD is wrong"
         exit 1
 fi
 
 
-# WAITING=100  
+# BK_WAITING=100  
 # STOPPED=101
 
-# WAITING=100
+# BK_WAITING=100
 # STOPPED=101
-# EXECONCESTOPPED=102
-# WAITINTERVAL=103
+# BK_EXECONCESTOPPED=102
+# BK_WAITINTERVAL=103
 
 
 # only used if rsync is running
-# RUNNING=105
+# BK_RUNNING=105
 
 
 
-if test -f $BK_LOGFILE 
+if test -f $bv_logfile 
 then
-	lastlogline=$( awk  'END { print }'  $BK_LOGFILE )
+	lastlogline=$( awk  'END { print }'  $bv_logfile )
 
 	# waiting, backup ready, normal waiting for next hour
 	vtest="$text_marker_waiting"
         if [[ $lastlogline == *"$vtest"* ]]
         then
-                echo "log contains '$vtest' at end, exit 'waiting': $WAITING"
-                exit $WAITING
+                echo "log contains '$vtest' at end, exit 'waiting': $BK_WAITING"
+                exit $BK_WAITING
 	fi
 
 	# stopped run one, backup stopped by hand './stop.sh', 
-        vtest="$text_marker_stop, end, do_once_count loops reached"
+        vtest="$text_marker_stop, end, bv_test_do_once_count loops reached"
         if [[ $lastlogline == *"$vtest"* ]]
         then
-		echo "log contains '$vtest' at end, exit 'stopped do once count loops end': $EXECONCESTOPPED"
-                exit $EXECONCESTOPPED
+		echo "log contains '$vtest' at end, exit 'stopped do once count loops end': $BK_EXECONCESTOPPED"
+                exit $BK_EXECONCESTOPPED
 	fi
 
 	# stopped run one, backup stopped by hand './stop.sh', 
-        vtest="$text_marker_stop, end reached, 'execute_once', RET: '102'"
+        vtest="$text_marker_stop, end reached, 'bv_test_execute_once', RET: '102'"
         if [[ $lastlogline == *"$vtest"* ]]
         then
-		echo "log contains '$vtest' at end, exit 'stopped run once': $EXECONCESTOPPED"
-                exit $EXECONCESTOPPED
+		echo "log contains '$vtest' at end, exit 'stopped run once': $BK_EXECONCESTOPPED"
+                exit $BK_EXECONCESTOPPED
 	fi
 	# stopped, backup stopped by hand './stop.sh', 
         vtest="$text_marker_stop"
         if [[ $lastlogline == *"$vtest"* ]]
         then
-		echo "log contains '$vtest' at end, exit 'stopped': $STOPPED"
-                exit $STOPPED
+		echo "log contains '$vtest' at end, exit 'stopped': $BK_STOPPED"
+                exit $BK_STOPPED
 	fi
 
 
@@ -99,8 +99,8 @@ then
         vtest="$text_wait_interval_reached"
         if [[ $lastlogline == *"$vtest"* ]]
         then
-		echo "log contains '$vtest' at end, in interval waiting, exit 'waitinterval': $WAITINTERVAL"
-                exit $WAITINTERVAL
+		echo "log contains '$vtest' at end, in interval waiting, exit 'waitinterval': $BK_WAITINTERVAL"
+                exit $BK_WAITINTERVAL
 	fi
 
 
@@ -108,20 +108,20 @@ then
         vtest="$text_marker_error_in_waiting"
         if [[ $lastlogline  = *"$vtest"* ]]
         then
-		echo "log contains '$vtest' at end, errors in projekt, exit 'rsyncfails': $RSYNCFAILS"
-                exit $RSYNCFAILS
+		echo "log contains '$vtest' at end, errors in projekt, exit 'rsyncfails': $BK_RSYNCFAILS"
+                exit $BK_RSYNCFAILS
 	fi
 	# stop with error
         vtest="$text_marker_error_in_stop"
         if [[ $lastlogline  = *"$vtest"* ]]
         then
-		echo "log contains '$vtest' at end, stopped, errors in projekt, exit 'rsyncfails': $RSYNCFAILS"
-                exit $RSYNCFAILS
+		echo "log contains '$vtest' at end, stopped, errors in projekt, exit 'rsyncfails': $BK_RSYNCFAILS"
+                exit $BK_RSYNCFAILS
 	fi
 	
 	
-	echo "log shows no stop marker, backup is running, exit 'running': $RUNNING"
-        exit $RUNNING
+	echo "log shows no stop marker, backup is running, exit 'running': $BK_RUNNING"
+        exit $BK_RUNNING
 			
 
 

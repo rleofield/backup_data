@@ -2,7 +2,7 @@
 
 
 # file: mount.sh
-# bk_version 21.11.1
+# bk_version 22.01.1
 
 # Copyright (C) 2021 Richard Albrecht
 # www.rleofield.de
@@ -30,15 +30,15 @@ fi
 . ./src_log.sh
 
 
-#FILENAME=$(basename "$0" .sh)
+#lv_cc_logname=$(basename "$0" .sh)
 
 
 # call: ./mount.sh $LABEL
 
 
 label=$1
-#FILENAME="mount:$label"
-readonly FILENAME="$label:mount"
+#lv_cc_logname="mount:$label"
+readonly lv_cc_logname="$label:mount"
 mountdir=/mnt/$label
 
 if [[ "$label" == *luks ]]

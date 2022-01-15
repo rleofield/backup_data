@@ -2,7 +2,7 @@
 
 # file: stop.sh
 
-# bk_version 21.11.1
+# bk_version 22.01.1
 
 # Copyright (C) 2021 Richard Albrecht
 # www.rleofield.de
