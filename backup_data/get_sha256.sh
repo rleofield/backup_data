@@ -8,7 +8,7 @@
 #   DESCRIPTION: creates sha256sum of all files 
 # 
 #       CREATED: 20.09.2021 11:23:42
-#      REVISION: 21.09.1
+#      REVISION: 22.01.1
 #===============================================================================
 
 set -o nounset                              # Treat unset variables as an error
