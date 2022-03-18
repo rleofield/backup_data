@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_archive.sh
-# bk_version 22.01.1
+# bk_version 22.03.1
 
 
 # Copyright (C) 2021 Richard Albrecht
@@ -198,7 +198,7 @@ do
 	(( lineounter++ ))
 done
 
-runningnumber=$( printf "%05d"  $( get_loopcounter ) )
+runningnumber=$( get_runningnumber )
 lv_logdate=$( currentdateT )
 
 

@@ -1,6 +1,6 @@
 
 # file exitcodes.sh 
-# bk_version 22.01.1
+# bk_version 22.03.1
 # included with 'source'
 
 # Copyright (C) 2021 Richard Albrecht
@@ -30,14 +30,25 @@
 
 
 # used in bk_disks.sh
-# ARRAYSNOK             1
-# DISKLABELNOTFOUND     3
-# DISKNOTUNMOUNTED      4
-# MOUNTDIRTNOTEXIST     5
-# DISKNOTMOUNTED        7
-# RSYNCFAILS            8
-# NOINTERVALSET         9
 
+# BK_SUCCESS=0
+# BK_ARRAYSNOK=1  # exit, but checked in 'bk_disks.sh'
+# BK_DISKLABELNOTGIVEN=2
+# BK_DISKLABELNOTFOUND=3
+# BK_DISKNOTUNMOUNTED=4
+# BK_MOUNTDIRTNOTEXIST=5
+# BK_TIMELIMITNOTREACHED=6
+# BK_DISKNOTMOUNTED=7
+# BK_RSYNCFAILS=8
+# BK_NOINTERVALSET=9
+# BK_NORSNAPSHOTROOT=12
+# BK_DISKFULL=13
+# BK_ROTATE_FAILS=14
+# BK_FREEDISKSPACETOOSMALL=15
+
+# BK_NORMALDISKLOOPEND=99
+
+# BK_FATAL=255
 
 
 readonly BK_SUCCESS=0
@@ -65,12 +76,9 @@ readonly BK_TIMELIMITNOTREACHED=6
 readonly BK_DISKNOTMOUNTED=7
 
 
-
-
 # set in bk_rsnapshot.sh
 # evaluated in bk_project.sh and set again in bk_project.sh
 readonly BK_RSYNCFAILS=8
-
 
 # used in bk_project.sh
 readonly BK_NOINTERVALSET=9
@@ -82,8 +90,12 @@ readonly BK_NORSNAPSHOTROOT=12
 # set, when rsync finds disk is full, 'No space left on device' in log
 readonly BK_DISKFULL=13
 
+# rsnapshot rotate fails
+readonly BK_ROTATE_FAILS=14
+
 # set, when disk has't enough space
 readonly BK_FREEDISKSPACETOOSMALL=15
+
 
 # no folder 'rsnapshot' in working dir
 # not used
@@ -97,6 +109,7 @@ readonly BK_FATAL=255
 
 
 # in is_stopped.sh only
+# all gt 100
 
 readonly BK_WAITING=100  # used in is_stopped
 # in is_stopped.sh and main_loop.sh
@@ -152,7 +165,7 @@ readonly text_marker_test_counter="--- test with counter is running ---"
 readonly text_marker_end="--- marker end ---" # not used
 
 
-# all 
+# all in is_stopped.sh
 # BK_NORMALDISKLOOPEND=99
 # BK_WAITING=100
 # STOPPED=101

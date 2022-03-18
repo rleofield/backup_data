@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: test.sh
-# bk_version 22.01.1
+# bk_version 22.03.1
 
 
 # Copyright (C) 2021 Richard Albrecht
@@ -28,16 +28,6 @@
 
 readonly errlog="test_errors.log"
   
-
-cd $bv_workingfolder 2> "$errlog"  || exit
-if [ ! -d $bv_workingfolder ] && [ ! "$( pwd )" = $bv_workingfolder ]
-then
-	echo "WD '$bv_workingfolder'"
-	echo "WD is wrong"
-	exit 1
-fi
-
-
 
 
 dlog(){
@@ -93,7 +83,7 @@ do
 
 
 		dlog "check reachability"
-		dlog "  bv_preconditionsfolder/$lpkey.bv_preconditionsfolder.sh" 
+		dlog "  $bv_preconditionsfolder/$lpkey.$bv_preconditionsfolder.sh" 
 		pre/${lpkey}.pre.sh
 		RET=$?
 		if [ $RET -eq 0 ]
@@ -102,11 +92,29 @@ do
 		else 
 			dlog "  not reached" 
 		fi
+		echo " ================"
+		echo ""
+
 	done
+	echo " ================"
+	echo ""
 done
 
 dlog "==================="
-echo ""
+
+
+
+
+
+if test -f $errlog
+then
+	filelength=$( cat $errlog | wc -c )
+	if test $filelength -eq 0 
+	then
+		rm $errlog
+	fi
+fi
+echo "ok"
 
 
 

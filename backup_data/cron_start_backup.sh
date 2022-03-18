@@ -2,7 +2,7 @@
 
 # file: start_backup.sh
 
-# bk_version 22.01.1
+# bk_version 22.03.1
 
 # Copyright (C) 2021 Richard Albrecht
 # www.rleofield.de
@@ -123,7 +123,7 @@ cron_dlog "write WORKINGFOLDER from '/etc/rlf_backup_data_rc' to file 'cfg.worki
 
 # create file 'cfg.working_folder'
 echo "# BK_WORKINGFOLDER from /etc/rlf_backup_data_rc" > cfg.working_folder
-echo "# bk_version 22.01.1" >> cfg.working_folder
+echo "# bk_version 22.03.1" >> cfg.working_folder
 echo "bv_workingfolder=\"$STARTFOLDER\"" >> cfg.working_folder
 #echo "export bv_workingfolder " >> cfg.working_folder
 

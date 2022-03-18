@@ -3,7 +3,7 @@
 
 # file: show_disks.sh
 
-# bk_version 22.01.1
+# bk_version 22.03.1
 
 # Copyright (C) 2021 Richard Albrecht
 # www.rleofield.de
@@ -28,6 +28,7 @@
 
 . ./src_exitcodes.sh
 . ./src_filenames.sh
+. ./src_folders.sh
 
 SHOW_DISKS_LOGFILE="list_disks_log.log"
 lv_cc_logname="show_disks"
@@ -105,6 +106,7 @@ do
         RET="disk: '$LABEL' "
         if [ $goodlink -ne 0 ]
         then
+		
                 RET="${RET} ist nicht verbunden"
 		aw="awk '{ print $1 }'"
 		F=$( find $bv_oldlogsfolder -name "cc_log*" | grep -v save | xargs grep $_disk | grep 'is mounted' | sort | awk '{ print $1 }'| cut -d '/' -f 2 | tail -f -n1 )
@@ -112,6 +114,7 @@ do
         else
                 RET="${RET} ist verbunden"
         	sddatelog "$RET"
+		
         fi
 done
 

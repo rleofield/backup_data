@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: show_config.sh
-# bk_version 22.01.1
+# bk_version 22.03.1
 
 
 # Copyright (C) 2021 Richard Albrecht
@@ -163,6 +163,7 @@ IFS='
 
 		echo ""
 		echo ""
+		RSNAPSHOT=$_project
 		dlog "Project: == $_project =="
 #		cfg="${_projekt_conf}"
 
@@ -182,11 +183,13 @@ IFS='
 
 		for i in "${lines[@]}"
 		do
+			#echo "i: ${i}"
 			# split to array with ()
 			_line=($i)
 			# 0 = keyword 'retain', 1 = level= e.g. eins,zwei,drei, 2 = count
 			retainscount[$n]=${_line[2]}
 			retains[$n]=${_line[1]}
+			#echo "line: ${_line[2]}"
 			(( n++ ))
 		done
 

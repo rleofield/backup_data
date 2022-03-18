@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_main.sh
-# bk_version 22.01.1
+# bk_version 22.03.1
 
 
 # Copyright (C) 2021 Richard Albrecht
@@ -118,7 +118,7 @@ function check_main_lock {
 	if [ $_call_source = "cron" ]
 	then
 		dlog "check '$lv_lockfilename' for 'cron_start_backup'"
-	        if [ -f $lv_lockfilename ]
+		if [ -f $lv_lockfilename ]
 		then
 			dlog " '$lv_lockfilename' exists, remove and continue"
 			dlog "remove $lv_lockfilename"
@@ -166,18 +166,18 @@ function clear_internalerrors_list {
 
 
 function shatestfile(){
-        local _file1=$1
-        local _lsum1=$2
-        local sum=$( sha256sum $_file1 )
-        local a=$( echo $sum | cut -f1 -d " " )
-#       echo "$a, found sum $a"
-        if [ $_lsum1 != $a ]
-        then
-                dlog "$_file was changed. sha256sum  $a, "
-                dlog "         sha256sum  must be $_lsum1 "
-                return 1
-        fi
-        return 0
+	local _file1=$1
+	local _lsum1=$2
+	local sum=$( sha256sum $_file1 )
+	local a=$( echo $sum | cut -f1 -d " " )
+#	echo "$a, found sum $a"
+	if [ $_lsum1 != $a ]
+	then
+		dlog "$_file was changed. sha256sum  $a, "
+		dlog "         sha256sum  must be $_lsum1 "
+		return 1
+	fi
+	return 0
 
 }
 
@@ -204,15 +204,15 @@ function shatestfiles(){
 }
 
 function shatest(){
-	if [ -f "sha256sum.txt.sh" ]
+	if [ -f "sha256sum.txt" ]
 	then
 		dlog " ==  test sha256sums"
 		#RETSHA256=$( sha256sum -c --quiet sha256sum.txt.sh )
-		shatestfiles sha256sum.txt.sh
+		shatestfiles sha256sum.txt
 		RETSHA256=$?
 		if [ ${RETSHA256} -gt 0  ]
 		then
-			dlog "sha256sum check fails, craate new 'sha256sum.txt.sh' by call of 'get_sha256.sh'"
+			dlog "sha256sum check fails, create new 'sha256sum.txt' by call of 'get_sha256.sh'"
 			dlog "and start with './start_backup.sh' again"
 			exit 0
 		else
@@ -227,16 +227,16 @@ function shatest(){
 
 function list_test_flags(){
 	dlog " ==  list test flags and variables =="
-	dlog "maxfillbackupdiskpercent (70):    $bv_maxfillbackupdiskpercent"
-	dlog "no_check_disk_done (0):           $bv_test_no_check_disk_done"
-	dlog "check_looptimes (1):              $bv_test_check_looptimes"
-	dlog "execute_once (0):                 $bv_test_execute_once"
-	dlog "do_once_count (0):                $bv_test_do_once_count"
-	dlog "test_use_minute_loop (0):              $bv_test_use_minute_loop"
-	dlog "test_short_minute_loop (0):            $bv_test_short_minute_loop"
-	dlog "test_short_minute_loop_seconds_10 (0): $bv_test_short_minute_loop_seconds_10"
-	dlog "test_minute_loop_duration (2):         $bv_test_minute_loop_duration"
-	dlog "daily_rotate (1):                 $bv_daily_rotate"
+	dlog "maxfillbackupdiskpercent (70):    	$bv_maxfillbackupdiskpercent"
+	dlog "no_check_disk_done (0):			$bv_test_no_check_disk_done"
+	dlog "check_looptimes (1):              	$bv_test_check_looptimes"
+	dlog "execute_once (0):                 	$bv_test_execute_once"
+	dlog "do_once_count (0):                	$bv_test_do_once_count"
+	dlog "test_use_minute_loop (0):              	$bv_test_use_minute_loop"
+	dlog "test_short_minute_loop (0):            	$bv_test_short_minute_loop"
+	dlog "test_short_minute_loop_seconds_10 (0): 	$bv_test_short_minute_loop_seconds_10"
+	dlog "test_minute_loop_duration (2):         	$bv_test_minute_loop_duration"
+	dlog "daily_rotate (1):                 	$bv_daily_rotate"
 	dlog " == "
 }
 
@@ -319,13 +319,9 @@ function release_lock(){
 	fi
 }
 
-function increment_loop_counter(){
-	# increment counter after main_loop.sh and before exit
-	local _counter=$( get_loopcounter )
-	_counter=$(( _counter + 1 ))
-	echo "loop counter: $_counter" > loop_counter.log   
 
-}
+
+
 
 check_working_folder
 start_message $lv_iscron
@@ -352,7 +348,7 @@ do_once_counter=0
 while true
 do
 	dlog "" 
-	_runningnumber=$( printf "%05d"  $( get_loopcounter ) )
+	_runningnumber=$( get_runningnumber )
 	# is incremented after 'bk_disks.sh' in 'increment_loop_counter'
 	
 
@@ -382,9 +378,9 @@ do
 	# release lock
 	release_lock
 
-	# increment counter after main_loop.sh and before exit
+	# increment counter 
 	increment_loop_counter
-	_runningnumber=$( printf "%05d"  $( get_loopcounter ) )
+	_runningnumber=$( get_runningnumber )
 
 
 #       RET = NORMALDISKLOOPEND,  if all is ok and normal loop
@@ -491,7 +487,7 @@ do
 	# no stop set
 	dlog " ----> goto next loop  <----"
 	tlog " ----> goto next loop  <----"
-	sleep 5
+	sleep 1
 
 done
 

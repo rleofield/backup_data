@@ -3,7 +3,7 @@
 
 # file: show_times_disk.sh
 
-# bk_version 22.01.1
+# bk_version 22.03.1
 
 
 # Copyright (C) 2021 Richard Albrecht
@@ -34,7 +34,7 @@ readonly LABEL=$1
 . ./src_filenames.sh
 . ./src_folders.sh
 
-readonly lv_max_last_date="2021-12-01T00:00"
+readonly lv_max_last_date="2022-01-15T00:00"
 
 if [ -z $LABEL  ]
 then
@@ -259,13 +259,14 @@ function check_disk_done {
 
 function check_pre_host {
 
+#	stdatelog "check_pre_host"
 	local _LABEL=$1
 	local _p=$2
 
-        local _precondition=bv_preconditionsfolder/${_LABEL}_${_p}.bv_preconditionsfolder.sh
+        local _precondition=${bv_preconditionsfolder}/${_LABEL}_${_p}.${bv_preconditionsfolder}.sh
 
-	#stdatelog "bv_preconditionsfolder: $_LABEL $_p"
-	#stdatelog "cpre: $_precondition"
+#	stdatelog "bv_preconditionsfolder: $_LABEL $_p"
+#	stdatelog "cpre: $_precondition"
 
         if [[  -f $_precondition ]]
         then

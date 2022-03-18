@@ -1,5 +1,5 @@
 # file: src_log.sh
-# bk_version 22.01.1
+# bk_version 22.03.1
 # included with 'source'
 
 #set -o nounset                              # Treat unset variables as an error
@@ -88,23 +88,23 @@ function tlog() {
 
 	# calulate leading spaces for log of lv_tracelogname
 	space=""
-	if [ $lv_tracelogname == "disks" ]
+	if test $lv_tracelogname = "disks" 
 	then
 		space="  "
 	fi
-	if [ $lv_tracelogname == "loop" ]
+	if test $lv_tracelogname = "loop" 
 	then
 		space="    "
 	fi
-	if [ $lv_tracelogname == "project" ]
+	if test $lv_tracelogname = "project" 
 	then
 		space="      "
 	fi
-	if [ $lv_tracelogname == "archive" ]
+	if test $lv_tracelogname = "archive" 
 	then
 		space="        "
 	fi
-	if [ $lv_tracelogname == "rsnapshot" ]
+	if test $lv_tracelogname = "rsnapshot" 
 	then
 		space="        "
 	fi
@@ -126,8 +126,8 @@ function errorlog {
 # param = message
 # insert lv_cc_logname 
 # lv_cc_logname is set in local file, not here
-function dlog() {
-	if [  -z ${lv_cc_logname} ]
+function dlog {
+	if test  -z ${lv_cc_logname} 
 	then 
 		echo "${lv_cc_logname} is empty"
 		exit
@@ -142,16 +142,46 @@ function dlog() {
 
 
 
-#	get_loopcounter
+# get_loopcounter
 function get_loopcounter {
 	local ret="0"
-	if [ -f "loop_counter.log" ] 
+	if test -f "loop_counter.log"  
 	then
 		#ret=$(cat loop_counter.log |  awk  'END {print}' | cut -d ':' -f 2 |  sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
 		ret=$( gawk -F":" '{gsub(/ */,"",$2); print $2}' loop_counter.log )
 	fi
 	echo $ret
 }
+
+# get formatted loop counter
+function get_runningnumber {
+	local number=$( get_loopcounter )
+	# 5 digits
+	# < 99999
+        local fmt="%05d"
+	# > 5 digits, doesn't occur
+	local _runningnumber=$( printf ${fmt}  ${number} )
+	echo $_runningnumber
+}
+
+# increment counter, if all disk are executed 
+function increment_loop_counter(){
+	# increment counter after main_loop.sh and before exit
+	local _counter=$( get_loopcounter )
+	_counter=$(( _counter + 1 ))
+
+	# wraps at 99.999 = 100.000 loops
+	# normallly not more than 10.000 loops are used in rsnapshot
+	# see './show_config.sh | g -e total -e Project'
+	if (( _counter > 99999 ))
+	then
+		_counter=0
+	fi
+	echo "loop counter: $_counter" > loop_counter.log   
+
+}
+
+
 
 # EOF
 
