@@ -72,7 +72,7 @@ readonly lv_disklabel=$1
 
 if [ -z $lv_disklabel ]
 then
-	exit BK_DISKLABELNOTGIVEN;
+	exit $BK_DISKLABELNOTGIVEN;
 fi
 
 readonly properties=${a_properties[$lv_disklabel]}
@@ -168,8 +168,9 @@ function time_diff_minutes() {
         # convert the date hour:min:00" in seconds from 
         #       Unix Date Stamp to seconds, "1970-01-01T00:00:00Z"
         #       Unix Date Stamp to seconds, or "1970-01-01T00:01:00"  
-        local _sec_old=$( date2seconds $_old )
-        local _sec_new=$( date2seconds $_new)
+        local _sec_old=""
+        _sec_old=$( date2seconds "$_old" )
+        local _sec_new=$( date2seconds "$_new")
 
         # convert to minutes
         local _minutes=$(( (_sec_new - _sec_old) / 60 ))
@@ -737,7 +738,7 @@ function umount_media_folder(){
 	then
 		dlog "luks mapper exists: $mmMAPPERLABEL"
 		dlog "do luksClose:   cryptsetup luksClose $mmLUKSLABEL"
-		cryptsetup luksClose $mmLUKSLABEL
+		cryptsetup luksClose "$mmLUKSLABEL"
 	else
 		dlog "luks mapper doesn't exist: $mmMAPPERLABEL"
 
@@ -749,7 +750,7 @@ function umount_media_folder(){
 	then
 		dlog "luks mapper exists: $mmMAPPERLABEL"
 		dlog "do luksClose:   cryptsetup luksClose $mmLUKSLABEL"
-		cryptsetup luksClose $mmLUKSLABEL
+		cryptsetup luksClose "$mmLUKSLABEL"
 	fi
 	return $BK_SUCCESS
 
@@ -1082,7 +1083,7 @@ then
 				# shorten label, if label ends with luks or disk
 				var=$( strip_disk_or_luks_from_disklabel ${lv_disklabel} )
 				successlist=( "${successlist[@]}" "${var}:$_project" )
-				dlog "successlist: $( echo ${successlist[@]} )"
+				dlog "successlist: $( echo "${successlist[@]}" )"
 			else
 				if test $RET -eq $BK_RSYNCFAILS
 				then
