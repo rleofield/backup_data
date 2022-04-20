@@ -78,7 +78,7 @@ function start_message {
 	local _call_source=$1
 	dlog "========================"
 	dlog "===  start of backup ==="
-	dlog "===  version 22.01.1 ==="
+	dlog "===  version 22.03.1 ==="
 	dlog "========================"
 
 	if [ "$_call_source" = "cron" ]
@@ -219,7 +219,7 @@ function shatest(){
 			dlog "sha256sum check ok"
 		fi
 	else
-		dlog "sha256sum check fails, craate new 'sha256sum.txt.sh' by call of 'get_sha256.sh'"
+		dlog "sha256sum check fails, create new 'sha256sum.txt.sh' by call of 'get_sha256.sh'"
 		dlog "and start with './start_backup.sh' again"
 
 	fi
