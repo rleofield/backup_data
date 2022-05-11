@@ -376,7 +376,7 @@ function list_connected_disks_by_uuid(){
 		# ${string##substring}
 		if ! [ -z "${_line##*swap*}" ] && ! [ -z "${_line##*boot*}" ]
 		then
-			dlog " all  connected disk:  $_line"
+			dlog "  connected disk:  $_line"
 		fi
 	done
 	IFS=$_oldifs
@@ -394,7 +394,7 @@ declare -a unsuccesslist
 dlog "check all projects in disks: '$bv_disklist'"
 dlog ""
 
-dlog "show connected disks:"
+dlog "show connected disks in /dev/disk/by-uuid:"
 
 list_connected_disks_by_uuid
 

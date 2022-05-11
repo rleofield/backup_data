@@ -385,9 +385,6 @@ function do_rs {
 		# check for space on backup disk
 		# ${lv_disklabel}_${lv_project}
 		dlog "check log 'rr_${lv_lpkey}' for text: 'No space left on device' ??'"
-		#echo "YYYYYYYYYYYYYYYY" >> aa_${lv_lpkey}.log
-		#dlog "tail -3 rr_${lv_disklabel}_${lv_project}.log | grep No space left on device "
-		#wcgrline=$( tail -3 rr_${lv_disklabel}_${lv_project}.log | grep "No space left on device" )
 		wcgr=$( tail -3 rr_${lv_lpkey}.log | grep "No space left on device" | wc -l )
 		#dlog "wcgr line: ${wcgrline}"
 		dlog "count found text: $wcgr"
@@ -396,7 +393,20 @@ function do_rs {
 			dlog "error in 'bk_rsnapshot.sh':  'No space left on device', '$lv_project'"
 			exit $BK_DISKFULL
 		fi	
-		dlog "'no space left on device' is not the reason, error in 'bk_rsnapshot.sh': rsync fails '$lv_project'"
+		dlog "check log 'rr_${lv_lpkey}' for text: 'connection unexpectedly closed' ??'"
+		wcgr=$( tail -2 rr_${lv_lpkey}.log | grep "connection unexpectedly closed" | wc -l )
+		dlog "count found text: $wcgr"
+		if [ $wcgr -gt 0 ]
+		then
+			dlog "error in 'bk_rsnapshot.sh':  'connection unexpectedly closed', '$lv_project'"
+			dlog "RET in bk_project: '$BK_CONNECTION_UNEXPECTEDLY_CLOSED'"
+			exit $BK_CONNECTION_UNEXPECTEDLY_CLOSED
+		fi
+		# files vanished before
+		# file has vanished
+
+
+		dlog "error in 'bk_rsnapshot.sh': rsync fails '$lv_project'"
 		exit $BK_RSYNCFAILS
 	fi
 	if test $RET -eq $BK_ROTATE_FAILS

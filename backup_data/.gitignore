@@ -5,4 +5,6 @@ backup_messages_test
 *.out
 *.log~
 *.log
+sha256sum.txt
+install.txt
 

@@ -64,7 +64,8 @@ function currentdateT() {
 
 function currentdate_for_log() {
 	# YYYYMMDD-hhmm
-	echo `date +%Y%m%d-%H%M`
+	#echo `date +%Y%m%d-%H%M`
+	date +%Y%m%d-%H%M
 }
 
 function date2seconds(){
@@ -177,7 +178,7 @@ function increment_loop_counter(){
 	then
 		_counter=0
 	fi
-	echo "loop counter: $_counter" > loop_counter.log   
+	echo "loop counter: $_counter" > loop_counter.log
 
 }
 

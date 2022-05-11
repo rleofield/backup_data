@@ -70,10 +70,12 @@
 # par1 = Label der Backup-HD
 readonly lv_disklabel=$1
 
-if [ -z $lv_disklabel ]
+if [ -z "$lv_disklabel" ]
 then
-	exit $BK_DISKLABELNOTGIVEN;
+	exit "$BK_DISKLABELNOTGIVEN";
 fi
+
+
 
 readonly properties=${a_properties[$lv_disklabel]}
 
@@ -168,9 +170,8 @@ function time_diff_minutes() {
         # convert the date hour:min:00" in seconds from 
         #       Unix Date Stamp to seconds, "1970-01-01T00:00:00Z"
         #       Unix Date Stamp to seconds, or "1970-01-01T00:01:00"  
-        local _sec_old=""
-        _sec_old=$( date2seconds "$_old" )
-        local _sec_new=$( date2seconds "$_new")
+        local _sec_old=$( date2seconds $_old )
+        local _sec_new=$( date2seconds $_new)
 
         # convert to minutes
         local _minutes=$(( (_sec_new - _sec_old) / 60 ))
@@ -417,6 +418,7 @@ function check_disk_done {
 # 0 - ok, or checkfile doesn't exist
 # 0 - nok, checkfile doesn't exist
 # 1 - nok, source host or source doesn't exist or ssh check wrong
+
 function check_pre_host {
 	local _lpkey=$1
 	local _rsnapshot_config=${_lpkey}.conf
@@ -623,7 +625,7 @@ do
 		# - if [ $bv_test_no_check_disk_done -eq 1 ]  = 'bv_test_no_check_disk_done' is set
 		# - if [ $do_once -eq 1 ]             = 'do_once' is set
 		# check. if reachable, add to list 'lv_dirty_projects_array'
-		dlog "check_pre_host $_lpkey"
+#		dlog "check_pre_host $_lpkey"
 		check_pre_host $_lpkey
 		_ispre=$?
 		if test $_ispre -eq 0
@@ -738,7 +740,7 @@ function umount_media_folder(){
 	then
 		dlog "luks mapper exists: $mmMAPPERLABEL"
 		dlog "do luksClose:   cryptsetup luksClose $mmLUKSLABEL"
-		cryptsetup luksClose "$mmLUKSLABEL"
+		cryptsetup luksClose $mmLUKSLABEL
 	else
 		dlog "luks mapper doesn't exist: $mmMAPPERLABEL"
 
@@ -750,7 +752,7 @@ function umount_media_folder(){
 	then
 		dlog "luks mapper exists: $mmMAPPERLABEL"
 		dlog "do luksClose:   cryptsetup luksClose $mmLUKSLABEL"
-		cryptsetup luksClose "$mmLUKSLABEL"
+		cryptsetup luksClose $mmLUKSLABEL
 	fi
 	return $BK_SUCCESS
 
@@ -870,7 +872,7 @@ usedspacepercent=$temp2
 # set, if disk is full
 # checked also after backup
 LV_DISKFULL=$BK_SUCCESS
-
+LV_CONNECTION_UNEXPECTEDLY_CLOSED=$BK_SUCCESS
 
 if [ $maxdiskspacepercent -lt $usedspacepercent ]
 then
@@ -975,6 +977,7 @@ then
 			./bk_project.sh $lv_disklabel $_project
 			# #############################################################################
 			RET=$?
+			#dlog "RET in bk_project: '$RET'"
 			# BK_ARRAYSNOK=1  
 			# BK_DISKLABELNOTGIVEN=2
 			# BK_DISKLABELNOTFOUND=3
@@ -988,6 +991,7 @@ then
 			# BK_DISKFULL=13
 			# BK_ROTATE_FAILS=14
 			# BK_FREEDISKSPACETOOSMALL=15
+			# BK_CONNECTION_UNEXPECTEDLY_CLOSED=16
 
 
 			#dlog "RET of bk_project.sh: $RET"
@@ -1029,6 +1033,13 @@ then
 			fi
 			# disk full handler ok
 
+
+			if test $RET -eq $BK_CONNECTION_UNEXPECTEDLY_CLOSED
+			then
+				projecterrors[${_project}]="rsync error, 'connection unexpectedly closed', check harddisk usage: $lv_disklabel, $_project"
+				dlog "rsync: connection unexpectedly closed' in $lv_disklabel, $_project"
+				LV_CONNECTION_UNEXPECTEDLY_CLOSED=$BK_CONNECTION_UNEXPECTEDLY_CLOSED
+			fi
 			if test $RET -eq $BK_RSYNCFAILS
 			then
 				projecterrors[${_project}]="rsync error, check configuration or data source: $lv_disklabel, $_project"
@@ -1057,7 +1068,7 @@ then
 			fi
 			if test $RET -eq $BK_NORSNAPSHOTROOT
 			then
-				projecterrors[${p}]="snapshot root folder doesn't exist, see log"
+				projecterrors[${_project}]="snapshot root folder doesn't exist, see log"
 				dlog "snapshot root folder doesn't exist, see log"
 				PRET=$RET
 				#exit $BK_NORSNAPSHOTROOT
@@ -1083,7 +1094,7 @@ then
 				# shorten label, if label ends with luks or disk
 				var=$( strip_disk_or_luks_from_disklabel ${lv_disklabel} )
 				successlist=( "${successlist[@]}" "${var}:$_project" )
-				dlog "successlist: $( echo "${successlist[@]}" )"
+				dlog "successlist: $( echo ${successlist[@]} )"
 			else
 				if test $RET -eq $BK_RSYNCFAILS
 				then
@@ -1201,7 +1212,7 @@ then
 			# if duration < next project, then use next project 'lv_next_project_diff_minutes' as next time
 			if ((nextdiff < lv_next_project_diff_minutes ))
 			then
-				nextdiff=$lv_next_project_name
+				nextdiff=$lv_next_project_diff_minutes
 			fi
 			_encoded_diffstring_next_diff=$( encode_diff_to_string $nextdiff )
 			sendlog "HD mit Label '$lv_disklabel' kann in den nächsten '${_encoded_diffstring_next_diff}' Stunden:Minuten vom Server entfernt werden "
@@ -1284,6 +1295,14 @@ then
 	notifyfilepostfix="Festplatte_ist_voll_kein_Backup_möglich"
 	
 fi
+if [ $LV_CONNECTION_UNEXPECTEDLY_CLOSED -eq $BK_CONNECTION_UNEXPECTEDLY_CLOSED ]
+then
+	msg="Rsync: Verbindung abgebrochen, kein Backup möglich."
+	sendlog "$msg"
+	notifyfilepostfix="Rsync_Verbindung_abgebrochen"
+	
+fi
+
 
 msg="max. reservierter Platz auf Backup-HD '$lv_disklabel' in Prozent '${maxdiskspacepercent}%'"
 sendlog "$msg"
@@ -1345,7 +1364,7 @@ then
 
 
 
-	sendlog "listsize: '${#projecterrors[@]}',  $notifyfilepostfix"
+	#sendlog "listsize: '${#projecterrors[@]}',  $notifyfilepostfix"
 	# loop over keys in array  (!)
 	for i in "${!projecterrors[@]}"
 	do

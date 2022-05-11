@@ -45,6 +45,8 @@
 # BK_DISKFULL=13
 # BK_ROTATE_FAILS=14
 # BK_FREEDISKSPACETOOSMALL=15
+# BK_CONNECTION_UNEXPECTEDLY_CLOSED=16
+
 
 # BK_NORMALDISKLOOPEND=99
 
@@ -96,6 +98,8 @@ readonly BK_ROTATE_FAILS=14
 # set, when disk has't enough space
 readonly BK_FREEDISKSPACETOOSMALL=15
 
+# set, when remote source vanished
+readonly BK_CONNECTION_UNEXPECTEDLY_CLOSED=16
 
 # no folder 'rsnapshot' in working dir
 # not used
