@@ -2,7 +2,7 @@
 
 
 # file: umount.sh
-# bk_version 22.03.1
+# bk_version 22.08.1
 
 # Copyright (C) 2021 Richard Albrecht
 # www.rleofield.de
@@ -22,6 +22,7 @@
 
 # exit 0, if ok
 # exit 1, if umount or cryptsetup fails
+# umount only from /mnt, not from /media
 
 
 . ./src_log.sh

@@ -2,7 +2,7 @@
 
 
 # file: bk_loop.sh
-# bk_version 22.03.1
+# bk_version 22.08.1
 
 # Copyright (C) 2021 Richard Albrecht
 # www.rleofield.de
@@ -27,6 +27,9 @@
 #				./bk_rsnapshot.sh,  do rsnapshot
 #				./bk_archive.sh,    no history, rsync only
 
+
+# set -u, which will exit your script if you try to use an uninitialised variable.
+#set -u
 
 # prefixes of variables in backup:
 # bv_*  - global vars, alle files
@@ -67,17 +70,13 @@
 
 
 
-# par1 = Label der Backup-HD
+# Label der Backup-HD = $1
 readonly lv_disklabel=$1
 
 if [ -z "$lv_disklabel" ]
 then
 	exit "$BK_DISKLABELNOTGIVEN";
 fi
-
-
-
-readonly properties=${a_properties[$lv_disklabel]}
 
 
 # use media mount '/media/user/label' instead of '/mnt/label'?
@@ -89,10 +88,18 @@ readonly lv_use_mediamount=1
 readonly lv_tracelogname="loop"
 readonly lv_cc_logname="$lv_disklabel:loop"
 readonly lv_notifysendlog="tempnotifysend.log"
-readonly lv_max_last_date="2022-01-15T00:00"
+readonly lv_max_last_date="2022-05-15T00:00"
 
+# changed later, if lv_use_mediamount=0,  = use 
+# check for folder 'marker' at mounted backup disk
+lv_mountfolder=/mnt/$lv_disklabel
+lv_markerfolder=$lv_mountfolder/marker
 
 tlog "start: '$lv_disklabel'"
+
+
+# bk_loop starts at line > 450
+
 
 
 # check, get_projectwaittimeinterval() only for disk done 
@@ -100,20 +107,19 @@ tlog "start: '$lv_disklabel'"
 #       lv_loopwaittimestart
 #       lv_loopwaittimeend
 function get_projectwaittimeinterval {
-        #set -x
         local lpkey=$1
-        local v=${a_waittime[${lpkey}]}
+        local waittime=${a_waittime[${lpkey}]}
 
         # read configured values from cfg.projects
         lv_loopwaittimestart="09"
         lv_loopwaittimeend="09"
 
-        if [[ $v ]]
+        if [[ $waittime ]]
         then
 
                 local _oldifs=$IFS
                 IFS='-'
-                local darr=($v)
+                local darr=($waittime)
                 IFS=$_oldifs
                 if [ ${#darr[@]} = 2 ]
                 then
@@ -121,12 +127,10 @@ function get_projectwaittimeinterval {
                         lv_loopwaittimeend=${darr[1]}
                 fi
         fi
-
-        #set +x
 }
 
 
-function check_existence_of_arrays_in_cfg(){
+function check_existence_of_arrays_in_cfg {
         local _arrays_ok=0
         if test ${#a_properties[@]} -eq 0 
         then
@@ -163,7 +167,7 @@ function sendlog {
 # parameter: dateold, datenew in unix-date format
 #            dateold is before datenew
 # format YYYY-mm-ddThh:mm
-function time_diff_minutes() {
+function time_diff_minutes {
         local _old=$1
         local _new=$2
 
@@ -182,26 +186,32 @@ function time_diff_minutes() {
         echo "$_minutes"
 }
 
+function get_disk_uuid {
+	local _disk_label=$1
+#		https://unix.stackexchange.com/questions/60994/how-to-grep-lines-which-does-not-begin-with-or
+#		How to grep lines which does not begin with “#” or “;”
+#		local uuid=$( cat "uuid.txt" | grep  '^[[:blank:]]*[^[:blank:]#;]'  |  grep -w $_disk_label | awk '{print $2}' )
+	local uuid=$( cat "uuid.txt" | grep -w $_disk_label | awk '{print $2}' )
+	uuid=$( cat "uuid.txt" | grep -v '#' | grep -w $_disk_label | awk '{print $2}' )
+#		better
+#		uuid=$( gawk -v pattern="$_disk_label" '$1 ~ "(^|[[:blank:]])" pattern "([[:blank:]]|$)"  {print $NF}' uuid.txt )
+	echo "$uuid"
+}
 
 # parameter: disklabel
 # 0 = success
 # 1 = error, disk not in uuid list
 function check_disk_label {
-        local _disk_label=$1
-        #       https://unix.stackexchange.com/questions/60994/how-to-grep-lines-which-does-not-begin-with-or
-        #       How to grep lines which does not begin with “#” or “;”
-        #       local uuid=$( cat "uuid.txt" | grep  '^[[:blank:]]*[^[:blank:]#;]'  |  grep -w $_disk_label | awk '{print $2}' )
-        local uuid=$( cat "uuid.txt" | grep -w $_disk_label | awk '{print $2}' )
-        #       better
-        #               uuid=$( gawk -v pattern="$_disk_label" '$1 ~ "(^|[[:blank:]])" pattern "([[:blank:]]|$)"  {print $NF}' uuid.txt )
-        # echo "uuid: $uuid"
+	local _disk_label=$1
+	#dlog "check_disk_label: $_disk_label "
+	local uuid=$( get_disk_uuid $_disk_label  )
 
-        # test, if symbolic link exists
-        if test -L "/dev/disk/by-uuid/$uuid"
-        then
-                return 0
-        fi
-        return 1
+#	test, if symbolic link exists
+	if test -L "/dev/disk/by-uuid/$uuid"
+	then
+		return 0
+	fi
+	return 1
 }
 
 # parameter: string with time value, dd:hh:mm 
@@ -212,29 +222,37 @@ function check_disk_label {
 function decode_pdiff_local {
         local _interval=$1
         local _oldifs=$IFS
-        IFS=':' 
+        IFS=':'
 
         # split into array
         local _array=(${_interval})
         local _length=${#_array[@]}
 
-        # mm only
-        local _minutes=${_array[0]}
+        IFS=$_oldifs
 
-        # test, if hh:mm
-        if test $_length -eq 2 
+        # mm only
+        local _result_minutes=10#${_array[0]}
+	local _hours=0
+	local _minutes=0
+	local _days=0
+
+        if test $_length -eq "2"
         then
                 # is hh:mm
-                _minutes=$(( ( ${_array[0]} * 60 ) + ${_array[1]} ))
+                _hours=10#${_array[0]}
+                _minutes=10#${_array[1]}
+                _result_minutes=$(( ( ${_hours} * 60 ) + ${_minutes} ))
         fi
-        if test $_length -eq 3
+        if test $_length -eq "3"
         then
-                # dd:hh:mm
-                _minutes=$(( ( ( ${_array[0]} * 24 )  * 60 + ${_array[1]} * 60  ) + ${_array[2]} ))
+                # dd:hh:mm  - length 3
+                _days=10#${_array[0]}
+                _hours=10#${_array[1]}
+                _minutes=10#${_array[2]}
+                _result_minutes=$(( ( ( ${_days} * 24 )  * 60 + ${_hours} * 60  ) + ${_minutes} ))
         fi
 
-        IFS=$_oldifs
-        echo $_minutes
+        echo $_result_minutes
 
 }
 
@@ -244,26 +262,24 @@ function decode_pdiff_local {
 #                                      or mm 
 # return:  minutes 
 function decode_programmed_interval {
-
-        local _lpkey=$1
-        local _intervalvalue=${a_interval[${_lpkey}]}
-        local _minutes=$( decode_pdiff_local ${_intervalvalue} )
-        echo $_minutes
-
+	local _lpkey=$1
+	local _intervalvalue=${a_interval[${_lpkey}]}
+	local _minutes=$( decode_pdiff_local ${_intervalvalue} )
+	echo $_minutes
 }
 
 
 function encode_diff_to_string {
 
         # testday is in minutes
-        local testday=$1
+	local testday=$1
         local ret=""
         local is_negative=1 # = "false"
 
-        if test $testday -lt 0
+        if test $testday -lt "0"
         then
                 testday=$(( $testday * (-1) ))
-                is_negative=0 # = "true"
+                is_negative=0     # = "true"
         fi
 
         # all in minutes
@@ -275,9 +291,9 @@ function encode_diff_to_string {
         local hours=$(( remainder/hour   ))
         local minutes=$(( remainder - hours*hour  ))
 
-        if test $days -eq 0
+        if test $days -eq "0"
         then
-                if test $hours -eq 0
+                if test $hours -eq "0"
                 then
                         ret=$( printf "%02d"  $minutes )
                 else
@@ -288,7 +304,7 @@ function encode_diff_to_string {
         fi
 
         # add minus sign, if negative 
-        if test $is_negative -eq 0 # = "true" 
+        if test $is_negative -eq "0" # = "true" 
         then
                 ret="-$ret"
         fi
@@ -311,7 +327,7 @@ function encode_diff_unit {
         local hours=$(( remainder/hour   ))
         local minutes=$(( remainder - hours*hour  ))
 
-        if test $days -eq 0
+        if test $days -eq "0"
         then
                 if test $hours -eq 0
                 then
@@ -338,7 +354,7 @@ readonly PROJECT_DONE_WAITINTERVAL_REACHED=2
 # 1 = not reched
 # 2 = in project waittime interval
 # called by check_disk_done()
-function check_disk_done_last_done() {
+function check_disk_done_last_done {
         local _lpkey=$1
 
         if [ $bv_test_no_check_disk_done -eq 1 ]
@@ -441,7 +457,7 @@ function check_pre_host {
 # par 1 = disklabel
 # par 2 = projekt
 # return: label shortened by 4 chars 
-function strip_disk_or_luks_from_disklabel(){
+function strip_disk_or_luks_from_disklabel {
         local _disklabel=$1
         local ll="${_disklabel}"
         if [[ "$ll" = *"disk"* ]]; 
@@ -458,39 +474,159 @@ function strip_disk_or_luks_from_disklabel(){
         echo "${var}"
 }
 
+# lookup in mtab for mount at 'media'
+function umount_media_folder(){
+#       mmMTAB=$( cat /etc/mtab  |  grep media | grep $lv_disklabel )
+#       e.g.
+#       '/dev/mapper/luks-14fdf334-cdfd-4452-b4cf-358408339375 /media/rleo/h40luks btrfs rw,nosuid,nodev,relatime,space_cache,subvolid=5,subvol=/ 0 0'
+        local mmMTAB=$1
+        #dlog "is mounted at media: $mmMTAB"
+        local mmMOUNT=$( echo "$mmMTAB" | awk '{ print $2 }' )
+        dlog "try umount: $mmMOUNT"
+        umount $mmMOUNT
+        local mountRET=$?
+        if [ "$mountRET" -ne 0 ]
+        then
+                dlog "umount fails: 'umount $mmMOUNT'"
+                return $BK_DISKNOTUNMOUNTED
+        fi
 
+
+        # luksClose 
+        local mmLUKSLABEL="$lv_disklabel"
+        local mmMAPPERLABEL="/dev/mapper/$mmLUKSLABEL"
+        dlog "try mapper with HD label: $mmMAPPERLABEL"
+        if [  -L "$mmMAPPERLABEL" ]
+        then
+                dlog "luks mapper exists: $mmMAPPERLABEL"
+                dlog "do luksClose:   cryptsetup luksClose $mmLUKSLABEL"
+                cryptsetup luksClose $mmLUKSLABEL
+#»      Error  codes are:·
+#»      1 wrong parameters,·
+#»      2 no permission (bad passphrase),·
+#»      3 out of memory,·
+#»      4 wrong device specified,·
+#»      5 device already exists or device is busy.
+
+        else
+                dlog "luks mapper doesn't exist: $mmMAPPERLABEL"
+
+        fi
+        #dlog "in umount_media_folder: $lv_disklabel "
+        mmuuid=$( get_disk_uuid $lv_disklabel  )
+        mmLUKSLABEL="luks-$mmuuid"
+        mmMAPPERLABEL="/dev/mapper/$mmLUKSLABEL"
+        dlog "try mapper with uuid: $mmMAPPERLABEL"
+        if [  -L "$mmMAPPERLABEL" ]
+        then
+                dlog "luks mapper exists: $mmMAPPERLABEL"
+                dlog "do luksClose:   cryptsetup luksClose $mmLUKSLABEL"
+                cryptsetup luksClose $mmLUKSLABEL
+        fi
+        return $BK_SUCCESS
+
+}
+
+# look up for next projekt in time
+function find_next_project_to_do(){
+        # set external vars to a start values
+        lv_next_project_diff_minutes=10000
+        lv_next_project_name=""
+
+        for _project in $lv_disk_project_list
+        do
+                local lpkey=${lv_disklabel}_${_project}
+                local DONE_FILE="./${bv_donefolder}/${lpkey}_done.log"
+                local LASTLINE=$lv_max_last_date
+                if test -f $DONE_FILE
+                then
+                        LASTLINE=$(cat $DONE_FILE | awk  'END {print }')
+                fi
+
+                # get configured project delta time
+                local pdiff=$(decode_programmed_interval ${lpkey} )
+                # get current delta after last done, in LASTLINE is date in %Y-%m-%dT%H:%M
+                local tcurrent=$( currentdateT )
+                local diff_since_last_backup=$(time_diff_minutes  $LASTLINE  $tcurrent  )
+                local deltadiff=$(( pdiff - diff_since_last_backup ))
+
+                # look for minimum
+                if ((deltadiff < lv_next_project_diff_minutes ))
+                then
+                        # copy to external vars
+                        lv_next_project_diff_minutes=$deltadiff
+                        lv_next_project_name=$_project
+                fi
+        done
+}
+
+
+# par: $lv_notifysendlog $lv_disklabel $notifyfilepostfix
+function sshnotifysend2 {
+
+        local _file=$1
+        local _disk=$2
+        local _notifyfilepostfix=$3
+        if [ ! -f $_file ] 
+        then
+                return 0
+        fi
+
+        local _logdate=$( currentdate_for_log )
+        local _tempfilename="${bv_notifyfileprefix}_${_disk}_${_logdate}_${_notifyfilepostfix}.log"
+        dlog "send notify message of disk '$_disk' to folder '${bv_backup_messages_testfolder}'"
+        dlog "backup notify file: ${_tempfilename}"
+        #cat $_file 
+        cat $_file > $_tempfilename 
+        dlog ""
+        dlog "backup notify message"
+        dlog ""
+        local _oldifs1=$IFS
+        IFS=$'\n'
+        for _notifyline in $( cat  $_tempfilename ) 
+        do
+                dlog "$_notifyline"
+        done
+        IFS=$_oldifs1
+        dlog ""
+
+        dlog ""
+        dlog "end of backup notify message"
+        dlog ""
+
+
+        # default,  copy to local folder
+        local COMMAND="cp ${_tempfilename} ${bv_backup_messages_testfolder}/"
+        dlog "copy notify file to local folder, command: $COMMAND"
+        eval $COMMAND
+        rm $_tempfilename
+}
+
+
+# =======================================================
 
 # start of code
 
 check_existence_of_arrays_in_cfg
 arrays_ok=$?
-if [ $arrays_ok -eq 0 ]
+if [ $arrays_ok -ne 0 ]
 then
-	dlog "property arrays ok"
-else
 	dlog "error in property arrays"
 	exit $BK_ARRAYSNOK
 fi
 
-
-dlog ""
 dlog "===== process disk, label: '$lv_disklabel' ====="
 
 
-# changed later, if lv_use_mediamount=0,  = use 
-# chek for foleder 'marker' at mounted backup disk
-lv_mountfolder=/mnt/$lv_disklabel
-lv_markerfolder=$lv_mountfolder/marker
 
 # set. if rsync fails with '$BK_RSYNCFAILS' 
 error_in_rsync=0
 
 
 
-
 # remove old "notifysend.log"
 # readonly lv_notifysendlog="notifysend.log", set in line 75
-dlog "remove old notify log for disk '$lv_disklabel': '$lv_notifysendlog'"
+#dlog "remove old notify log for disk '$lv_disklabel': '$lv_notifysendlog'"
 if test -f $lv_notifysendlog
 then
 	rm $lv_notifysendlog
@@ -513,8 +649,12 @@ dlog "-- UUID check: is HD '$lv_disklabel' connected to the PC?"
 # call 'check_disk_label'
 check_disk_label $lv_disklabel
 goodlink=$?
+#dlog "after check_disk_label: $lv_disklabel "
+uuid=$( get_disk_uuid $lv_disklabel  )
 
-uuid=$( cat "uuid.txt" | grep -w $lv_disklabel | awk '{print $2}' )
+# disk must be in /dev/disk/by-uuid
+# a USB disk must be connected
+# mount is not necessary here, is checked and done later
 
 if [[ $goodlink -eq 0 ]]
 then
@@ -531,9 +671,7 @@ fi
 # next is look up for dirty projects of this disk
 # projects - last time ist later then project time interval 
 # exit, if interval ist not set
-
 readonly lv_disk_project_list=${a_projects[$lv_disklabel]}
-
 dlog "-- disk '$lv_disklabel', check projects: '$lv_disk_project_list'"
 
 # start of disk, disk is unmounted
@@ -625,7 +763,7 @@ do
 		# - if [ $bv_test_no_check_disk_done -eq 1 ]  = 'bv_test_no_check_disk_done' is set
 		# - if [ $do_once -eq 1 ]             = 'do_once' is set
 		# check. if reachable, add to list 'lv_dirty_projects_array'
-#		dlog "check_pre_host $_lpkey"
+		#dlog "check_pre_host $_lpkey"
 		check_pre_host $_lpkey
 		_ispre=$?
 		if test $_ispre -eq 0
@@ -720,54 +858,17 @@ dlog ""
 # check mountdir at /mnt
 dlog "check mountdir"
 
-function umount_media_folder(){
-	local mmMTAB=$1
-	dlog "is mounted at media: $mmMTAB"
-	local mmMOUNT=$( echo "$mmMTAB" | awk '{ print $2 }' )
-	dlog "try umount: $mmMOUNT"
-	umount $mmMOUNT
-	local mountRET=$?
-	if [ "$mountRET" -ne 0 ]
-	then
-		dlog "umount fails: 'umount $mmMOUNT'"
-		return $BK_DISKNOTUNMOUNTED
-	fi
 
-	local mmLUKSLABEL="$lv_disklabel"
-	local mmMAPPERLABEL="/dev/mapper/$mmLUKSLABEL"
-	dlog "try mapper with HD label: $mmMAPPERLABEL"
-	if [  -L "$mmMAPPERLABEL" ]
-	then
-		dlog "luks mapper exists: $mmMAPPERLABEL"
-		dlog "do luksClose:   cryptsetup luksClose $mmLUKSLABEL"
-		cryptsetup luksClose $mmLUKSLABEL
-	else
-		dlog "luks mapper doesn't exist: $mmMAPPERLABEL"
-
-	fi
-	mmLUKSLABEL="luks-$mmuuid"
-	mmMAPPERLABEL="/dev/mapper/$mmLUKSLABEL"
-	dlog "try mapper with uuid: $mmMAPPERLABEL"
-	if [  -L "$mmMAPPERLABEL" ]
-	then
-		dlog "luks mapper exists: $mmMAPPERLABEL"
-		dlog "do luksClose:   cryptsetup luksClose $mmLUKSLABEL"
-		cryptsetup luksClose $mmLUKSLABEL
-	fi
-	return $BK_SUCCESS
-
-}
-
-
-	# first, check mount at /media/user
+# first, check mount at /media/user
 #set +u
-dlog "cat /etc/mtab  | grep media | grep $lv_disklabel  | awk '{ print $2 }'"
+dlog "cat /etc/mtab  | grep media | grep $lv_disklabel  | awk '{ print \$2 }'"
 
+#set -x
 
 _mtab_mount_media=$( cat /etc/mtab  | grep media | grep $lv_disklabel  | awk '{ print $2 }')
 
-#set -u
-
+set -x
+# if media mount exists, umount
 if test  "$_mtab_mount_media" != ""
 then
 	dlog "mediamount exists: $_mtab_mount_media"
@@ -775,11 +876,12 @@ then
 	# use media mount instead of /mnt?
 	# 0 = use
 	# 1 = don't use, eg. gt 0, use /mnt
-	# umount media and mount mnt
 	if test $lv_use_mediamount -gt 0  
 	then
 		# try to umount media folder
-		mmuuid=$( cat "uuid.txt" | grep -w $lv_disklabel | awk '{print $2}' )
+		#dlog "in mediamount exists: $lv_disklabel "
+		mmuuid=$( get_disk_uuid $lv_disklabel  )
+
 		mmMTAB=$( cat /etc/mtab  |  grep media | grep $lv_disklabel )
 		if [ ! -z "$mmMTAB" ]
 		then
@@ -795,17 +897,38 @@ then
 			if [ ! -z "$mmMTAB" ]
 			then
 				mmMOUNT=$( echo "$mmMTAB" | awk '{ print $2 }' )
-				dlog "no mediamount with '$lv_disklabel', mountpoint is at: $MOUNT"
+				dlog "no mediamount with '$lv_disklabel', mountpoint is at: $mmMOUNT"
 			fi
 		fi
 	else
 		# ok use media folder
+		# set new  lv_mountfolder
 		dlog "media mount '$_mtab_mount_media' exists"
 		lv_mountfolder=$_mtab_mount_media
 		lv_markerfolder=$lv_mountfolder/marker
 	fi
 fi  
 
+# unmount second, to close cryptsetup
+mmuuid=$( get_disk_uuid $lv_disklabel  )
+mmLUKSLABEL="luks-$mmuuid"
+mmMAPPERLABEL="/dev/mapper/$mmLUKSLABEL"
+#dlog "second try mapper with uuid: $mmMAPPERLABEL"
+if [  -L "$mmMAPPERLABEL" ]
+then
+	dlog "luks mapper already exists: $mmMAPPERLABEL"
+	dlog "do luksClose:   cryptsetup luksClose $mmLUKSLABEL"
+	cryptsetup luksClose $mmLUKSLABEL
+#	Error  codes are: 
+#	1 wrong parameters, 
+#	2 no permission (bad passphrase), 
+#	3 out of memory, 
+#	4 wrong device specified, 
+#	5 device already exists or device is busy.
+fi
+
+
+set +x
 
 # show results
 tlog "mount: '$lv_mountfolder'"
@@ -818,7 +941,7 @@ then
 	exit $BK_MOUNTDIRTNOTEXIST
 fi
 
-# mount HD
+# mount HD, mountfolder exists
 if test -d $lv_markerfolder 
 then
 	# is fixed disk
@@ -892,43 +1015,10 @@ lv_next_project_diff_minutes=10000
 lv_next_project_name=""
 
 
-# look up for next projekt in time
-function find_next_project_to_do(){
-	# set external vars to a start values
-	lv_next_project_diff_minutes=10000
-	lv_next_project_name=""
-
-	for _project in $lv_disk_project_list
-	do
-		local lpkey=${lv_disklabel}_${_project}
-		local DONE_FILE="./${bv_donefolder}/${lpkey}_done.log"
-		local LASTLINE=$lv_max_last_date
-		if test -f $DONE_FILE
-		then
-			LASTLINE=$(cat $DONE_FILE | awk  'END {print }')
-		fi
-
-		# get configured project delta time
-		local pdiff=$(decode_programmed_interval ${lpkey} )
-		# get current delta after last done, in LASTLINE is date in %Y-%m-%dT%H:%M
-		local tcurrent=$( currentdateT )
-		local diff_since_last_backup=$(time_diff_minutes  $LASTLINE  $tcurrent  )
-		local deltadiff=$(( pdiff - diff_since_last_backup ))
-
-		# look for minimum
-		if ((deltadiff < lv_next_project_diff_minutes ))
-		then
-			# copy to external vars
-			lv_next_project_diff_minutes=$deltadiff
-			lv_next_project_name=$_project
-		fi
-	done
-}
-
 
 declare -A projecterrors
-declare -a successlist
-declare -a unsuccesslist
+declare -a lv_loop_successlist
+declare -a lv_loop_unsuccesslist
 
 PRET=""
 
@@ -1059,7 +1149,7 @@ then
 			fi
 			if test $RET -eq $BK_ERRORINCOUNTERS
 			then
-				perror1="retain error, one value is lower than two, "
+				perror1="retain error, one value is lower than 2, "
 				perror2="check configuration of retain values: $lv_disklabel $_project"
 				projecterrors[${_project}]="${perror1}${perror2}"
 				dlog " !! retain error, check configuration for $lv_disklabel $_project !!"
@@ -1093,8 +1183,8 @@ then
 				# collect success for report at end of main loop
 				# shorten label, if label ends with luks or disk
 				var=$( strip_disk_or_luks_from_disklabel ${lv_disklabel} )
-				successlist=( "${successlist[@]}" "${var}:$_project" )
-				dlog "successlist: $( echo ${successlist[@]} )"
+				lv_loop_successlist=( "${lv_loop_successlist[@]}" "${var}:$_project" )
+				dlog "successlist: $( echo ${lv_loop_successlist[@]} )"
 			else
 				if test $RET -eq $BK_RSYNCFAILS
 				then
@@ -1108,8 +1198,8 @@ then
 					# write unsuccess to a single file 
 					# collect unsuccess for report at end of main loop
 					var=$( strip_disk_or_luks_from_disklabel ${lv_disklabel} )
-					unsuccesslist=( "${unsuccesslist[@]}" "${var}:$_project" )
-					dlog "unsuccesslist: $( echo ${unsuccesslist[@]} )"
+					lv_loop_unsuccesslist=( "${lv_loop_unsuccesslist[@]}" "${var}:$_project" )
+					dlog "unsuccesslist: $( echo ${lv_loop_unsuccesslist[@]} )"
 				fi
 				if test $RET -eq $BK_ROTATE_FAILS
 				then
@@ -1125,8 +1215,8 @@ then
 					# write unsuccess to a single file 
 					# collect unsuccess for report at end of main loop
 					var=$( strip_disk_or_luks_from_disklabel ${lv_disklabel} )
-					unsuccesslist=( "${unsuccesslist[@]}" "${var}:$_project" )
-					dlog "unsuccesslist: $( echo ${unsuccesslist[@]} )"
+					lv_loop_unsuccesslist=( "${lv_loop_unsuccesslist[@]}" "${var}:$_project" )
+					dlog "unsuccesslist: $( echo ${lv_loop_unsuccesslist[@]} )"
 				fi
 			fi
 
@@ -1145,8 +1235,8 @@ else
 		# write unsuccess to a single file 
 		# collect unsuccess for report at end of main loop
 		var=$( strip_disk_or_luks_from_disklabel ${lv_disklabel} )
-		unsuccesslist=( "${unsuccesslist[@]}" "${var}:$_project" )
-		dlog "unsuccesslist: $( echo ${unsuccesslist[@]} )"
+		lv_loop_unsuccesslist=( "${lv_loop_unsuccesslist[@]}" "${var}:$_project" )
+		dlog "unsuccesslist: $( echo ${lv_loop_unsuccesslist[@]} )"
 	done
 
 	dlog "---> don't execute projects: '${lv_dirty_projects_array[*]}', disk full"
@@ -1186,9 +1276,9 @@ notifyfilepostfix="keine_Fehler_alles_ok"
 if test -d $lv_markerfolder 
 then
 	_oldifs15=$IFS
-	IFS=','
-	parray=($properties)
-	IFS=$_oldifs15
+	#IFS=','
+	parray=${a_properties[$lv_disklabel]}
+	#IFS=$_oldifs15
 
 	umount_is_configured=$(echo ${parray[@]} | grep -w -o "umount" | wc -l )
 	if test $umount_is_configured -eq 1 
@@ -1373,46 +1463,6 @@ then
 	sendlog "---"
 fi
 
-# par: $lv_notifysendlog $lv_disklabel $notifyfilepostfix
-function sshnotifysend2 {
-
-	local _file=$1
-	local _disk=$2
-        local _notifyfilepostfix=$3
-        if [ ! -f $_file ] 
-        then
-                return 0
-        fi
-
-        local _logdate=$( currentdate_for_log )
-        local _tempfilename="${bv_notifyfileprefix}_${_disk}_${_logdate}_${_notifyfilepostfix}.log"
-        dlog "send notify message of disk '$_disk' to folder '${bv_backup_messages_testfolder}'"
-        dlog "backup notify file: ${_tempfilename}"
-        #cat $_file 
-        cat $_file > $_tempfilename 
-        dlog ""
-        dlog "backup notify message"
-        dlog ""
-        local _oldifs1=$IFS
-        IFS=$'\n'
-        for _notifyline in $( cat  $_tempfilename ) 
-	do
-		dlog "$_notifyline"
-	done
-        IFS=$_oldifs1
-        dlog ""
-
-        dlog ""
-        dlog "end of backup notify message"
-        dlog ""
-
-
-        # default,  copy to local folder
-        local COMMAND="cp ${_tempfilename} ${bv_backup_messages_testfolder}/"
-        dlog "copy notify file to local folder, command: $COMMAND"
-        eval $COMMAND
-        rm $_tempfilename
-}
 
 
 
@@ -1431,10 +1481,10 @@ fi
 # write collected success labels to disk
 # don't delete files, is > redirection
 # files are used in bk_disks
-# write successarray, read again  by bk_disks
-echo ${successlist[@]} > $bv_successarray
-# write unsuccessarray, read again  by bk_disks
-echo ${unsuccesslist[@]} > $bv_unsuccessarray
+# write successarray, read again  in 'bk_disks.sh'
+echo ${lv_loop_successlist[@]} > $bv_successarray_tempfile
+# write unsuccessarray, read again  in 'bk_disks.sh'
+echo ${lv_loop_unsuccesslist[@]} > $bv_unsuccessarray_tempfile
 
 if test $error_in_rsync -gt 0 
 then

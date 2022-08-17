@@ -1,5 +1,5 @@
 # file: src_log.sh
-# bk_version 22.03.1
+# bk_version 22.08.1
 # included with 'source'
 
 #set -o nounset                              # Treat unset variables as an error
@@ -49,6 +49,10 @@ readonly bv_errorlog="cc_error.log"
 readonly bv_logfile="cc_log.log"
 readonly bv_tracefile="trace.log"
 
+# if empty, no log is written
+#readonly bv_sequencefile="programmablauf.log"
+readonly bv_sequencefile=""
+
 # == daily_rotate ==
 # default = 1,  =  rotate logs
 # checked in bk_main.sh:265:    "if [ $bv_daily_rotate -eq 1 ]"
@@ -64,7 +68,6 @@ function currentdateT() {
 
 function currentdate_for_log() {
 	# YYYYMMDD-hhmm
-	#echo `date +%Y%m%d-%H%M`
 	date +%Y%m%d-%H%M
 }
 
@@ -89,6 +92,10 @@ function tlog() {
 
 	# calulate leading spaces for log of lv_tracelogname
 	space=""
+	if test $lv_tracelogname = "main" 
+	then
+		space=" "
+	fi
 	if test $lv_tracelogname = "disks" 
 	then
 		space="  "
@@ -111,10 +118,57 @@ function tlog() {
 	fi
 
 	local _TODAY=$( currentdate_for_log )
-	local _msg="$_TODAY ${space}--» $1"
+	local _msg="$_TODAY ${space} ${lv_tracelogname}--» $1"
 	echo -e "$_msg" >> $bv_tracefile
 	return 0
 }
+
+function seqlog() {
+	if [  -z ${lv_tracelogname} ]
+	then 
+		echo "${lv_tracelogname} is empty in trace"
+		exit
+	fi
+
+	if [  -z ${bv_sequencefile} ]
+	then
+		#echo "sequencefilename is empty "
+		return 1
+	fi
+
+	# calulate leading spaces for log of lv_tracelogname
+	space=""
+	if test $lv_tracelogname = "main" 
+	then
+		space=" "
+	fi
+	if test $lv_tracelogname = "disks" 
+	then
+		space="  "
+	fi
+	if test $lv_tracelogname = "loop" 
+	then
+		space="    "
+	fi
+	if test $lv_tracelogname = "project" 
+	then
+		space="      "
+	fi
+	if test $lv_tracelogname = "archive" 
+	then
+		space="        "
+	fi
+	if test $lv_tracelogname = "rsnapshot" 
+	then
+		space="        "
+	fi
+
+	local _TODAY=$( currentdate_for_log )
+	local _msg="$_TODAY ${space} ${lv_tracelogname}--» $1"
+	echo -e "$_msg" >> $bv_sequencefile
+	return 0
+}
+
 
 
 
@@ -128,7 +182,7 @@ function errorlog {
 # insert lv_cc_logname 
 # lv_cc_logname is set in local file, not here
 function dlog {
-	if test  -z ${lv_cc_logname} 
+	if test  -z "$lv_cc_logname"
 	then 
 		echo "${lv_cc_logname} is empty"
 		exit
@@ -137,8 +191,6 @@ function dlog {
 	local _TODAY=$( currentdate_for_log )
 	local msg2="$_TODAY --» $_msg"
 	echo -e "$msg2" >> $bv_logfile
-
-#	datelog "$_msg"
 }
 
 

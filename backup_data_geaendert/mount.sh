@@ -2,7 +2,7 @@
 
 
 # file: mount.sh
-# bk_version 22.03.1
+# bk_version 22.08.1
 
 # Copyright (C) 2021 Richard Albrecht
 # www.rleofield.de
@@ -46,7 +46,8 @@ then
 	dlog "is luks"
 	LUKSKEYFILE=/root/keyfile_${label}
 
-	UUID=`grep -w ${label} uuid.txt | awk '{print $2}'`
+	UUID=`grep -v '#' uuid.txt | grep -w ${label} | awk '{print $2}'`
+
 
 	DEVICE="/dev/disk/by-uuid/${UUID}"
 	dlog "LUKS device: $DEVICE"

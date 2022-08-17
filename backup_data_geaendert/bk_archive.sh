@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_archive.sh
-# bk_version 22.03.1
+# bk_version 22.08.1
 
 
 # Copyright (C) 2021 Richard Albrecht
@@ -47,10 +47,18 @@
 # exit $BK_RSYNCFAILS  - one of the the backup lines fails
 
 
-lv_rsync_command_logfilename=""
+
+# set later with  ''rsync_command_log from config file
+#    lv_temp=$(cat ./${lv_archiveconfigname} | grep ^rsync_command_log | grep -v '#' | awk '{print $2}')
+#lv_rsync_command_logfilename="${bv_workingfolder}/rsync_archive.log"
 
 function write_rsync_command_log() {
 	local msg="$1"
+	if test  -z "${lv_rsync_command_logfilename}"
+	then
+		echo "lv_rsync_command_logfilename is empty"
+		exit
+	fi
 	echo "$msg" >> ${lv_rsync_command_logfilename}
 }
 
@@ -111,6 +119,7 @@ readonly lv_archiveconfigname="${bv_conffolder}/${lv_cfg_archive}"
 readonly lv_archive_root=$(cat ./${lv_archiveconfigname} | grep ^archive_root | grep -v '#' | awk '{print $2}')
 
 # get rsync_command 
+# set var 'lv_rsync_command_logfilename' from config file
 readonly lv_temp=$(cat ./${lv_archiveconfigname} | grep ^rsync_command_log | grep -v '#' | awk '{print $2}')
 lv_rsync_command_logfilename=${lv_workingfolder}/${lv_temp}
 

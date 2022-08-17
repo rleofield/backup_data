@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_disk.sh
-# bk_version 22.03.1
+# bk_version 22.08.1
 
 # Copyright (C) 2021 Richard Albrecht
 # www.rleofield.de
@@ -26,6 +26,8 @@
 #				./bk_rsnapshot.sh,  do rsnapshot
 #				./bk_archive.sh,    no history, rsync only
 
+# set -u, which will exit your script if you try to use an uninitialised variable.
+#set -u
 
 # prefixes of variables in backup:
 # bv_*  - global vars, alle files
@@ -79,11 +81,11 @@ readonly lv_successloglinestxt="successloglines.txt"
 # identical values means no interval is set
 #  lv_waittimestart="09"
 #  lv_waittimeend="09"
+lv_waittimestart="09"
+lv_waittimeend="09"
 function get_waittimeinterval() {
 	local _waittimeinterval=$waittimeinterval
 	local _oldifs=$IFS
-	lv_waittimestart="09"
-	lv_waittimeend="09"
 	IFS='-'
 	
 	# convert to array
@@ -97,6 +99,14 @@ function get_waittimeinterval() {
 	fi
 }
 
+function is_waittimeinterval_empty {
+	if test $lv_waittimeend == $lv_waittimestart
+	then
+		return 0
+	fi
+	return 1
+
+}
 
 
 function rsyncerrorlog {
@@ -251,9 +261,10 @@ function successlog {
 		value="-"
 		for item in "${slist[@]}" 
 		do
-			#dlog "item in slist:  $item, s: $_s" 
+#			dlog "item in slist:  $item, s: $_s" 
 			if test "$_s" = "$item" 
 			then
+#			dlog "item in slist equal:  $item, s: $_s" 
 				value="ok"
 			fi
 		done
@@ -388,27 +399,28 @@ tlog "start"
 check_stop  "at start of loop through disklist (bk_disks.sh)"
 
 #IFS=' '
-declare -a successlist
-declare -a unsuccesslist
+declare -a lv_disks_successlist
+declare -a lv_disks_unsuccesslist
 
 dlog "check all projects in disks: '$bv_disklist'"
 dlog ""
-
 dlog "show connected disks in /dev/disk/by-uuid:"
-
 list_connected_disks_by_uuid
+
 
 dlog ""
 
 # loop disk list
 
 # disklist is set in cfg.projects
-dlog "execute list: $bv_disklist"
+seqlog "gehe durch die Liste der Disks: ${bv_disklist}, "
+#dlog "execute list: $bv_disklist"
 tlog "execute list: $bv_disklist"
 for _disk in $bv_disklist
 do
 	dlog ""
 	dlog "==== next disk: '$_disk' ===="
+	seqlog "bearbeite Disk: ${_disk}, "
 
 
 	_old_cc_logname=$lv_cc_logname
@@ -424,20 +436,19 @@ do
         RET=$?
 	#dlog "RET nach loop: $RET"
 
-
-	# possible exit values from 'bk_loop.sh'
+	#    exit values from 'bk_loop.sh'
 	# exit BK_DISKLABELNOTGIVEN 	- disk label from caller is empty
-	# exit $BK_ARRAYSNOK         	- property arrays have errors
-	# exit $BK_DISKLABELNOTFOUND	- disk with uuid nit found in /dev/disk/by-uuid, disk ist not in system 
-	# exit $BK_NOINTERVALSET	- no backup time inteval configured in 'cfg.projects'
-	# exit $BK_TIMELIMITNOTREACHED	- for none project at this disk time limit is not reached
-	# exit $BK_DISKNOTUNMOUNTED	- ddisk couldn't be unmounted
-	# exit $BK_MOUNTDIRTNOTEXIST	- mount folder for backup disk is not present in '/mnt'
-	# exit $BK_DISKNOTMOUNTED	- disk couldn't be mounted 
-	# exit $BK_DISKNOTMOUNTED	- disk couldn't be unmounted
-	# exit $BK_RSYNCFAILS		- rsync error
-	# exit $BK_ROTATE_FAILS		- rotate error
-	# exit $BK_SUCCESS		- all was ok
+	# exit BK_ARRAYSNOK         	- property arrays have errors
+	# exit BK_DISKLABELNOTFOUND	- disk with uuid not found in /dev/disk/by-uuid
+	# exit BK_NOINTERVALSET		- no backup time inteval configured in 'cfg.projects'
+	# exit BK_TIMELIMITNOTREACHED	- for none project at this disk time limit is not reached
+	# exit BK_DISKNOTUNMOUNTED	- ddisk couldn't be unmounted
+	# exit BK_MOUNTDIRTNOTEXIST	- mount folder for backup disk is not present in '/mnt'
+	# exit BK_DISKNOTMOUNTED	- disk couldn't be mounted 
+	# exit BK_DISKNOTMOUNTED	- disk couldn't be unmounted
+	# exit BK_RSYNCFAILS		- rsync error
+	# exit BK_ROTATE_FAILS		- rotate error
+	# exit BK_SUCCESS		- all was ok
 
 
 
@@ -453,7 +464,7 @@ do
 	fi
 	if test $RET -eq $BK_DISKLABELNOTFOUND 
 	then
-		# no error, normal use of disks
+		# no error, normal use of disks, disk is not present, maybe present at next main loop
 		dlog "HD with label: '$_disk' not found ..." 
 	fi
 	if test $RET -eq $BK_MOUNTDIRTNOTEXIST
@@ -486,7 +497,6 @@ do
 	if test -n "$msg" 
 	then
 		rsyncerrorlog "$msg"
-		#dlog "$msg" 
 	fi
 
 	if test ${RET} -eq $BK_SUCCESS
@@ -497,34 +507,35 @@ do
 		else
 			dlog "'$_disk' successfully done"
 		fi
-#		dlog   "cat bv_successarray: $( cat $bv_successarray )"
-		# defined in  filenames.sh
+		# defined in  scr_filenames.sh
 		# successarray and unsuccessarray contain 
 		# shortened names, like in header in var SUCCESSLINE="c:dserver ...."
 		# read successarray written by bk_loop
-		if test -f "$bv_successarray"
+		if test -f "$bv_successarray_tempfile"
 		then
 			oldifs3=$IFS
 			IFS=' '
-			successlist=( ${successlist[@]} $(cat $bv_successarray) )
+			#dlog "vorher: $( echo ${lv_disks_successlist[@]} )"
+			lv_disks_successlist=( ${lv_disks_successlist[@]} $(cat $bv_successarray_tempfile) )
+			#dlog "nachher: $( echo ${lv_disks_successlist[@]} )"
 			IFS=$oldifs3
-			rm $bv_successarray
+			rm $bv_successarray_tempfile
 		fi
 		# read unsuccessarray written by bk_loop
-		if test -f "$bv_unsuccessarray"
+		if test -f "$bv_unsuccessarray_tempfile"
 		then
 			oldifs3=$IFS
 			IFS=' '
-			unsuccesslist=( ${unsuccesslist[@]} $(cat $bv_unsuccessarray) )
+			lv_disks_unsuccesslist=( ${lv_disks_unsuccesslist[@]} $(cat $bv_unsuccessarray_tempfile) )
 			IFS=$oldifs3
-			rm $bv_unsuccessarray
+			rm $bv_unsuccessarray_tempfile
 		fi
 	else
 		if test ${RET} -eq $BK_TIMELIMITNOTREACHED
 		then
-                	dlog "'$_disk' no project has timelimit reached, wait for next loop"
-                else
-                	if test ${RET} -eq $BK_DISKLABELNOTFOUND 
+			dlog "'$_disk' no project has timelimit reached, wait for next loop"
+		else
+			if test ${RET} -eq $BK_DISKLABELNOTFOUND 
 			then
 				dlog "'$_disk' is not connected with the server"
 			else
@@ -550,17 +561,19 @@ tlog "end list"
 # substitute x, if set and not null
 # substitute x, if set and null
 # substitute null, if not set
+
+# String length is zero.
 #if [ -z ${successlist+x} ]
 #then
 #	_length_successlist=0
 #else
-	_length_successlist=${#successlist[@]}
+	_length_successlist=${#lv_disks_successlist[@]}
 #fi
 #if [ -z ${unsuccesslist+x} ]
 #then
 #	_length_unsuccesslist=0
 #else
-	_length_unsuccesslist=${#unsuccesslist[@]}
+	_length_unsuccesslist=${#lv_disks_unsuccesslist[@]}
 #fi
 
 if test "$_length_successlist" -eq "0" -a "$_length_unsuccesslist" -eq "0"  
@@ -569,7 +582,7 @@ then
 else
 	dlog "successarrays are not empty, write success/error entry to: $lv_successloglinestxt"
 	write_header
-	successlog  successlist[@] unsuccesslist[@] 
+	successlog  lv_disks_successlist[@] lv_disks_unsuccesslist[@] 
 fi
 
 
@@ -605,7 +618,14 @@ dlog ""
 
 get_waittimeinterval
 
-dlog "waittime interval:  $lv_waittimestart - $lv_waittimeend "
+is_waittimeinterval_empty
+_iswaittimeintervalempty=$?
+if test $_iswaittimeintervalempty -eq 0 
+then
+	dlog "waittime interval is not set"
+else
+	dlog "waittime interval:  $lv_waittimestart - $lv_waittimeend "
+fi
 
 hour=$(date +%H)
 
@@ -620,7 +640,7 @@ fi
 
 # check for stop in wait interval
 
-dlog "if  $hour -ge $lv_waittimestart  && $hour  -lt $lv_waittimeend "
+#dlog "if  $hour -ge $lv_waittimestart  && $hour  -lt $lv_waittimeend "
 if [ "$hour" -ge "$lv_waittimestart" ] && [ "$hour" -lt "$lv_waittimeend"  ] && [ $bv_test_use_minute_loop -eq 0 ] 
 then
 	# in waittime interval or minute loop used

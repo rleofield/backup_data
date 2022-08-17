@@ -2,7 +2,7 @@
 
 # file: start_backup.sh
 
-# bk_version 22.03.1
+# bk_version 22.08.1
 
 # Copyright (C) 2021 Richard Albrecht
 # www.rleofield.de
@@ -48,7 +48,7 @@ LLFILE="/var/log/cron/${callfilename}.crontab"
 # param = message
 function cron_dlog {
 	# YYYYmmdd-HHMM
-    local _TODAY=`date +%Y%m%d-%H%M`
+	local _TODAY=`date +%Y%m%d-%H%M`
 	local _msg="$_TODAY -- $1"
 	echo -e "$_msg" >> ${LLFILE}
 }
@@ -123,7 +123,7 @@ cron_dlog "write WORKINGFOLDER from '/etc/rlf_backup_data_rc' to file 'cfg.worki
 
 # create file 'cfg.working_folder'
 echo "# BK_WORKINGFOLDER from /etc/rlf_backup_data_rc" > cfg.working_folder
-echo "# bk_version 22.03.1" >> cfg.working_folder
+echo "# bk_version 22.08.1" >> cfg.working_folder
 echo "bv_workingfolder=\"$STARTFOLDER\"" >> cfg.working_folder
 #echo "export bv_workingfolder " >> cfg.working_folder
 
@@ -155,7 +155,8 @@ cron_dlog "in cron_start_backup.sh"
 cron_dlog "Backup is not running, start in '$STARTFOLDER'"
 
 cron_dlog ""
-
+cron_dlog "sleep 5m"
+sleep 5m
 cron_dlog "start main with: nohup ./bk_main.sh 'cron' > out_bk_main"
 
 # start in crontab at boot, no check, if is running
