@@ -1,5 +1,5 @@
 # file: src_folders.sh
-# bk_version 22.03.1
+# bk_version 22.08.1
 # included with 'source'
 
 # Copyright (C) 2021 Richard Albrecht
