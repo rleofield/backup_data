@@ -1,5 +1,5 @@
-# file: filenames.sh
-# bk_version 22.03.1
+# file: scr_filenames.sh
+# bk_version 22.08.1
 # included with 'source'
 
 
@@ -21,8 +21,8 @@
 
 
 # text file for success and unsuccess
-readonly bv_successarray="successarray.txt"
-readonly bv_unsuccessarray="unsuccessarray.txt"
+readonly bv_successarray_tempfile="tempfile_successarray.txt"
+readonly bv_unsuccessarray_tempfile="tempfile_unsuccessarray.txt"
 readonly bv_internalerrors="internalerrors.txt"
 
 # in bk_disks.sh
@@ -34,7 +34,7 @@ readonly bv_notifyfileprefix="Backup-HD"
 
 
 # now in bk_disks.sh
-readonly bv_executedprojectsfile="executedprojects.txt"
+readonly bv_executedprojectsfile="tempfile_executedprojects.txt"
 
 # in cron_start_backup.sh
 # in bk_main

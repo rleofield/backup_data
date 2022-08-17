@@ -3,7 +3,7 @@
 
 # file: show_times_disk.sh
 
-# bk_version 22.03.1
+# bk_version 22.08.1
 
 
 # Copyright (C) 2021 Richard Albrecht
@@ -34,7 +34,7 @@ readonly LABEL=$1
 . ./src_filenames.sh
 . ./src_folders.sh
 
-readonly lv_max_last_date="2022-01-15T00:00"
+readonly lv_max_last_date="2022-05-15T00:00"
 
 if [ -z $LABEL  ]
 then
@@ -134,6 +134,48 @@ function check_disk_label {
         fi
         return $goodlink
 }
+# parameter: string with time value, dd:hh:mm·
+# value in array: string with time value, dd:hh:mm·
+#                                      or hh:mm·
+#                                      or mm·
+# return:    minutes
+function decode_pdiff_local {
+	
+        local _interval=$1
+        local _oldifs=$IFS
+        IFS=':'
+
+        # split into array
+        local _array=(${_interval})
+        local _length=${#_array[@]}
+
+        IFS=$_oldifs
+
+        # mm only
+        local _result_minutes=10#${_array[0]}
+	local _hours=0
+	local _days=0
+	local _minutes=0
+
+        if test $_length -eq "2"
+        then
+                # is hh:mm
+                _hours=10#${_array[0]}
+                _minutes=10#${_array[1]}
+                _result_minutes=$(( ( ${_hours} * 60 ) + ${_minutes} ))
+        fi
+        if test $_length -eq "3"
+        then
+                # dd:hh:mm  - length 3
+                _days=10#${_array[0]}
+                _hours=10#${_array[1]}
+                _minutes=10#${_array[2]}
+                _result_minutes=$(( ( ( ${_days} * 24 )  * 60 + ${_hours} * 60  ) + ${_minutes} ))
+        fi
+
+        echo $_result_minutes
+
+}
 
 
 function decode_diff_local {
@@ -143,6 +185,7 @@ function decode_diff_local {
 
 	local a=($v)
 	local l=${#a[@]}
+	IFS=$oldifs
 
 	# mm only
 	local r_=${a[0]}
@@ -157,7 +200,6 @@ function decode_diff_local {
                 r_=$(( ( ( ${a[0]} * 24 )  * 60 + ${a[1]} * 60  ) + ${a[2]} ))
         fi
 
-	IFS=$oldifs
 	echo $r_
 
 }
@@ -165,7 +207,7 @@ function decode_diff_local {
  # parameter is key in a_interval array
 function decode_pdiff {
 	local _k=$1
-        local _r2=$( decode_diff_local ${a_interval[${_k}]} )
+        local _r2=$( decode_pdiff_local ${a_interval[${_k}]} )
         echo $_r2
 }
 
@@ -178,7 +220,7 @@ function encode_diff {
         local testday=$1
 	local ret=""
 	local negativ="false"
-	if test $testday -lt 0
+	if test $testday -lt "0"
 	then
 		testday=$(( $testday * (-1) ))
 		negativ="true"
@@ -191,19 +233,19 @@ function encode_diff {
 
         if test $days -eq 0
 	then
-    	  	if test $hours -eq 0
+		if test $hours -eq 0
         	then
-                        ret=$minutes
+			ret=$minutes
 		else
-                	phours=$( printf "%02d\n"  $hours )
-                       	pminutes=$( printf "%02d\n"  $minutes )
-                       	ret="$phours:$pminutes"
+			phours=$( printf "%02d\n"  $hours )
+			pminutes=$( printf "%02d\n"  $minutes )
+			ret="$phours:$pminutes"
 		fi
 	else
-               	pdays=$( printf "%02d\n"  $days )
-	        phours=$( printf "%02d\n"  $hours )
-	        pminutes=$( printf "%02d\n"  $minutes )
-	       	ret="$pdays:$phours:$pminutes"	
+		pdays=$( printf "%02d\n"  $days )
+		phours=$( printf "%02d\n"  $hours )
+		pminutes=$( printf "%02d\n"  $minutes )
+		ret="$pdays:$phours:$pminutes"	
 	fi
 
 	# add minus sign, if negative 
@@ -212,7 +254,7 @@ function encode_diff {
 		ret="-$ret"
 	fi	
 
-        echo "$ret"
+	echo "$ret"
 }
 
 
@@ -247,12 +289,11 @@ function check_disk_done {
         #local _pdiff=${a_interval[${_key}]}
 	local _pdiff=$( decode_pdiff ${_key} )
 	#echo "if test $_DIFF -ge $_pdiff"
-	if test $_DIFF -ge $_pdiff
+	if test $_DIFF -ge "$_pdiff"
         then
 #        	echo "diff was greater then reference, take as success"
                 _DONEINTERVAL=0
         fi
-
         echo $_DONEINTERVAL
 }
 

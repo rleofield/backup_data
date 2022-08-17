@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_main.sh
-# bk_version 22.03.1
+# bk_version 22.08.1
 
 
 # Copyright (C) 2021 Richard Albrecht
@@ -27,6 +27,9 @@
 #				./bk_rsnapshot.sh,  do rsnapshot
 #				./bk_archive.sh,    no history, rsync only
 
+
+# set -u, which will exit your script if you try to use an uninitialised variable.
+#set -u
 
 # prefixes of variables in backup:
 # bv_*  - global vars, alle files
@@ -78,7 +81,7 @@ function start_message {
 	local _call_source=$1
 	dlog "========================"
 	dlog "===  start of backup ==="
-	dlog "===  version 22.03.1 ==="
+	dlog "===  version 22.06.1 ==="
 	dlog "========================"
 
 	if [ "$_call_source" = "cron" ]
@@ -292,8 +295,6 @@ function rotate_logs(){
 			if [[ ${_date01} == ${_date} ]]
 			then
 				dlog "rotate monthly at '$_date'"
-				#mv successlog.txt "$_oldlogdir"
-				#touch successlog.txt 
 				mv successloglines.txt $_oldlogdir
 				touch successloglines.txt 
 			fi
@@ -345,6 +346,20 @@ check_configuration_folders
 
 do_once_counter=0
 
+
+seqlog ""
+
+lv_runningnumber=$( get_runningnumber )
+
+if [ "$_call_source" = "cron" ]
+then
+	seqlog "Starte Backup mit Cronjob, Nr: $lv_runningnumber"
+else
+	seqlog "Starte Backup via Terminal, Nr: $lv_runningnumber"
+fi
+
+seqlog "==========================="
+
 while true
 do
 	dlog "" 
@@ -352,6 +367,7 @@ do
 	# is incremented after 'bk_disks.sh' in 'increment_loop_counter'
 	
 
+	seqlog "neuer Durchgang, Nr: $_runningnumber"
 	tlog "counter $_runningnumber"
 	dlog " ===== start main loop ($_runningnumber) =====" 
 
@@ -438,6 +454,7 @@ do
 		# normal stop via stop.sh
 		# no 'test_do_once_count' is set in 'src_test_vars.sh'
 		#dlog "stopped with 'stop' file"
+		seqlog "Ende des Backup via 'Stop' Kommando: $_runningnumber"
 		tlog "end, return from bk_disks: $RET"
 		sync
 		exit 1
@@ -472,6 +489,7 @@ do
 			else
 				# 'test_do_once_count' is reached, exit
 				dlog "$text_marker_stop, end, 'test_do_once_count' loops reached, '$do_once_counter -eq $bv_test_do_once_count' "
+				seqlog "Ende des Backup, Testlauf mit mehreren Durchgängen: $_runningnumber, Zahl der Durchgänge: $do_once_counter"
 				sync
 				exit 1
 			fi
@@ -479,6 +497,7 @@ do
 			# 'test_execute_once' is set, exit
 			dlog "$text_marker_stop, end reached, 'test_execute_once', RET: '$RET', exit 1 "
 			tlog "end, 'test_execute_once', return from bk_disks.sh: $RET"
+			seqlog "Ende des Backup, Testlauf mit einem Durchgang: $_runningnumber"
 			sync
 			exit 1
 		fi
