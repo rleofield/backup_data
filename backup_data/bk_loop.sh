@@ -867,7 +867,7 @@ dlog "cat /etc/mtab  | grep media | grep $lv_disklabel  | awk '{ print \$2 }'"
 
 _mtab_mount_media=$( cat /etc/mtab  | grep media | grep $lv_disklabel  | awk '{ print $2 }')
 
-#set -x
+set -x
 # if media mount exists, umount
 if test  "$_mtab_mount_media" != ""
 then
@@ -928,7 +928,7 @@ then
 fi
 
 
-#set +x
+set +x
 
 # show results
 tlog "mount: '$lv_mountfolder'"
