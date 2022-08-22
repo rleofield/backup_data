@@ -81,7 +81,7 @@ function start_message {
 	local _call_source=$1
 	dlog "========================"
 	dlog "===  start of backup ==="
-	dlog "===  version 22.06.1 ==="
+	dlog "===  version 22.08.1 ==="
 	dlog "========================"
 
 	if [ "$_call_source" = "cron" ]
@@ -370,6 +370,7 @@ do
 	seqlog "neuer Durchgang, Nr: $_runningnumber"
 	tlog "counter $_runningnumber"
 	dlog " ===== start main loop ($_runningnumber) =====" 
+	dlog " ===   version 22.08.1   ==="
 
 	# rotate log
 	rotate_logs
