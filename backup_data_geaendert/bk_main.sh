@@ -30,6 +30,8 @@
 
 # set -u, which will exit your script if you try to use an uninitialised variable.
 #set -u
+#set -e
+
 
 # prefixes of variables in backup:
 # bv_*  - global vars, alle files
@@ -77,18 +79,22 @@ function check_working_folder {
 
 }
 
+readonly lv_call_source=$1
 function start_message {
-	local _call_source=$1
+	local _call_source=$lv_call_source
 	dlog "========================"
 	dlog "===  start of backup ==="
 	dlog "===  version 22.08.1 ==="
 	dlog "========================"
+	local _runningnumber=$( get_runningnumber )
 
 	if [ "$_call_source" = "cron" ]
 	then
 		dlog "------  is cron start    ------"
+		seqlog "Starte Backup mit Cronjob, Nr: $_runningnumber"
 	else
 		dlog "------  is manual start  ------"
+		seqlog "Starte Backup via Terminal, Nr: $_runningnumber"
 	fi
 
 	dlog ""
@@ -114,7 +120,7 @@ function check_if_already_running {
 
 
 function check_main_lock {
-	local _call_source=$1
+	local _call_source=$lv_call_source
 
 	# remove main_lock, if is startet via cron_start_backup.sh
 	dlog "check '$lv_lockfilename', if exists"
@@ -349,14 +355,7 @@ do_once_counter=0
 
 seqlog ""
 
-lv_runningnumber=$( get_runningnumber )
 
-if [ "$_call_source" = "cron" ]
-then
-	seqlog "Starte Backup mit Cronjob, Nr: $lv_runningnumber"
-else
-	seqlog "Starte Backup via Terminal, Nr: $lv_runningnumber"
-fi
 
 seqlog "==========================="
 
@@ -391,7 +390,7 @@ do
 	# exit $BK_NORMALDISKLOOPEND  - 99, normal end
 	# exit $BK_STOPPED -   normal stop, file 'stop' detected
 
-
+	
 	# release lock
 	release_lock
 

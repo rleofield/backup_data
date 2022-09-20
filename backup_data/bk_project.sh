@@ -37,6 +37,10 @@
 # _*    - local in functions or loops
 # BK_*  - exitcodes, upper case, BK_
 
+# set -u, which will exit your script if you try to use an uninitialised variable.
+#set -u
+#set -e
+
 
 # parameter:
 #   $1 = disklabel, label of backup-disk

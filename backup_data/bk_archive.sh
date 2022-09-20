@@ -28,6 +28,11 @@
 #				./bk_rsnapshot.sh,  do rsnapshot   
 #				./bk_archive.sh,    no history, rsync only,  <- this file
 
+
+# set -u, which will exit your script if you try to use an uninitialised variable.
+# set -u
+#set -e
+
 # prefixes of variables in backup:
 # bv_*  - global vars, alle files
 # lv_*  - local vars, global in file
@@ -53,13 +58,13 @@
 #lv_rsync_command_logfilename="${bv_workingfolder}/rsync_archive.log"
 
 function write_rsync_command_log() {
-	local msg="$1"
+	local _msg="$1"
 	if test  -z "${lv_rsync_command_logfilename}"
 	then
 		echo "lv_rsync_command_logfilename is empty"
 		exit
 	fi
-	echo "$msg" >> ${lv_rsync_command_logfilename}
+	echo "$_msg" >> "${lv_rsync_command_logfilename}"
 }
 
 
@@ -199,9 +204,11 @@ do
 	if test $RET -ne 0
 	then
 		dlog "rsync fails, source: $_source"
+		dlog ""
 		_ok=1
 	else
 		dlog "rsync ok, source: $_source"
+		dlog ""
 	fi
 
 	(( lineounter++ ))

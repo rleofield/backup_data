@@ -23,7 +23,7 @@
 # text file for success and unsuccess
 readonly bv_successarray_tempfile="tempfile_successarray.txt"
 readonly bv_unsuccessarray_tempfile="tempfile_unsuccessarray.txt"
-readonly bv_internalerrors="internalerrors.txt"
+readonly bv_internalerrors="errors.txt"
 
 # in bk_disks.sh
 # readonly successloglinestxt="successloglines.txt"

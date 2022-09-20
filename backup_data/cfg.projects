@@ -32,7 +32,7 @@ readonly DISKLIST="bbackup"
 # noumount = disk stays at system, for internal disks mountet at /mnt
 # local    = don't check uuid of backup disk, useful, if backup goes to local filesystem
 declare -A a_properties
-a_properties['bbackup']="xumount"
+a_properties['bbackup']="umount"
 
 
 
@@ -53,7 +53,7 @@ a_interval['bbackup_testData']=03:00
 # first value must be smaller than the second
 
 declare -A a_waittime
-a_waittime['bbackup_testData']=10-11
+a_waittime['bbackup_testData']=09-10
 
 ####### host part #######
 

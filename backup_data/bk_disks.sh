@@ -27,7 +27,12 @@
 #				./bk_archive.sh,    no history, rsync only
 
 # set -u, which will exit your script if you try to use an uninitialised variable.
-#set -u
+# set -u
+# found by 'set -u', but is ok, 
+# ./bk_disks.sh: line 570: lv_disks_successlist: unbound variable
+# ./bk_disks.sh: line 576: lv_disks_unsuccesslist: unbound variable
+# ./bk_disks.sh: line 579: _length_successlist: unbound variable
+
 
 # prefixes of variables in backup:
 # bv_*  - global vars, alle files

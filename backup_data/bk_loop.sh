@@ -30,6 +30,11 @@
 
 # set -u, which will exit your script if you try to use an uninitialised variable.
 #set -u
+# found by 'set -u', but ok
+# ./bk_loop.sh: line 111: a_waittime[${lpkey}]: unbound variable
+# ./bk_loop.sh: line 111: a_waittime[${lpkey}]: unbound variable
+# ./bk_loop.sh: line 111: a_waittime[${lpkey}]: unbound variable
+
 
 # prefixes of variables in backup:
 # bv_*  - global vars, alle files
@@ -107,19 +112,19 @@ tlog "start: '$lv_disklabel'"
 #       lv_loopwaittimestart
 #       lv_loopwaittimeend
 function get_projectwaittimeinterval {
-        local lpkey=$1
-        local waittime=${a_waittime[${lpkey}]}
+        local _lpkey=$1
+        local _waittime=${a_waittime[${_lpkey}]}
 
         # read configured values from cfg.projects
         lv_loopwaittimestart="09"
         lv_loopwaittimeend="09"
 
-        if [[ $waittime ]]
+        if [[ $_waittime ]]
         then
 
                 local _oldifs=$IFS
                 IFS='-'
-                local darr=($waittime)
+                local darr=($_waittime)
                 IFS=$_oldifs
                 if [ ${#darr[@]} = 2 ]
                 then
@@ -783,7 +788,7 @@ do
 		#	isdone=true
 		else
 			tlog "    in time: $_project, but unavailable"
-			if [ $bv_test_no_check_disk_done -eq 1 ]
+			if [ "$bv_test_no_check_disk_done" -eq 1 ]
 			then
 				dlog "${timeline} reached, but source is not available, test mode, done not checked"
 			else

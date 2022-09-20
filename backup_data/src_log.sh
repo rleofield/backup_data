@@ -132,8 +132,9 @@ function seqlog() {
 
 	if [  -z ${bv_sequencefile} ]
 	then
-		#echo "sequencefilename is empty "
-		return 1
+		# echo "sequencefilename is empty "
+		# can be not existent, return 0
+		return 0
 	fi
 
 	# calulate leading spaces for log of lv_tracelogname
