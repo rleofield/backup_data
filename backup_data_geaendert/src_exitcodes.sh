@@ -1,9 +1,9 @@
 
 # file exitcodes.sh 
-# bk_version 22.08.1
+# bk_version 23.01.1
 # included with 'source'
 
-# Copyright (C) 2021 Richard Albrecht
+# Copyright (C) 2017-2023 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -100,6 +100,12 @@ readonly BK_FREEDISKSPACETOOSMALL=15
 
 # set, when remote source vanished
 readonly BK_CONNECTION_UNEXPECTEDLY_CLOSED=16
+
+
+# set, when $lv_cc_logname is empty
+# $lv_cc_logname must be set at start of each bk_ file
+readonly BK_DLOG_CC_LOGNAME_NOT_SET=17
+
 
 # no folder 'rsnapshot' in working dir
 # not used

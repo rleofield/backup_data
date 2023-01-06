@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # file: start_backup.sh
-# bk_version 22.08.1
+# bk_version 23.01.1
 
 
-# Copyright (C) 2021 Richard Albrecht
+# Copyright (C) 2017-2023 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -113,7 +113,7 @@ echo "write WORKINGFOLDER, set in '/etc/rlf_backup_data_rc', to file 'cfg.workin
 # create file 'cfg.working_folder'
 echo "write new file 'cfg.working_folder'"
 echo "# BK_WORKINGFOLDER from /etc/rlf_backup_data_rc" > cfg.working_folder
-echo "# bk_version 22.08.1" >> cfg.working_folder
+echo "# bk_version 23.01.1" >> cfg.working_folder
 echo "bv_workingfolder=\"$STARTFOLDER\"" >> cfg.working_folder
 #echo "export WORKINGFOLDER" >> cfg.working_folder
 

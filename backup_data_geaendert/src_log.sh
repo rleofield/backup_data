@@ -1,10 +1,10 @@
 # file: src_log.sh
-# bk_version 22.08.1
+# bk_version 23.01.1
 # included with 'source'
 
 #set -o nounset                              # Treat unset variables as an error
 
-# Copyright (C) 2021 Richard Albrecht
+# Copyright (C) 2017-2023 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -78,10 +78,12 @@ function date2seconds(){
 
 
 function tlog() {
-	if [  -z ${lv_tracelogname} ]
+	local tracelogname=$lv_tracelogname
+	if [  -z ${tracelogname} ]
 	then 
-		echo "${lv_tracelogname} is empty in trace"
-		exit
+		echo "${tracelogname} is empty in trace"
+		tracelogname="not set"
+		#exit
 	fi
 
 	if [  -z ${bv_tracefile} ]
@@ -92,42 +94,46 @@ function tlog() {
 
 	# calulate leading spaces for log of lv_tracelogname
 	space=""
-	if test $lv_tracelogname = "main" 
+	if test $tracelogname = "main" 
 	then
 		space=" "
 	fi
-	if test $lv_tracelogname = "disks" 
+	if test $tracelogname = "disks" 
 	then
 		space="  "
 	fi
-	if test $lv_tracelogname = "loop" 
+	if test $tracelogname = "loop" 
 	then
 		space="    "
 	fi
-	if test $lv_tracelogname = "project" 
+	if test $tracelogname = "project" 
 	then
 		space="      "
 	fi
-	if test $lv_tracelogname = "archive" 
+	if test $tracelogname = "archive" 
 	then
 		space="        "
 	fi
-	if test $lv_tracelogname = "rsnapshot" 
+	if test $tracelogname = "rsnapshot" 
 	then
 		space="        "
 	fi
 
 	local _TODAY=$( currentdate_for_log )
-	local _msg="$_TODAY ${space} ${lv_tracelogname}--» $1"
+	local _msg="$_TODAY ${space} ${tracelogname}--» $1"
 	echo -e "$_msg" >> $bv_tracefile
 	return 0
 }
 
+# not ready
 function seqlog() {
-	if [  -z ${lv_tracelogname} ]
+
+	local tracelogname=$lv_tracelogname
+	if [  -z ${tracelogname} ]
 	then 
-		echo "${lv_tracelogname} is empty in trace"
-		exit
+		echo "${tracelogname} is empty in trace"
+		tracelogname="not set"
+		# exit
 	fi
 
 	if [  -z ${bv_sequencefile} ]
@@ -139,33 +145,33 @@ function seqlog() {
 
 	# calulate leading spaces for log of lv_tracelogname
 	space=""
-	if test $lv_tracelogname = "main" 
+	if test $tracelogname = "main" 
 	then
 		space=" "
 	fi
-	if test $lv_tracelogname = "disks" 
+	if test $tracelogname = "disks" 
 	then
 		space="  "
 	fi
-	if test $lv_tracelogname = "loop" 
+	if test $tracelogname = "loop" 
 	then
 		space="    "
 	fi
-	if test $lv_tracelogname = "project" 
+	if test $tracelogname = "project" 
 	then
 		space="      "
 	fi
-	if test $lv_tracelogname = "archive" 
+	if test $tracelogname = "archive" 
 	then
 		space="        "
 	fi
-	if test $lv_tracelogname = "rsnapshot" 
+	if test $tracelogname = "rsnapshot" 
 	then
 		space="        "
 	fi
 
 	local _TODAY=$( currentdate_for_log )
-	local _msg="$_TODAY ${space} ${lv_tracelogname}--» $1"
+	local _msg="$_TODAY ${space} ${tracelogname}--» $1"
 	echo -e "$_msg" >> $bv_sequencefile
 	return 0
 }
@@ -183,12 +189,14 @@ function errorlog {
 # insert lv_cc_logname 
 # lv_cc_logname is set in local file, not here
 function dlog {
-	if test  -z "$lv_cc_logname"
+	local cc_logname=$lv_cc_logname
+	if test  -z "$cc_logname"
 	then 
-		echo "${lv_cc_logname} is empty"
-		exit
+		cc_logname="not set"
+		#echo "22222 is empty, cc_log; '$lv_cc_logname'"
+		#echo "${logname} is empty"
 	fi
-	local _msg="${lv_cc_logname}:  $1"
+	local _msg="${cc_logname}:  $1"
 	local _TODAY=$( currentdate_for_log )
 	local msg2="$_TODAY --» $_msg"
 	echo -e "$msg2" >> $bv_logfile

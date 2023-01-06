@@ -1,9 +1,9 @@
 #!/bin/bash - 
 
 # file: get_sha256.sh
-# bk_version 22.03.1
+# bk_version 23.01.1
 
-# Copyright (C) 2021 Richard Albrecht
+# Copyright (C) 2017-2023 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -38,7 +38,6 @@ src_filenames.sh
 src_folders.sh
 src_global_strings.sh
 src_log.sh
-src_ssh.sh
 "
 
 SHAFILE="sha256sum.txt"

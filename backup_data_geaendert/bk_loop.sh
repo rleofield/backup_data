@@ -2,9 +2,9 @@
 
 
 # file: bk_loop.sh
-# bk_version 22.08.1
+# bk_version 23.01.1
 
-# Copyright (C) 2021 Richard Albrecht
+# Copyright (C) 2017-2023 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -53,7 +53,7 @@
 . ./src_exitcodes.sh
 . ./src_filenames.sh
 . ./src_log.sh
-. ./src_ssh.sh
+#. ./src_ssh.sh
 . ./src_global_strings.sh
 . ./src_folders.sh
 
@@ -93,7 +93,7 @@ readonly lv_use_mediamount=1
 readonly lv_tracelogname="loop"
 readonly lv_cc_logname="$lv_disklabel:loop"
 readonly lv_notifysendlog="tempnotifysend.log"
-readonly lv_max_last_date="2022-05-15T00:00"
+readonly lv_max_last_date="2022-10-15T00:00"
 
 # changed later, if lv_use_mediamount=0,  = use 
 # check for folder 'marker' at mounted backup disk
@@ -567,7 +567,8 @@ function find_next_project_to_do(){
 
 
 # par: $lv_notifysendlog $lv_disklabel $notifyfilepostfix
-function sshnotifysend2 {
+#       tempnotifysend.log  LABEL   last part of filename 
+function  sshnotifysend_bk_loop {
 
         local _file=$1
         local _disk=$2
@@ -578,7 +579,11 @@ function sshnotifysend2 {
         fi
 
         local _logdate=$( currentdate_for_log )
+
+	#                     Backup-HD_LABEL_date_postfix
+	#           z.B.:     Backup-HD_cdisk_20221226-0244_keine_Fehler_alles_ok.log
         local _tempfilename="${bv_notifyfileprefix}_${_disk}_${_logdate}_${_notifyfilepostfix}.log"
+
         dlog "send notify message of disk '$_disk' to folder '${bv_backup_messages_testfolder}'"
         dlog "backup notify file: ${_tempfilename}"
         #cat $_file 
@@ -599,10 +604,15 @@ function sshnotifysend2 {
         dlog "end of backup notify message"
         dlog ""
 
+        # remove old file
+	dlog "rm ${bv_backup_messages_testfolder}/${bv_notifyfileprefix}_${_disk}_*"
+	# rm ${bv_backup_messages_testfolder}/${bv_notifyfileprefix}_${_disk}_*
 
         # default,  copy to local folder
+
         local COMMAND="cp ${_tempfilename} ${bv_backup_messages_testfolder}/"
-        dlog "copy notify file to local folder, command: $COMMAND"
+        dlog "copy notify file to local folder"
+        dlog "command: $COMMAND"
         eval $COMMAND
         rm $_tempfilename
 }
@@ -1089,19 +1099,6 @@ then
 			# BK_CONNECTION_UNEXPECTEDLY_CLOSED=16
 
 
-			#dlog "RET of bk_project.sh: $RET"
-			#    'rsnapshot_root'  doesn't exist 
-			#	RET= $BK_NORSNAPSHOTROOT = 12
-			#    interval from caller is invalid
-			#    	RET = BK_NOINTERVALSET = 9			
-			#    after .sync, rsync error
-			#    	RET = BK_RSYNCFAILS = 8
-			#    after rotate, rotate error
-			#    	RET = BK_ROTATE_FAILS = 14
-			#    if 'No space left on device' found in log
-			# 	RET = BK_DISKFULL = 13
-
-
 			# check free space
 			maxdiskspacepercent=$bv_maxfillbackupdiskpercent
 			# data must be collected before disk is unmounted
@@ -1338,7 +1335,7 @@ fi
 
 # --
 
-# write some messaes to log
+# write some messages to log
 
 
 
@@ -1473,7 +1470,7 @@ fi
 
 # send to local folder 'backup_messages_test'
 # create temp file with postfix in name
-sshnotifysend2 $lv_notifysendlog $lv_disklabel $notifyfilepostfix 
+sshnotifysend_bk_loop $lv_notifysendlog $lv_disklabel $notifyfilepostfix 
 
 #set +x
 
