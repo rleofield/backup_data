@@ -1,10 +1,10 @@
 # file: cfg.filenames
-# bk_version 21.11.1
+# bk_version 23.01.1
 # included with 'source'
 
 
 
-# Copyright (C) 2017 Richard Albrecht
+# Copyright (C) 2017-2023 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -22,7 +22,8 @@
 
 
 ####### host part #######
-# name of file send to 'backup_messages_test'local and ssh target remote 
+# name of file send to 'bv_backup_messages_testfolder'local and ssh target remote 
+
 file_successloglines="successlist_bbackup.txt"
 
 ####### host part #######

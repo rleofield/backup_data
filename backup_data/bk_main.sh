@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # file: bk_main.sh
-# bk_version 22.08.1
+# bk_version 23.01.1
 
 
-# Copyright (C) 2021 Richard Albrecht
+# Copyright (C) 2017-2023 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -30,6 +30,7 @@
 
 # set -u, which will exit your script if you try to use an uninitialised variable.
 #set -u
+# set -e exits if subscript fails
 #set -e
 
 
@@ -40,7 +41,9 @@
 # BK_*  - exitcodes, upper case, BK_
 
 
+
 . ./cfg.working_folder
+. ./cfg.ssh_login
 
 . ./src_test_vars.sh
 . ./src_filenames.sh
@@ -84,7 +87,7 @@ function start_message {
 	local _call_source=$lv_call_source
 	dlog "========================"
 	dlog "===  start of backup ==="
-	dlog "===  version 22.08.1 ==="
+	dlog "===  version 23.01.1 ==="
 	dlog "========================"
 	local _runningnumber=$( get_runningnumber )
 
@@ -266,6 +269,25 @@ function check_configuration_folders(){
 }
 
 
+function check_ssh_configuration(){
+	dlog "ssh configuration: $sshlogin, $sshhost, $sshport, $sshtargetfolder"
+	if [  -z  "${sshtargetfolder}" ]
+	then
+		dlog "ssh configuration: 'sshtargetfolder' is empty"
+		return 1
+	fi
+	return 0
+}
+function check_ssh_configuration2(){
+	dlog "ssh configuration 2: $sshlogin2, $sshhost2, $sshport2, $sshtargetfolder2"
+	if [  -z  "${sshtargetfolder2}" ]
+	then
+		dlog "ssh configuration 2: 'sshtargetfolder2' is empty"
+		return 1
+	fi
+	return 0
+}
+
 
 function rotate_logs(){
 	# date in year month day
@@ -348,14 +370,32 @@ list_test_flags
 # check folder for rsnapshot configuration files
 check_configuration_folders
 
+# check ssh values in cfg.ssh_login
+if [  -n  "${sshlogin}" ]
+then
+	check_ssh_configuration 
+	RET=$?
+	if test $RET -gt 0 
+	then
+		dlog "ssh login value is emtpy"
+	fi
+fi
+
+if [  -n  "${sshlogin2}" ]
+then
+	check_ssh_configuration2
+	RET=$?
+	if test $RET -gt 0 
+	then
+		dlog "ssh login value 2 is emtpy"
+	fi
+fi
+
 # loop, until 'bk_disks.sh' returns  not '$BK_NORMALDISKLOOPEND'
 
 do_once_counter=0
 
-
 seqlog ""
-
-
 
 seqlog "==========================="
 
@@ -369,27 +409,25 @@ do
 	seqlog "neuer Durchgang, Nr: $_runningnumber"
 	tlog "counter $_runningnumber"
 	dlog " ===== start main loop ($_runningnumber) =====" 
-	dlog " ===   version 22.08.1   ==="
+	dlog " ===   version 23.01.1   ==="
 
 	# rotate log
 	rotate_logs
 
 	dlog ""
-	
 	# set lock
 	set_lock
 
 	# call 'bk_disks.sh' to loop over all backup disks 
 	##########################################################################################
 	./bk_disks.sh $lv_iscron
-	##########################################################################################
 	RET=$?
+	##########################################################################################
 
 	# exit values from 'bk_disks.sh'
 	# exit $BK_EXECONCESTOPPED - test 'exec once' stopped
 	# exit $BK_NORMALDISKLOOPEND  - 99, normal end
 	# exit $BK_STOPPED -   normal stop, file 'stop' detected
-
 	
 	# release lock
 	release_lock
@@ -419,7 +457,16 @@ do
 	dlog "---  last return says: $endmsg"
 	dlog "---    values are: normal stop in loop, manually stopped, run once only"
 	sleep 0.5
-	
+
+
+	if [ $RET -eq $BK_DLOG_CC_LOGNAME_NOT_SET ]
+	then
+		echo "dlog cc_logname not set"
+		sync
+		exit 1
+
+	fi
+
 	#  all was ok, check for next loop
 	if [ $RET -eq $BK_NORMALDISKLOOPEND ] 
 	then

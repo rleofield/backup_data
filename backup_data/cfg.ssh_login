@@ -1,8 +1,8 @@
 # file: cfg.ssh_login
-# bk_version 21.11.1
+# bk_version 23.01.1
 # included with 'source'
 
-# Copyright (C) 2017 Richard Albrecht
+# Copyright (C) 2017-2023 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -28,29 +28,43 @@
 # bk_loop.sh:153:         if [ "${sshhost}" == "localhost" ] || [ "${sshhost}" == "127.0.0.1" ]
 # bk_loop.sh:208:         if [ "${sshhost}" == "localhost" ] || [ "${sshhost}" == "127.0.0.1" ]
 
+
+# shouldn't be empty
+#readonly sshhost="tux2"
+#readonly sshhost2="tux2"
+# or
 readonly sshhost="localhost"
+#readonly sshhost2="localhost"
+#readonly sshhost="127.0.0.1"
+
 
 # sshlogin = "name" (not empty)
 #    if sshhost = localhost od 127.0.0.1
-#        then message is copied to Folder at local desktop
+#        message is copied to local folder
 #        chown to "name" after writing the file do local desktop
 #        uses 'sshtargetfolder'  as local target folder
 #    if sshhost = "hostname"   
 #        copy with ssh to sshhost, 'sshlogin@sshhost -p sshport''
-#        then message is copied to folder at remote desktop
+#        message is copied to folder at remote desktop
 #        chown to "name" after writing the file do local Desktop
 #        uses 'sshtargetfolder'  as remote target folder
 #
-# in all cases, copy to folder 'backup_messages' in 'WORKINGFOLDER' 
+# in all cases, message is copied to local folder 'backup_messages_test'
 
-#if empty, nothing is copied to remote PC or local Desktop
+#if sshlogin is empty, nothing is copied to remote PC or local Desktop
 
-readonly sshlogin="user"
-# if sshport = "", then sshport=22
+readonly sshlogin="rleo"
+#readonly sshlogin2=""
+
+# port must be open at remote host
 readonly sshport="22"
+#readonly sshport2="22"
 
-# folder for local/remote copy, slash at end
-readonly sshtargetfolder="/home/user/Desktop/backup_messages_bbackup/"
+
+# target folder for local/remote copy, slash at end
+
+readonly sshtargetfolder="/home/rleo/Desktop/backup_messages_bbackup/"
+#readonly sshtargetfolder2="/home/rleo/Desktop/backup_messages_bbackup/"
 ####### personal part #######
 
 

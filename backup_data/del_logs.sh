@@ -3,11 +3,11 @@
 
 # file: del_logs.sh
 
-# bk_version 22.08.1
+# bk_version 23.01.1
 
 
 
-# Copyright (C) 2021 Richard Albrecht
+# Copyright (C) 2017-2023 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify

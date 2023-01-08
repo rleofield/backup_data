@@ -2,9 +2,9 @@
 
 
 # file: mount.sh
-# bk_version 22.08.1
+# bk_version 23.01.1
 
-# Copyright (C) 2021 Richard Albrecht
+# Copyright (C) 2017-2023 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -40,18 +40,26 @@ label=$1
 #lv_cc_logname="mount:$label"
 readonly lv_cc_logname="$label:mount"
 mountdir=/mnt/$label
+merr=""
 
 if [[ "$label" == *luks ]]
 then
 	dlog "is luks"
-	LUKSKEYFILE=/root/keyfile_${label}
-
+	LUKSKEYFILE=/root/luks/keyfile_${label}
+	if test ! -f $LUKSKEYFILE
+	then
+		LUKSKEYFILE=/root/keyfile_${label}
+		if test ! -f $LUKSKEYFILE
+		then
+			dlog "LUKS =="
+			dlog "LUKS keyfile not found: '$LUKSKEYFILE'"
+			dlog "LUKS =="
+			exit 1
+		fi
+	fi
 	UUID=`grep -v '#' uuid.txt | grep -w ${label} | awk '{print $2}'`
-
-
 	DEVICE="/dev/disk/by-uuid/${UUID}"
 	dlog "LUKS device: $DEVICE"
-
 	# test, if LUKS Device is open
 	# test against block device
 	if test ! -b /dev/mapper/$label

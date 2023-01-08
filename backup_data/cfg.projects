@@ -1,10 +1,8 @@
-
-
 # file: cfg.projects
-# bk_version 21.11.1
+# bk_version 23.01.1
 # included with 'source'
 
-# Copyright (C) 2017 Richard Albrecht
+# Copyright (C) 2017-2023 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -19,18 +17,21 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
 
+# 2. Schritt
+# projekte
 
-# keys for control projects at a disk
-# label_project
+
+# 1. Schritt
+# label host
+# projekte
+
 
 ####### host part #######
 
-# moved from cfg.target_disk_list
 readonly DISKLIST="bbackup"
 
 # umount   = disk is mounted/unmounted by backup, for external USB
 # noumount = disk stays at system, for internal disks mountet at /mnt
-# local    = don't check uuid of backup disk, useful, if backup goes to local filesystem
 declare -A a_properties
 a_properties['bbackup']="umount"
 

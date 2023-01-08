@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # file: bk_disk.sh
-# bk_version 22.08.1
+# bk_version 23.01.1
 
-# Copyright (C) 2021 Richard Albrecht
+# Copyright (C) 2017-2023 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -46,13 +46,14 @@
 . ./cfg.target_disk_list
 . ./cfg.projects
 . ./cfg.filenames
+. ./cfg.ssh_login
 
 . ./src_folders.sh
 . ./src_test_vars.sh
 . ./src_exitcodes.sh
 . ./src_filenames.sh
 . ./src_log.sh
-. ./src_ssh.sh
+#. ./src_ssh.sh
 
 # exit values
 # exit $BK_EXECONCESTOPPED - test 'exec once' stopped
@@ -61,22 +62,22 @@
 
 
 
-
 readonly lv_iscron=$1
 
 readonly lv_tracelogname="disks"
 
+#  is set in cfg.projects
+readonly bv_disklist=$DISKLIST
+
+
 # logname, not readonly, changed to diskname later
+# must be set, if empty 
 lv_cc_logname="disks"
 
 readonly lv_stopfile="stop"
 
 # set internal counter in bash to 0
 SECONDS=0
-
-#  is set in cfg.projects
-readonly bv_disklist=$DISKLIST
-
 
 readonly lv_successloglinestxt="successloglines.txt"
 
@@ -142,6 +143,7 @@ function check_stop(){
 	then
 		local msg=$( printf "%05d"  $( get_loopcounter  ) )
 		dlog "$text_backup_stopped in '$_name', counter: $msg  "
+		dlog "remove stop file"
 		rm $lv_stopfile
 		exit $BK_STOPPED
 	fi
@@ -245,6 +247,34 @@ function loop_to_full_next_hour {
 	return 0
 
 }
+function do_ping_host {
+
+        local _USER=$1
+        local _HOST=$2
+        local _FOLDER=$3
+        local _PORT=$4
+        
+       #dlog "in ping, host: $_HOST"
+        ping -c1 $_HOST &> /dev/null
+	RET=$?
+	#dlog "XXXXX RET $RET"
+        if test $RET -eq 0
+        then
+#»      »       dlog "ping ok  ping -c1 $_HOST "
+                sshstr="x=99; y=88; if test  -d $_FOLDER; then  exit 99; else exit 88; fi" 
+                sshstr2="ssh -p $_PORT $_USER@$_HOST '${sshstr}'"
+	#	dlog "in ping sshstr2: $sshstr2"
+                eval ${sshstr2}  &> /dev/null
+                local _RET=$?
+	#	dlog "ping sshstring ret: $_RET"
+                if test  $_RET -eq 99; then
+                        # host exists
+                        return 0
+                fi
+        fi
+        return 1
+}
+
 
 
 # parameter
@@ -286,64 +316,113 @@ function successlog {
 	done
 
 
-	local ff=$lv_successloglinestxt
 	local _TODAY=$( currentdate_for_log )
 #	dlog " $_TODAY: $line" 
 
 	# add line to lv_successloglinestxt
-	echo "$_TODAY: $line" >> $ff
+	echo "$_TODAY: $line" >> $lv_successloglinestxt
 
 	# copy lv_successloglinestxt to local folder, in any case, also if sshlogin is empty
 	dlog "cp $lv_successloglinestxt  ${bv_backup_messages_testfolder}/${file_successloglines}"
 	cp $lv_successloglinestxt  ${bv_backup_messages_testfolder}/${file_successloglines}
 
+}
 
-	#if [ ! -z $sshlogin ] # in successlog
-	# if sshlogin is not empty, send lv_successloglinestxt to remote Desktop
-	# aus cfg: sshlogin=
-	if [  -n  "${sshlogin}" ] 
-	then
-		ssh_port=$( func_sshport )
-#		dlog "successlog : login: '${sshlogin}', host: '${sshhost}', target: '${sshtargetfolder}', port: '${ssh_port}'"
-		if [ "${sshhost}" = "localhost" ] || [ "${sshhost}" = "127.0.0.1" ]
+# parameter
+# $1 login: '${sshlogin}', $2 target: '${sshtargetfolder}', $3 host: '${sshhost}', $4 port: '${sshport}' "
+
+function successlog_notifymessages_login {
+
+	local _sshlogin=$1
+	local _sshtargetfolder=$2
+	local _sshhost=$3
+	local _sshport=$4
+
+		dlog "check target folder"
+#		dlog "login: '${_sshlogin}', target: '${_sshtargetfolder}'"
+		# if targetfolder exists
+		if [  -n  "${_sshtargetfolder}" ] 
 		then
-			COMMAND="cp ${ff} ${sshtargetfolder}${file_successloglines}"
-			dlog "copy logs to local Desktop: $COMMAND"
-			COMMAND="rsync -av --delete ${bv_backup_messages_testfolder}/ ${sshtargetfolder}"
-			dlog "rsync command; $COMMAND"
-			eval $COMMAND
-			dlog "chown -R ${sshlogin}:${sshlogin} ${sshtargetfolder}"
-			chown -R ${sshlogin}:${sshlogin} ${sshtargetfolder}
-		else
-			# is in cfg.ssh_login
-			# in 'successlog' do_ping_host 
-			# check, if host is available
-			dlog "do_ping_host ${sshlogin}@${sshhost}:${sshtargetfolder}"
-			do_ping_host ${sshlogin} ${sshhost} ${sshtargetfolder}
-			RET=$?
-			# dlog "ping, RET: $RET"
-			if [ $RET -eq  0 ]
+			dlog "check localhost"
+#			dlog "login: '${_sshlogin}', target: '${_sshtargetfolder}', host: '${_sshhost}' "
+			if [ "${_sshhost}" = "localhost" ] || [ "${_sshhost}" = "127.0.0.1" ]
 			then
-				# copy to remote target folder
-				dlog "rsync -av --delete -e 'ssh -4 -p 4194' ${bv_backup_messages_testfolder}/ ${sshlogin}@${sshhost}:${sshtargetfolder} -P"
-				#rsync -a --delete -e 'ssh -4 -p 4194' ${bv_backup_messages_testfolder}/ ${sshlogin}@${sshhost}:${sshtargetfolder} -P >> $bv_rsynclogfile
-				rsync -a --delete -e 'ssh -4 -p 4194' ${bv_backup_messages_testfolder}/ ${sshlogin}@${sshhost}:${sshtargetfolder} -P 
+				# remove all files in target*
+				sshstr="rm ${_sshtargetfolder}*"
+				dlog "remove: $sshstr"
+				eval $sshstr
+				COMMAND="rsync -av ${bv_backup_messages_testfolder}/* ${_sshtargetfolder}"
+				dlog "command: $COMMAND"
+				eval $COMMAND
 				RET=$?
 				if [ $RET -gt 0 ]
 				then
-					dlog "rsync failed, target for log messages is not available  "
-					dlog "COMMAND:  rsync -av --delete -e ssh -4 -p 4194 ${bv_backup_messages_testfolder}/ ${sshlogin}@{$sshhost}:${sshtargetfolder}"
+					dlog "local rsync failed"
 					dlog ""
 				else
 					dlog "rsync was ok"
 				fi
+				dlog "chown -R ${_sshlogin}:${_sshlogin} ${_sshtargetfolder}"
+				chown -R ${_sshlogin}:${_sshlogin} ${_sshtargetfolder}
 			else
-				dlog "host $sshlogin@$sshhost is not up, is not copied"
+				dlog "target folder is remote"
+#				dlog "login: '${_sshlogin}', target: '${_sshtargetfolder}', host: '${_sshhost}', port: '${_sshport}' "
+				# check, if host is available
+				dlog "do_ping_host ${_sshlogin}@${_sshhost}:${_sshtargetfolder}"
+				do_ping_host ${_sshlogin} ${_sshhost} ${_sshtargetfolder} ${_sshport}
+				RET=$?
+				# dlog "ping, RET: $RET"
+				if [ $RET -eq  0 ]
+				then
+					sshstr="rm ${_sshtargetfolder}*"
+					sshstr2="ssh -p $_sshport $_sshlogin@$_sshhost '${sshstr}'"
+					dlog "remove: $sshstr2"
+					eval $sshstr2
+					# copy to remote target folder, no --delete
+					sshstr="ssh -4 -p $_sshport"
+					COMMAND="rsync -a  -e '$sshstr' ${bv_backup_messages_testfolder}/* ${_sshlogin}@${_sshhost}:${_sshtargetfolder} -P"
+					dlog "$COMMAND"
+					eval $COMMAND
+					RET=$?
+					if [ $RET -gt 0 ]
+					then
+						dlog "remote rsync failed"
+						dlog ""
+					else
+						dlog "rsync was ok"
+					fi
+				else
+					dlog "host $_sshlogin@$_sshhost is not up, notify message is not copied"
+				fi
 			fi
+		else
+			dlog "'sshtargetfolder' is empty"
 		fi
+
+}
+function successlog_notifymessages {
+	dlog ""
+	dlog "copy messages to target folder"
+	dlog "login: '${sshlogin}', target: '${sshtargetfolder}', host: '${sshhost}', port: '${sshport}' "
+	dlog "check loginname"
+#	dlog "login: '${sshlogin}'"
+	# if login exists
+	if [  -n  "${sshlogin}" ] 
+	then
+		successlog_notifymessages_login ${sshlogin} ${sshtargetfolder} ${sshhost} ${sshport}
 	else
 		dlog "'sshlogin' is empty"
 	fi
+
+	# login2
+	if [  -n  "${sshlogin2}" ] 
+	then
+		dlog "login2: '${sshlogin2}', target2: '${sshtargetfolder2}', host2: '${sshhost2}', port2: '${sshport2}' "
+		successlog_notifymessages_login ${sshlogin2} ${sshtargetfolder2} ${sshhost2} ${sshport2}
+	else
+		dlog "'sshlogin2' is empty"
+	fi
+
 }
 
 # write a header every 20 lines in successlog
@@ -392,7 +471,12 @@ function list_connected_disks_by_uuid(){
 		# ${string##substring}
 		if ! [ -z "${_line##*swap*}" ] && ! [ -z "${_line##*boot*}" ]
 		then
-			dlog "  connected disk:  $_line"
+			echo $_line | grep -v '#' 
+			RET=$?
+			if test $RET -eq 0 
+			then
+				dlog "  connected disk:  $_line"
+			fi
 		fi
 	done
 	IFS=$_oldifs
@@ -587,7 +671,10 @@ then
 else
 	dlog "successarrays are not empty, write success/error entry to: $lv_successloglinestxt"
 	write_header
+
 	successlog  lv_disks_successlist[@] lv_disks_unsuccesslist[@] 
+
+	successlog_notifymessages 
 fi
 
 
