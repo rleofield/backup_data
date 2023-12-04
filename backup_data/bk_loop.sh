@@ -2,7 +2,7 @@
 
 
 # file: bk_loop.sh
-# bk_version 23.01.1
+# bk_version 23.04.1
 
 # Copyright (C) 2017-2023 Richard Albrecht
 # www.rleofield.de
@@ -84,6 +84,7 @@ then
 fi
 
 
+
 # use media mount '/media/user/label' instead of '/mnt/label'?
 # 0 = use
 # 1 = don't use, use /mnt
@@ -93,7 +94,11 @@ readonly lv_use_mediamount=1
 readonly lv_tracelogname="loop"
 readonly lv_cc_logname="$lv_disklabel:loop"
 readonly lv_notifysendlog="tempnotifysend.log"
-readonly lv_max_last_date="2022-10-15T00:00"
+readonly lv_max_last_date="2023-10-15T00:00"
+
+readonly lv_loop_test_return=$BK_LOOP_TEST_RETURN
+readonly lv_loop_test=$bv_loop_test
+
 
 # changed later, if lv_use_mediamount=0,  = use 
 # check for folder 'marker' at mounted backup disk
@@ -234,6 +239,8 @@ function decode_pdiff_local {
         local _length=${#_array[@]}
 
         IFS=$_oldifs
+
+	# use num# = use base 10,  to prevent interpretation as octal numbers.
 
         # mm only
         local _result_minutes=10#${_array[0]}
@@ -617,6 +624,11 @@ function  sshnotifysend_bk_loop {
         rm $_tempfilename
 }
 
+function rsyncerrorlog {
+	local _TODAY=$( currentdate_for_log )
+	local _msg=$( echo "$_TODAY err ==> '$1'" )
+	echo -e "$_msg" >> $bv_internalerrors
+}
 
 # =======================================================
 
@@ -700,7 +712,7 @@ declare -a lv_dirty_projects_array
 dlog ""
 
 # write headline
-dlog "                 dd:hh:mm                dd:hh:mm               dd:hh:mm"
+dlog "                      dd:hh:mm                dd:hh:mm               dd:hh:mm"
 
 lv_dirtyprojectcount=0
 lv_min_one_project_found=0
@@ -745,7 +757,7 @@ do
 	_project_done_state=$?
 
 	# print disklabel to field of 14
-	_disk_label_print=$( printf "%-14s\n"  $( echo "${_lpkey}" ) )
+	_disk_label_print=$( printf "%-19s\n"  $( echo "${_lpkey}" ) )
 
 
 	_project_interval_minutes=$(  decode_programmed_interval ${_lpkey} )
@@ -778,7 +790,7 @@ do
 		# - if [ $bv_test_no_check_disk_done -eq 1 ]  = 'bv_test_no_check_disk_done' is set
 		# - if [ $do_once -eq 1 ]             = 'do_once' is set
 		# check. if reachable, add to list 'lv_dirty_projects_array'
-		#dlog "check_pre_host $_lpkey"
+#		dlog "check_pre_host $_lpkey"
 		check_pre_host $_lpkey
 		_ispre=$?
 		if test $_ispre -eq 0
@@ -787,9 +799,9 @@ do
 			# all is ok,  do backup	
 			if [ $bv_test_no_check_disk_done -eq 1 ]
 			then
-				dlog "${timeline} reached, source is ok, test mode, done not checked"
+				dlog "${timeline} reached, ok, test mode, done not checked"
 			else
-				dlog "${timeline} reached, source is ok"
+				dlog "${timeline} reached, ok"
 			fi
 			lv_dirty_projects_array[lv_dirtyprojectcount]=$_project
 			lv_dirtyprojectcount=$(( lv_dirtyprojectcount + 1 ))
@@ -800,12 +812,13 @@ do
 			tlog "    in time: $_project, but unavailable"
 			if [ "$bv_test_no_check_disk_done" -eq 1 ]
 			then
-				dlog "${timeline} reached, but source is not available, test mode, done not checked"
+				dlog "${timeline} reached, not available, test mode, done not checked"
 			else
-				dlog "${timeline} reached, but source is not available"
+				dlog "${timeline} reached, not available"
 			fi
 		fi
 	fi
+
 
 	# normal projectdone not reached
 	if test "$_project_done_state" -eq $PROJECT_DONE_NOT_REACHED
@@ -943,7 +956,7 @@ then
 fi
 
 
-#set +x
+#set -x
 
 # show results
 tlog "mount: '$lv_mountfolder'"
@@ -997,9 +1010,9 @@ dlog "---> max allowed used space: '${maxdiskspacepercent}%'"
 # /dev/sdb1       1,9T  1,4T  466G  75% /mnt/adisk
  
 # dsdevice=$( blkid | grep -w $lv_disklabel| awk '{print $1}'| sed 's/.$//')
-diskfreespace=$( df -h | grep -w $lv_disklabel | awk '{print $4}')
+diskfreespace=$( df -h | grep -m1 -w $lv_disklabel | awk '{print $4}')
 
-temp1=$( df -h | grep -w $lv_disklabel | awk '{print $5}')
+temp1=$( df -h | grep -m1 -w $lv_disklabel | awk '{print $5}')
 # remove % char
 temp2=${temp1%?}
 usedspacepercent=$temp2
@@ -1045,6 +1058,7 @@ then
 	# do backup for each project
 
 	dlog "execute projects in time and with valid precondition check: ${lv_dirty_projects_array[*]}"
+	#if disk '$lv_disklabel' == sdisk, do snapshot
 
 	# in 'dirty_projects_array' are all projects to backup
 	# call bk_project for each
@@ -1053,27 +1067,29 @@ then
 
 		dlog ""
 		lpkey=${lv_disklabel}_${_project}
-		# second check, first was in first loop
-		# is already checked, see above
-		DISKDONE=0 
 
-		pdiff=$( decode_programmed_interval ${lpkey} )
+		#pdiff=$( decode_programmed_interval ${lpkey} )
 
 		# check current time
 		tcurrent=$( currentdateT )
 
 		# set lastline to "2021-09-01T00:00"
-		LASTLINE=$lv_max_last_date
-		DONE_FILE="./${bv_donefolder}/${lpkey}_done.log"
+		#LASTLINE=$lv_max_last_date
+		#DONE_FILE="./${bv_donefolder}/${lpkey}_done.log"
 		# read last line fron done file
-		if test -f $DONE_FILE
-		then
-			LASTLINE=$(cat $DONE_FILE | awk  'END {print }')
-		fi
+		#if test -f $DONE_FILE
+		#then
+		#	LASTLINE=$(cat $DONE_FILE | awk  'END {print }')
+		#fi
 		# get delta from lastline and current time
-		DIFF=$(time_diff_minutes  $LASTLINE  $tcurrent  )
+		#DIFF=$(time_diff_minutes  $LASTLINE  $tcurrent  )
 
-		if test "$DISKDONE" -eq 0
+		# second check, first was in first loop
+		check_pre_host $lpkey
+		_ispre=$?
+		dlog "    check, if host of project exists (must be 0): $_ispre"
+
+		if test "$_ispre" -eq 0
 		then
 			dlog "=== disk: '$lv_disklabel', start of project '$_project' ==="
 			tlog "do: '$_project'"
@@ -1136,7 +1152,9 @@ then
 			then
 				projecterrors[${_project}]="rsync error, check configuration or data source: $lv_disklabel, $_project"
 				dlog " !! rsync error, check configuration for '$lv_disklabel', project: '$_project' !!)"
+				rsyncerrorlog " !! rsync error, check configuration for '$lv_disklabel', project: '$_project' !!)"
 				dlog " !! rsync error, check file 'rr_${lpkey}.log'  !! "
+				rsyncerrorlog "!! rsync error, check file 'rr_${lpkey}.log'"
 				PRET=$RET
 			fi
 			if test $RET -eq $BK_ROTATE_FAILS
@@ -1221,7 +1239,9 @@ then
 					dlog "unsuccesslist: $( echo ${lv_loop_unsuccesslist[@]} )"
 				fi
 			fi
-
+		else
+			tlog "    in time: $_project, but unavailable"
+			dlog "${_project} reached, not available"
 		fi
 	done
 	#  end of  [ ! $LV_DISKFULL -eq $BK_FREEDISKSPACETOOSMALL ]
@@ -1262,10 +1282,11 @@ find_next_project_to_do
 # 1               2     3     4     5   6
 # /dev/sdb1       1,9T  1,4T  466G  75% /mnt/adisk
 
-readonly used_space_temp=$( df -h | grep -w $lv_disklabel | awk '{print $5}')
+readonly used_space_temp=$( df -h | grep -m1 -w $lv_disklabel | awk '{print $5}')
 # remove % sign 
 usedspacepercent=${used_space_temp%?}
-diskfreespace=$( df -h | grep -w $lv_disklabel | awk '{print $4}')
+diskfreespace=$( df -h /dev/disk/by-label/$lv_disklabel | grep -m1 -w $lv_disklabel | awk '{print $4}')
+
 maxdiskspacepercent=$bv_maxfillbackupdiskpercent
 
 
@@ -1370,6 +1391,7 @@ sendlog "waittime interval:  $waittimeinterval "
 
 
 msg="freier Platz auf Backup-HD '$lv_disklabel': $diskfreespace, belegt: ${usedspacepercent}%"
+dlog "$msg"
 sendlog "$msg"
 
 # check again, after backup
@@ -1457,7 +1479,8 @@ then
 
 
 	#sendlog "listsize: '${#projecterrors[@]}',  $notifyfilepostfix"
-	# loop over keys in array  (!)
+	# loop over keys in array with !
+	# array: for i in "${!projecterrors[@]}"
 	for i in "${!projecterrors[@]}"
 	do
 		sendlog "Projekt: '$i'  Nachricht: ${projecterrors[$i]}"
