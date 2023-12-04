@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_project.sh
-# bk_version 23.01.1
+# bk_version 23.04.1
 
 
 
@@ -85,7 +85,8 @@ then
 fi
 
 readonly lv_tracelogname="project"
-readonly lv_cc_logname="${lv_disklabel}:${lv_project}:project"
+#readonly lv_cc_logname="${lv_disklabel}:${lv_project}:project"
+readonly lv_cc_logname="${lv_disklabel}:project:${lv_project}"
 readonly lv_lpkey=${lv_disklabel}_${lv_project}
 
 

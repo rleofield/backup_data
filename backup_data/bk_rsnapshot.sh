@@ -2,7 +2,7 @@
 
 # file: bk_rsnapshot.sh
 
-# bk_version 23.01.1
+# bk_version 23.04.1
 
 
 # Copyright (C) 2017-2023 Richard Albrecht
@@ -69,7 +69,8 @@ readonly lv_project=$3
 
 
 readonly lv_tracelogname="rsnapshot"
-readonly lv_cc_logname="${lv_disklabel}:${lv_project}:rsnapshot"
+#readonly lv_cc_logname="${lv_disklabel}:${lv_project}:rsnapshot"
+readonly lv_cc_logname="${lv_disklabel}:rsnapshot:${lv_project}"
 readonly lv_lpkey=${lv_disklabel}_${lv_project}
 
  
