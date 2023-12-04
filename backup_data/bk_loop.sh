@@ -1068,21 +1068,9 @@ then
 		dlog ""
 		lpkey=${lv_disklabel}_${_project}
 
-		#pdiff=$( decode_programmed_interval ${lpkey} )
 
 		# check current time
 		tcurrent=$( currentdateT )
-
-		# set lastline to "2021-09-01T00:00"
-		#LASTLINE=$lv_max_last_date
-		#DONE_FILE="./${bv_donefolder}/${lpkey}_done.log"
-		# read last line fron done file
-		#if test -f $DONE_FILE
-		#then
-		#	LASTLINE=$(cat $DONE_FILE | awk  'END {print }')
-		#fi
-		# get delta from lastline and current time
-		#DIFF=$(time_diff_minutes  $LASTLINE  $tcurrent  )
 
 		# second check, first was in first loop
 		check_pre_host $lpkey

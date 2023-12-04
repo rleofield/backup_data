@@ -529,15 +529,15 @@ do
 	dlog "check for '$disk_start' shell script"
 	# in conf folder
 	# shell script, executed at start of disk
-        # content from sdisk_start.sh at t40
+        # content example from 'disk_start.sh' at host
         #    cd /mnt/wdg/daten/
         #    ./do_snapshots.sh
 
 
 	if test -f "$disk_start" 
 	then
-		dlog "do pre snapshots for disk: '$disk_start'"
-		dlog "-- anon austausch bilder ccr documents iso konsi linux_bin messen mr steuern unsere_studenten win_iso wrk --"
+		dlog "execute: '$disk_start'"
+		dlog "-- austausch bilder .. --"
 		eval ./$disk_start 
 	fi
 
