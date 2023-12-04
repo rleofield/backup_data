@@ -69,6 +69,9 @@ readonly bv_test_check_looptimes=1
 readonly bv_test_execute_once=0
 
 
+# ignore rsnapshot in loop
+# default = 0
+readonly bv_loop_test=0
 
 # ==
 # == do_once_count ==

@@ -24,7 +24,7 @@
 . ./src_log.sh
 
 touch $bv_logfile
-tail -f $bv_logfile -n 500
+tail -F $bv_logfile -n 2000
 
 # EOF
 

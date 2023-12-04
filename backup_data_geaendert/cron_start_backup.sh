@@ -118,7 +118,7 @@ cron_dlog "'$STARTFOLDER' exists, change, and write new file .cfg"
 #echo "all backupfolders have chmod 700 and owned by root, this prevents vom deleting, with user rights"
 
 
-cd $STARTFOLDER 
+cd "$STARTFOLDER" || exit 1
 cron_dlog "write WORKINGFOLDER from '/etc/rlf_backup_data_rc' to file 'cfg.working_folder'" 
 
 # create file 'cfg.working_folder'

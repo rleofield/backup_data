@@ -46,6 +46,8 @@
 # BK_ROTATE_FAILS=14
 # BK_FREEDISKSPACETOOSMALL=15
 # BK_CONNECTION_UNEXPECTEDLY_CLOSED=16
+# BK_DLOG_CC_LOGNAME_NOT_SET=17
+# BK_LOOP_TEST_RETURN=18
 
 
 # BK_NORMALDISKLOOPEND=99
@@ -105,6 +107,11 @@ readonly BK_CONNECTION_UNEXPECTEDLY_CLOSED=16
 # set, when $lv_cc_logname is empty
 # $lv_cc_logname must be set at start of each bk_ file
 readonly BK_DLOG_CC_LOGNAME_NOT_SET=17
+
+
+# do not execute bk_loop. with snapshot.
+# return with 0 and logentry
+readonly BK_LOOP_TEST_RETURN=18
 
 
 # no folder 'rsnapshot' in working dir

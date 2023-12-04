@@ -45,16 +45,20 @@ merr=""
 if [[ "$label" == *luks ]]
 then
 	dlog "is luks"
-	LUKSKEYFILE=/root/luks/keyfile_${label}
+	LUKSKEYFILE=/root/luks/${label}_keyfile
 	if test ! -f $LUKSKEYFILE
 	then
-		LUKSKEYFILE=/root/keyfile_${label}
+		LUKSKEYFILE=/root/luks/keyfile_${label}
 		if test ! -f $LUKSKEYFILE
 		then
-			dlog "LUKS =="
-			dlog "LUKS keyfile not found: '$LUKSKEYFILE'"
-			dlog "LUKS =="
-			exit 1
+			LUKSKEYFILE=/root/keyfile_${label}
+			if test ! -f $LUKSKEYFILE
+			then
+				dlog "LUKS =="
+				dlog "LUKS keyfile not found: '$LUKSKEYFILE'"
+				dlog "LUKS =="
+				exit 1
+			fi
 		fi
 	fi
 	UUID=`grep -v '#' uuid.txt | grep -w ${label} | awk '{print $2}'`
