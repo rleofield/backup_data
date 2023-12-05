@@ -3,7 +3,7 @@
 
 # file: del_logs.sh
 
-# bk_version 23.01.1
+# bk_version 23.12.1
 
 
 
@@ -23,8 +23,8 @@
 #------------------------------------------------------------------------------
 
 
-echo "didn't work correct, don't execute "
-#exit 1
+echo "don't execute, not ready"
+exit 1
 
 . ./cfg.working_folder 
 . ./cfg.loop_time_duration

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_main.sh
-# bk_version 23.04.1
+# bk_version 23.12.1
 
 
 # Copyright (C) 2017-2023 Richard Albrecht
@@ -87,7 +87,7 @@ function start_message {
 	local _call_source=$lv_call_source
 	dlog "========================"
 	dlog "===  start of backup ==="
-	dlog "===  version 23.10.1 ==="
+	dlog "===  version 23.12.1 ==="
 	dlog "========================"
 	local _runningnumber=$( get_runningnumber )
 
@@ -408,12 +408,12 @@ do
         # in t40 only
         _hostname="$(hostname)"
 	dlog "hostname: $_hostname"
-        if test "$_hostname" = "t40"
-        then
+        #if test "$_hostname" = "t40"
+        #then
 
-	 	dlog "call o_open_ports.sh"
-		./o_open_ports.sh
-	fi
+	 	#dlog "call o_open_ports.sh"
+		#./o_open_ports.sh
+	#fi
 	# 
 
 	# rotate log

@@ -1,5 +1,5 @@
 # file: src_test_vars.sh
-# bk_version 23.01.1
+# bk_version 23.12.1
 # included with 'source'
 
 # Copyright (C) 2017-2023 Richard Albrecht

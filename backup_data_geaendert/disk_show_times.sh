@@ -3,7 +3,7 @@
 
 # file: show_times_disk.sh
 
-# bk_version 23.01.1
+# bk_version 23.12.1
 
 
 # Copyright (C) 2017-2023 Richard Albrecht
