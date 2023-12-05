@@ -54,6 +54,9 @@
 . ./src_filenames.sh
 . ./src_log.sh
 #. ./src_ssh.sh
+#. ./src_is_number.sh
+
+
 
 # exit values
 # exit $BK_EXECONCESTOPPED - test 'exec once' stopped
@@ -94,12 +97,14 @@ function get_waittimeinterval() {
 	local _oldifs=$IFS
 	IFS='-'
 	
-	# convert to array
+	# split to array with ()
 	local dononearray=($_waittimeinterval)
 	IFS=$_oldifs
 	# read configured values from cfg.loop_time_duration
+	# must be 2 values
 	if [ ${#dononearray[@]} = 2 ]
 	then
+		# copy to local vars, global in file
 		lv_waittimestart=${dononearray[0]}
 		lv_waittimeend=${dononearray[1]}
 	fi
@@ -145,8 +150,10 @@ function check_stop(){
 		dlog "$text_backup_stopped in '$_name', counter: $msg  "
 		dlog "remove stop file"
 		rm $lv_stopfile
+		dlog "exit bk_stopped"
 		exit $BK_STOPPED
 	fi
+	#dlog "don't stop"
 	return 0
 }
 
@@ -155,25 +162,27 @@ function check_stop(){
 #  1, if contains chars
 #  1, if string doesn't exist
 function is_number(){
-	local _input=$1	
-	if [[ -z $_input ]]
-	then
-		# not a number, length = 0
-		return 1
-	fi
-	# remove all numbers from _input
-	#	${_input//[0-9]/} 
-	#
-	# if length is zero, the it was a number
-	# -n = nicht length 0 
-	if [[ ! -n ${_input//[0-9]/} ]]
-	then
-		# is number
-		return 0
-	fi
-	# not a numbersuccessloglinestxt
+        local _input=$1
+        if [[ -z $_input ]]
+        then
+                # not a number, length = 0
+                return 1
+        fi
+        # remove all numbers from _input
+        #       ${_input//[0-9]/}
+        #
+        # if length is zero, the it was a number
+        # -n = nicht length 0
+        local _var=${_input//[0-9]/}
+        if [[ ! -n ${_var} ]]
+        then
+                # is number
+                return 0
+        fi
+        # not a numbersuccessloglinestxt
+        return 1
 }
-  
+
 
 function loop_minutes (){
 	local _minutes=$1
@@ -466,14 +475,13 @@ function list_connected_disks_by_uuid(){
 	#ls -1 /dev/disk/by-uuid/
 	for _uuid in $(ls -1 /dev/disk/by-uuid/)
 	do
-		_line=$(grep  ${_uuid}  uuid.txt)
+		_line=$(grep  ${_uuid}  uuid.txt) || true
 		# Following syntax deletes the longest match of $substring from front of $string
 		# ${string##substring}
+                # lookup for name swap
 		if ! [ -z "${_line##*swap*}" ] && ! [ -z "${_line##*boot*}" ]
 		then
-			echo $_line | grep -v '#' 
-			RET=$?
-			if test $RET -eq 0 
+			if echo $_line | grep -v '#'
 			then
 				dlog "  connected disk:  $_line"
 			fi
@@ -484,6 +492,8 @@ function list_connected_disks_by_uuid(){
 
 
 dlog "=== disks start ==="
+
+
 tlog "start"
 check_stop  "at start of loop through disklist (bk_disks.sh)"
 
@@ -501,6 +511,9 @@ dlog ""
 
 # loop disk list
 
+# in t40 only
+_hostname="$(hostname)"
+
 # disklist is set in cfg.projects
 seqlog "gehe durch die Liste der Disks: ${bv_disklist}, "
 #dlog "execute list: $bv_disklist"
@@ -510,6 +523,23 @@ do
 	dlog ""
 	dlog "==== next disk: '$_disk' ===="
 	seqlog "bearbeite Disk: ${_disk}, "
+	disk_start="$bv_conffolder/${_disk}_start.sh"
+	#  e.g. conf/sdisk_start,sh
+
+	dlog "check for '$disk_start' shell script"
+	# in conf folder
+	# shell script, executed at start of disk
+        # content example from 'disk_start.sh' at host
+        #    cd /mnt/wdg/daten/
+        #    ./do_snapshots.sh
+
+
+	if test -f "$disk_start" 
+	then
+		dlog "execute: '$disk_start'"
+		dlog "-- austausch bilder .. --"
+		eval ./$disk_start 
+	fi
 
 
 	_old_cc_logname=$lv_cc_logname

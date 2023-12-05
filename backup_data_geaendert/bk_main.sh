@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_main.sh
-# bk_version 23.01.1
+# bk_version 23.04.1
 
 
 # Copyright (C) 2017-2023 Richard Albrecht
@@ -87,7 +87,7 @@ function start_message {
 	local _call_source=$lv_call_source
 	dlog "========================"
 	dlog "===  start of backup ==="
-	dlog "===  version 23.01.1 ==="
+	dlog "===  version 23.10.1 ==="
 	dlog "========================"
 	local _runningnumber=$( get_runningnumber )
 
@@ -349,9 +349,6 @@ function release_lock(){
 }
 
 
-
-
-
 check_working_folder
 start_message $lv_iscron
 check_if_already_running
@@ -373,9 +370,7 @@ check_configuration_folders
 # check ssh values in cfg.ssh_login
 if [  -n  "${sshlogin}" ]
 then
-	check_ssh_configuration 
-	RET=$?
-	if test $RET -gt 0 
+	if ! check_ssh_configuration
 	then
 		dlog "ssh login value is emtpy"
 	fi
@@ -383,9 +378,7 @@ fi
 
 if [  -n  "${sshlogin2}" ]
 then
-	check_ssh_configuration2
-	RET=$?
-	if test $RET -gt 0 
+	if  ! check_ssh_configuration2
 	then
 		dlog "ssh login value 2 is emtpy"
 	fi
@@ -409,7 +402,19 @@ do
 	seqlog "neuer Durchgang, Nr: $_runningnumber"
 	tlog "counter $_runningnumber"
 	dlog " ===== start main loop ($_runningnumber) =====" 
-	dlog " ===   version 23.01.1   ==="
+	dlog " ===   version 23.10.1   ==="
+
+        # only in t40
+        # in t40 only
+        _hostname="$(hostname)"
+	dlog "hostname: $_hostname"
+        if test "$_hostname" = "t40"
+        then
+
+	 	dlog "call o_open_ports.sh"
+		./o_open_ports.sh
+	fi
+	# 
 
 	# rotate log
 	rotate_logs
@@ -422,6 +427,7 @@ do
 	##########################################################################################
 	./bk_disks.sh $lv_iscron
 	RET=$?
+	# RET can't be 'readonly'
 	##########################################################################################
 
 	# exit values from 'bk_disks.sh'
@@ -432,14 +438,16 @@ do
 	# release lock
 	release_lock
 
+	
+
 	# increment counter 
 	increment_loop_counter
 	_runningnumber=$( get_runningnumber )
 
 
+#       RET = EXECONCESTOPPED,    if stop ist executed by 'test_execute_once' = 1
 #       RET = NORMALDISKLOOPEND,  if all is ok and normal loop
 #       RET = STOPPED,            if stop ist executed by hand and 'test_execute_once' = 0
-#       RET = EXECONCESTOPPED,    if stop ist executed by 'test_execute_once' = 1
 
 	endmsg=""
 	if [ $RET -eq $BK_NORMALDISKLOOPEND ]
@@ -452,10 +460,10 @@ do
 	fi
 	if [ $RET -eq $BK_EXECONCESTOPPED ]
 	then
-		endmsg="stop, is exec_one loop only"
+		endmsg="stop, is in exec_one loop only"
 	fi
 	dlog "---  last return says: $endmsg"
-	dlog "---    values are: normal stop in loop, manually stopped, run once only"
+	dlog "---    values are: 'normal stop in loop', 'manually stopped', 'run once only'"
 	sleep 0.5
 
 
