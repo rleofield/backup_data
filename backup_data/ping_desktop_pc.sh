@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: ping_host
-# bk_version 23.01.1
+# bk_version 23.12.1
 
 
 # Copyright (C) 2017-2023 Richard Albrecht
@@ -23,7 +23,6 @@
 
 . ./cfg.ssh_login
 . ./src_log.sh
-#. ./src_ssh.sh
 
 lv_cc_logname="ping"
 
