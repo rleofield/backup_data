@@ -34,7 +34,7 @@ readonly LABEL=$1
 . ./src_filenames.sh
 . ./src_folders.sh
 
-readonly lv_max_last_date="2023-10-15T00:00"
+readonly lv_max_last_date="2023-12-15T00:00"
 
 if [ -z $LABEL  ]
 then

@@ -93,7 +93,7 @@ readonly lv_use_mediamount=1
 readonly lv_tracelogname="loop"
 readonly lv_cc_logname="$lv_disklabel:loop"
 readonly lv_notifysendlog="tempnotifysend.log"
-readonly lv_max_last_date="2023-10-15T00:00"
+readonly lv_max_last_date="2023-12-15T00:00"
 
 readonly lv_loop_test_return=$BK_LOOP_TEST_RETURN
 readonly lv_loop_test=$bv_loop_test
@@ -990,10 +990,10 @@ else
 	if test $RET -ne 0
 	then
 		dlog " == end, couldn't mount disk '$lv_disklabel' to  '$lv_mountfolder', mount error =="
-	fi	
+	fi
 	
 	# check, if ok, if not, then disk is not mounted
-	if test ! -d $lv_markerfolder 
+	if test ! -d $lv_markerfolder
 	then
 		dlog " mount,  markerdir '$lv_markerfolder' not found"
 		dlog " == end, couldn't mount disk '$lv_disklabel' to  '$lv_mountfolder', no marker folder =="
@@ -1107,6 +1107,21 @@ then
 		then
 			dlog "=== disk: '$lv_disklabel', start of project '$_project' ==="
 			tlog "do: '$_project'"
+
+			project_begin="$bv_conffolder/${lpkey}_begin.sh"
+#			e.g. conf/sdisk_start,sh
+
+			dlog "check for '$project_begin' shell script"
+			# in conf folder
+			# shell script, executed at start of disk
+			if test -f "$project_begin"·
+			then
+				dlog "execute: '$project_begin' "
+				eval ./$project_begin·
+			else
+				dlog "'$project_begin' not found, no special function is executed at begin of project"
+			fi
+
 			# #############################################################################
 			# calls bk_project.sh #########################################################
 			./bk_project.sh $lv_disklabel $_project
@@ -1253,15 +1268,48 @@ then
 					dlog "unsuccesslist: $( echo ${lv_loop_unsuccesslist[@]} )"
 				fi
 			fi
+			project_end="$bv_conffolder/${lpkey}_end.sh"
+			dlog "check for '$project_end' shell script"
+			# in conf folder
+			# shell script, executed at end of disk
+
+			if test -f "$project_end" 
+			then
+				dlog "execute: '$project_end', "
+				eval ./$project_end 
+			else
+				dlog "'$project_end' not found, no special function is executed at end of project"
+			fi
+
 		else
 			tlog "    in time: $_project, but unavailable"
 			dlog "${_project} reached, not available"
 		fi
+
 	done
 	#  end of  [ ! $LV_DISKFULL -eq $BK_FREEDISKSPACETOOSMALL ]
 	# backup of all dirty project are done
 	# if errors, these are logged
 	# --
+
+	# disk end
+
+	disk_end="$bv_conffolder/${lv_disklabel}_end.sh"
+	dlog ""
+	dlog "check for '$disk_end' shell script"
+	# in conf folder
+	# shell script, executed at end of disk
+
+	if test -f "$disk_end" 
+	then
+		dlog "execute: '$disk_end', "
+		
+		eval ./$disk_end 
+	else
+		dlog "'$disk_end' not found, no special function is executed at end of disk"
+	fi
+
+
 else
 	#   disk is full
 	# don't do backup, disk is full
