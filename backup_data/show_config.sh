@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: show_config.sh
-# bk_version 23.12.1
+# bk_version 23.12.2
 
 
 # Copyright (C) 2017-2023 Richard Albrecht
@@ -149,6 +149,9 @@ for _project in ${projects[@]}
 do
 
 	_projekt_conf=${lv_conffolder}/${_project}.conf
+	RSNAPSHOT=$_project
+
+
 	if [ -f ${_projekt_conf} ]
 	then
 		retainslist=$( cat ${_projekt_conf} | grep ^retain )
@@ -163,13 +166,13 @@ IFS='
 
 		echo ""
 		echo ""
-		RSNAPSHOT=$_project
 		dlog "Project: == $_project =="
 #		cfg="${_projekt_conf}"
 
 		# lookup for backup disk root folder
-		_backup_root=$(awk  '/^snapshot_root/&&!/^'#'/  {print $2}' ${_projekt_conf})
-
+		_backup_root=$(awk  '/^snapshot_root/&&!/^'\#'/  {print $2}' ${_projekt_conf})
+		echo ""
+		dlog ""
 
 		dlog "root folder: $_backup_root"
 		# retainpositions in line:
@@ -238,7 +241,7 @@ IFS='
 		dlog "======"
 
 	fi
-		
+
 done
 
 

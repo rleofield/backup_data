@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: test.sh
-# bk_version 23.12.1
+# bk_version 23.12.2
 
 
 # Copyright (C) 2017-2023 Richard Albrecht
@@ -29,6 +29,10 @@
 readonly errlog="test_errors.log"
   
 
+
+dlognomarker(){
+        echo "$1"
+}
 
 dlog(){
         echo "$RSNAPSHOT -->  $1"
@@ -68,6 +72,8 @@ do
 				rsnapshot -c conf/${lpkey}.conf configtest
 			fi
 			dlog "--------"
+		else
+			dlog "--- 'conf/$RSNAPSHOT_CONFIG' --- doesn't exist"
 		fi
 		
 		RSNAPSHOT_CONFIG=${lpkey}.arch
@@ -75,32 +81,36 @@ do
 
 		if test -f "./conf/$RSNAPSHOT_CONFIG"
 		then
-				dlog "        is arch: ${RSNAPSHOT_CONFIG}"
+				dlog "        is arch configuration: ${RSNAPSHOT_CONFIG}"
 			else
-				dlog "        no arch: ${RSNAPSHOT_CONFIG}"
-
+				dlog "        no arch conigured: ${RSNAPSHOT_CONFIG}"
 		fi
 
 
 		dlog "check reachability"
 		dlog "  $bv_preconditionsfolder/$lpkey.$bv_preconditionsfolder.sh" 
-		pre/${lpkey}.pre.sh
-		RET=$?
-		if [ $RET -eq 0 ]
-		then 
-			dlog "  ok"
-		else 
-			dlog "  not reached" 
+		if  [ ! -f "$bv_preconditionsfolder/$lpkey.$bv_preconditionsfolder.sh" ]
+		then
+			dlog "  '$bv_preconditionsfolder/$lpkey.$bv_preconditionsfolder.sh'  doesn't exist " 
+		else
+			pre/${lpkey}.pre.sh
+			RET=$?
+			if [ $RET -eq 0 ]
+			then 
+				dlog "  remote host reached"
+			else 
+				dlog "  remote host not reached" 
+			fi
 		fi
 		echo " ================"
 		echo ""
 
 	done
-	echo " ================"
+	echo " ====  disk: $_disk done ===="
 	echo ""
 done
 
-dlog "==================="
+dlognomarker "==================="
 
 
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_disk.sh
-# bk_version 23.12.1
+# bk_version 23.12.2
 
 # Copyright (C) 2017-2023 Richard Albrecht
 # www.rleofield.de
@@ -521,24 +521,6 @@ do
 	dlog ""
 	dlog "==== next disk: '$_disk' ===="
 	seqlog "bearbeite Disk: ${_disk}, "
-	disk_start="$bv_conffolder/${_disk}_start.sh"
-	#  e.g. conf/sdisk_start,sh
-
-	dlog "check for '$disk_start' shell script"
-	# in conf folder
-	# shell script, executed at start of disk
-        # content example from 'disk_start.sh' at host
-        #    cd /mnt/wdg/daten/
-        #    ./do_snapshots.sh
-
-
-	if test -f "$disk_start" 
-	then
-		dlog "execute: '$disk_start'"
-		dlog "-- austausch bilder .. --"
-		eval ./$disk_start 
-	fi
-
 
 	_old_cc_logname=$lv_cc_logname
 	lv_cc_logname="$_disk"
@@ -661,6 +643,20 @@ do
 			fi
 		fi
 	fi
+	disk_end="$bv_conffolder/${_disk}_end.sh"
+	dlog "check for '$disk_end' shell script"
+	# in conf folder
+	# shell script, executed at end of disk
+
+	if test -f "$disk_end" 
+	then
+		dlog "execute: '$disk_end', "
+		
+		eval ./$disk_end 
+	else
+		dlog "'$disk_end' not found, no special function is executed at end of disk"
+	fi
+
 	sync
 done
 # end loop disk list

@@ -193,8 +193,6 @@ function dlog {
 	if test  -z "$cc_logname"
 	then 
 		cc_logname="not set"
-		#echo "22222 is empty, cc_log; '$lv_cc_logname'"
-		#echo "${logname} is empty"
 	fi
 	local _msg="${cc_logname}:  $1"
 	local _TODAY=$( currentdate_for_log )

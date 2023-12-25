@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_project.sh
-# bk_version 23.12.1
+# bk_version 23.12.2
 
 
 
@@ -62,7 +62,7 @@
 # exit $BK_DISKLABELNOTFOUND	- disk with uuid nit found in /dev/disk/by-uuid, disk ist not in system 
 # exit $BK_NOINTERVALSET	- no backup time inteval configured in 'cfg.projects'
 # exit $BK_TIMELIMITNOTREACHED	- for none project at this disk time limit is not reached
-# exit $BK_DISKNOTUNMOUNTED	- ddisk couldn't be unmounted
+# exit $BK_DISKNOTUNMOUNTED	- disk couldn't be unmounted
 # exit $BK_MOUNTDIRTNOTEXIST	- mount folder for backup disk is not present in '/mnt'
 # exit $BK_DISKNOTMOUNTED	- disk couldn't be mounted 
 # exit $BK_DISKNOTMOUNTED	- rsync error, see logs
@@ -149,6 +149,14 @@ fi
 # check, if config file ends with 'conf', then we do a backup with 'rsnapshot'
 readonly lv_rsnapshot_config=${lv_lpkey}.conf
 readonly lv_rsnapshot_cfg_file=${bv_conffolder}/${lv_rsnapshot_config}
+
+
+if  [ ! -f ./${lv_rsnapshot_cfg_file} ]
+then
+	dlog "'${lv_rsnapshot_cfg_file}' doesn't exist"
+	exit $BK_RSYNCFAILS
+fi
+
 readonly lv_rsnapshot_root=$(cat ./${lv_rsnapshot_cfg_file} | grep ^snapshot_root | grep -v '#' | awk '{print $2}')
 
 

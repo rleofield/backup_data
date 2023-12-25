@@ -2,7 +2,7 @@
 
 
 # file: bk_loop.sh
-# bk_version 23.12.1
+# bk_version 23.12.2
 
 # Copyright (C) 2017-2023 Richard Albrecht
 # www.rleofield.de
@@ -397,7 +397,7 @@ function check_disk_done_last_done {
 
         # here waittime check
         # check, get_projectwaittimeinterval() only for disk done 
-        # result is in, value is in hours
+        # result is in:   ( value is in hours )
         #       lv_loopwaittimestart
         #       lv_loopwaittimeend
         get_projectwaittimeinterval $_lpkey
@@ -717,6 +717,7 @@ lv_dirtyprojectcount=0
 lv_min_one_project_found=0
 
 
+
 # print list of all projects in disk
 #   and show, if valid
 #   collect dirty projects (in time)
@@ -789,9 +790,18 @@ do
 		# - if [ $bv_test_no_check_disk_done -eq 1 ]  = 'bv_test_no_check_disk_done' is set
 		# - if [ $do_once -eq 1 ]             = 'do_once' is set
 		# check. if reachable, add to list 'lv_dirty_projects_array'
-#		dlog "check_pre_host $_lpkey"
-		check_pre_host $_lpkey
-		_ispre=$?
+		_precondition=$bv_preconditionsfolder/${_lpkey}.pre.sh
+		_ispre=1
+		if test  -f $_precondition
+		then
+			check_pre_host $_lpkey
+			_ispre=$?
+		else
+			dlog "----"
+			dlog "$_precondition doesn't exist"
+			dlog "----"
+		fi
+
 		if test $_ispre -eq 0
 		then
 			tlog "    in time: $_project"
@@ -817,8 +827,7 @@ do
 			fi
 		fi
 	fi
-
-
+	
 	# normal projectdone not reached
 	if test "$_project_done_state" -eq $PROJECT_DONE_NOT_REACHED
 	then
@@ -832,6 +841,7 @@ do
 		tlog "in wait interval: $_project"
 		dlog "$timeline wait,  from $lv_loopwaittimestart to $lv_loopwaittimeend"
 	fi
+	
 done
 
 # in 'dirty_projects_array' are all projects where we need a backup
@@ -1057,6 +1067,23 @@ then
 	# do backup for each project
 
 	dlog "execute projects in time and with valid precondition check: ${lv_dirty_projects_array[*]}"
+	disk_begin="$bv_conffolder/${lv_disklabel}_begin.sh"
+	#  e.g. conf/sdisk_start,sh
+
+	dlog "check for '$disk_begin' shell script"
+	# in conf folder
+	# shell script, executed at start of disk
+
+
+	if test -f "$disk_begin" 
+	then
+		dlog "execute: '$disk_begin' "
+		eval ./$disk_begin 
+	else
+		dlog "'$disk_begin' not found, no special function is executed at begin of disk"
+	fi
+
+
 	#if disk '$lv_disklabel' == sdisk, do snapshot
 
 	# in 'dirty_projects_array' are all projects to backup

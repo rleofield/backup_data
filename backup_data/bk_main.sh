@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_main.sh
-# bk_version 23.12.1
+# bk_version 23.12.2
 
 
 # Copyright (C) 2017-2023 Richard Albrecht
@@ -408,13 +408,7 @@ do
         # in t40 only
         _hostname="$(hostname)"
 	dlog "hostname: $_hostname"
-        #if test "$_hostname" = "t40"
-        #then
 
-	 	#dlog "call o_open_ports.sh"
-		#./o_open_ports.sh
-	#fi
-	# 
 
 	# rotate log
 	rotate_logs
@@ -422,6 +416,24 @@ do
 	dlog ""
 	# set lock
 	set_lock
+
+
+	main_start="$bv_conffolder/main_begin.sh"
+               #  e.g. conf/sdisk_start,sh
+
+	dlog "check for '$main_start' shell script"
+	# in conf folder
+	# shell script, executed at start of disk
+
+
+	if test -f "$main_start"
+	then
+		dlog "execute: '$main_start'"
+		eval ./$main_start
+	else
+		dlog "'$main_start' not found, no special function is executed at start of main loop"
+	fi
+
 
 	# call 'bk_disks.sh' to loop over all backup disks 
 	##########################################################################################
@@ -434,7 +446,23 @@ do
 	# exit $BK_EXECONCESTOPPED - test 'exec once' stopped
 	# exit $BK_NORMALDISKLOOPEND  - 99, normal end
 	# exit $BK_STOPPED -   normal stop, file 'stop' detected
-	
+
+
+	main_end="$bv_conffolder/main_end.sh"
+	dlog "check for '$main_end' shell script"
+	# in conf folder
+	# shell script, executed at end of main
+
+	if test -f "$main_end"
+	then
+		dlog "execute: '$main_end', "
+
+		eval ./$main_end
+	else
+		dlog "'$main_end' not found, no special function is executed at end of main loop"
+	fi
+
+
 	# release lock
 	release_lock
 
