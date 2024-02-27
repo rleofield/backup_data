@@ -34,7 +34,7 @@ readonly LABEL=$1
 . ./src_filenames.sh
 . ./src_folders.sh
 
-readonly lv_max_last_date="2023-10-15T00:00"
+readonly lv_max_last_date="2023-12-15T00:00"
 
 if [ -z $LABEL  ]
 then
@@ -373,7 +373,7 @@ do
         # ret , 0 = do backup, 1 = interval not reached, 2 = daytime not reached
         DISKDONE=$(check_disk_done $LABEL $p )
 
-        txt=$( printf "%-14s\n"  $( echo "${p}," ) )
+        txt=$( printf "%-14s\n"  $( echo "${p}" ) )
         n0=$( printf "%5s\n"  $done_diff_minutes )
         pdiff_print=$( printf "%5s\n"  $pdiff )
         ndelta=$( printf "%6s\n"  $deltadiff )

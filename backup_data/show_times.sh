@@ -96,8 +96,7 @@ do
 	if [[ $RET = "$BK_DISKLABELNOTFOUND" ]]
 	then
 		stdatelog "${lv_cc_logname}: HD with label: '$_disk' not found"
-        fi
-
+	fi
 done
 
 

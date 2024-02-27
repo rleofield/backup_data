@@ -611,7 +611,7 @@ function  sshnotifysend_bk_loop {
         dlog ""
 
         # remove old file
-	dlog "rm ${bv_backup_messages_testfolder}/${bv_notifyfileprefix}_${_disk}_*"
+	#dlog "rm ${bv_backup_messages_testfolder}/${bv_notifyfileprefix}_${_disk}_*"
 	# rm ${bv_backup_messages_testfolder}/${bv_notifyfileprefix}_${_disk}_*
 
         # default,  copy to local folder
