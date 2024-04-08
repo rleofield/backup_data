@@ -28,6 +28,8 @@
 #					./bk_rsnapshot.sh,  do rsnapshot
 
 
+readonly lv_lockfilename="main_lock"
+
 readonly callfilename=$(basename "$0")
 echo "start of: $callfilename"
 
@@ -38,6 +40,7 @@ then
 	echo "we are not root, use root for backup"
         exit
 fi
+
 
 # gawk is used in
 #	get_loopcounter()
@@ -106,6 +109,26 @@ then
 	echo "==  end  == "
 	exit 1
 fi
+
+
+
+if [ -f $lv_lockfilename ]
+then
+	if test $wc -eq 0 
+	then
+		echo "backup is running, '$lv_lockfilename' exists"
+		echo "old backup wasn't stopped before rebooting "
+		echo "try  'ps aux |  grep -v grep | grep bk_main'"
+		echo "if result is empty, remove '$lv_lockfilename' and try again with './start_backup.sh'"
+		echo "exit 1"
+		exit 1
+	fi
+fi
+
+
+
+
+
 
 echo "Backup is not running, start in '$STARTFOLDER'"
 echo "write WORKINGFOLDER, set in '/etc/rlf_backup_data_rc', to file 'cfg.working_folder'" 
