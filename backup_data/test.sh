@@ -83,7 +83,7 @@ do
 		then
 				dlog "        is arch configuration: ${RSNAPSHOT_CONFIG}"
 			else
-				dlog "        no arch conigured: ${RSNAPSHOT_CONFIG}"
+				dlog "        no arch configured: ${RSNAPSHOT_CONFIG}"
 		fi
 
 

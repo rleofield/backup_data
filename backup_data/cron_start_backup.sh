@@ -159,8 +159,15 @@ cron_dlog "in cron_start_backup.sh"
 cron_dlog "Backup is not running, start in '$STARTFOLDER'"
 
 cron_dlog ""
-cron_dlog "sleep 5m"
-sleep 5m
+cron_dlog "sleep 2.5m"
+count=0
+while test "$count" -lt "15"·
+do
+        echo "count: $count" >> out_bk_main
+        ((count++))
+        sleep 10
+done
+
 cron_dlog "start main with: nohup ./bk_main.sh 'cron' > out_bk_main"
 
 # start in crontab at boot, no check, if is running

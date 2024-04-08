@@ -33,7 +33,7 @@ readonly DISKLIST="bbackup"
 # umount   = disk is mounted/unmounted by backup, for external USB
 # noumount = disk stays at system, for internal disks mountet at /mnt
 declare -A a_properties
-a_properties['bbackup']="umount"
+a_properties['bbackup']="xumount"
 
 
 
