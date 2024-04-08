@@ -3,7 +3,6 @@
 # file: start_backup.sh
 # bk_version 24.03.1
 
-
 # Copyright (C) 2017-2023 Richard Albrecht
 # www.rleofield.de
 
