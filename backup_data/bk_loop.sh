@@ -1057,7 +1057,7 @@ declare -A projecterrors
 declare -a lv_loop_successlist
 declare -a lv_loop_unsuccesslist
 
-PRET=""
+PRET="0"
 
 # do backup, if disk is not full
 #   disk is full, see else part
@@ -1487,7 +1487,6 @@ sendlog "$msg"
 hour=$(date +%H)
 TODAY3=$( currentdate_for_log )
 sendlog "=======  $TODAY3  ======="
-
 
 
 #  handle disk full err
