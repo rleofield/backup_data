@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # file: tt.sh
-# bk_version 23.12.1
+# bk_version 24.08.1
 
 
-# Copyright (C) 2017-2023 Richard Albrecht
+# Copyright (C) 2017-2024 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify

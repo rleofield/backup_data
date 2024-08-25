@@ -2,9 +2,9 @@
 
 # file: cron_start_backup.sh
 
-# bk_version 23.12.1
+# bk_version 24.08.2
 
-# Copyright (C) 2017-2023 Richard Albrecht
+# Copyright (C) 2017-2024 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -42,6 +42,10 @@ then
 	mkdir /var/log/cron
 fi
 
+
+readonly bv_version="24.08.1"
+
+
 readonly callfilename=$(basename "$0")
 
 LLFILE="/var/log/cron/${callfilename}.crontab"
@@ -72,11 +76,6 @@ then
         exit 1
 fi
 
-if [ ! -f  /usr/bin/gawk ]
-then
-	cron_dlog "gawk not found"
-	exit 1
-fi
 
 # STARTFOLDER is set from: /etc/rlf_backup_data.rc, 
 #   if exists ok, otherwise exits
@@ -127,8 +126,10 @@ cron_dlog "write WORKINGFOLDER from '/etc/rlf_backup_data_rc' to file 'cfg.worki
 
 # create file 'cfg.working_folder'
 echo "# BK_WORKINGFOLDER from /etc/rlf_backup_data_rc" > cfg.working_folder
-echo "# bk version 23.12.1" >> cfg.working_folder
+echo "# bk version $bv_version" >> cfg.working_folder
 echo "bv_workingfolder=\"$STARTFOLDER\"" >> cfg.working_folder
+echo "# EOF" >> cfg.working_folder
+chmod 755 cfg.working_folder
 #echo "export bv_workingfolder " >> cfg.working_folder
 
 
@@ -161,10 +162,11 @@ cron_dlog "Backup is not running, start in '$STARTFOLDER'"
 cron_dlog ""
 cron_dlog "sleep 2.5m"
 count=0
-while test "$count" -lt "15"·
+while test "$count" -lt "15" 
 do
+
         echo "count: $count" >> out_bk_main
-        ((count++))
+         ((count++))
         sleep 10
 done
 

@@ -2,10 +2,10 @@
 
 # file: connected_disks.sh
 
-# bk_version 23.12.1
+# bk_version 24.08.1
 
 
-# Copyright (C) 2017-2023 Richard Albrecht
+# Copyright (C) 2017-2024 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -21,18 +21,26 @@
 #------------------------------------------------------------------------------
 
 
+. /etc/rlf_backup_data.rc
+cd $WORKINGFOLDER
+
+. ./cfg.working_folder
+
+
+
+echo "list all mounted disks in  '$bv_workingfolder/uuid.txt' "
+echo ""
+
 temp=$(mktemp)
 
-#if test -f $temp 
-#then
-#        rm $temp
-#fi
 
 for _d in $(ls -1 /dev/disk/by-uuid/)
 do
 	val=$( cat uuid.txt | awk  '{ print $2 }' )	
-	#echo "val : $val "
-	g=$(grep  "$_d"  uuid.txt) 
+	#echo "_d : $_d "
+	#echo "grep  "$_d"  uuid.txt"
+	g=$(grep  "$_d"  uuid.txt)
+	#  removes the longest match of the pattern from start 
 	if ! [ -z "${g##*swap*}" ] && ! [ -z "${g##*boot*}" ]
 	then
 	        echo "disk:  $g " >> $temp
@@ -40,11 +48,12 @@ do
 done
 cat $temp | sort -k2
 
-echo "$temp"
+#echo "$temp"
 
 if test -f $temp 
 then
-        rm $temp
+	#echo "rm $temp"
+	rm $temp
 fi
 
 

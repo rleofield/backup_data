@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # file: show_config.sh
-# bk_version 23.12.2
+# bk_version 24.08.1
 
 
-# Copyright (C) 2017-2023 Richard Albrecht
+# Copyright (C) 2017-2024 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -22,7 +22,6 @@
 # 
 
 . ./cfg.working_folder
-. ./cfg.target_disk_list
 . ./cfg.projects
 
 
@@ -34,36 +33,49 @@ then
 	exit 1
 fi
 
+set -u
 
+RSNAPSHOT=""
+function dlog1 {
+	echo "$RSNAPSHOT -->  $1"
+}
 ###### some functions ############
 function decode_pdiff_local {
-	local v=$1
-	local oldifs=$IFS
-	IFS=':'·
+       local _interval=$1
+       local _oldifs=$IFS
+       IFS=':'
+       # split into array
+       local _array=(${_interval})
+       IFS=$_oldifs
+       local _length=${#_array[@]}
 
-	local a=($v)
-	local l=${#a[@]}
+	# use num# = use base 10,  to prevent interpretation as octal numbers.
 
 	# mm only
-	local r_=${a[0]}
-	if test $l -eq 2
+	local _result_minutes=10#${_array[0]}
+	local _hours=0
+	local _minutes=0
+	local _days=0
+	if test $_length -eq "2"
 	then
-		# hh:mm
-		r_=$(( ( ${a[0]} * 60 ) + ${a[1]} ))
+		# is hh:mm
+		_hours=10#${_array[0]}
+		_minutes=10#${_array[1]}
+		_result_minutes=$(( ( ${_hours} * 60 ) + ${_minutes} ))
 	fi
-	if test $l -eq 3
+	if test $_length -eq "3"
 	then
-		# dd:hh:mm
-		r_=$(( ( ( ${a[0]} * 24 )  * 60 + ${a[1]} * 60  ) + ${a[2]} ))
+		# is dd:hh:mm  - length 3
+		_days=10#${_array[0]}
+		_hours=10#${_array[1]}
+		_minutes=10#${_array[2]}
+		_result_minutes=$(( ( ( ${_days} * 24 )  * 60 + ${_hours} * 60  ) + ${_minutes} ))
 	fi
-
-	IFS=$oldifs
-	echo $r_
-
+	echo $_result_minutes
 }
 
 # parameter is key in a_interval array
-# return projekt interval in minutes·
+# return projekt interval in minutes 
 function decode_pdiff {
 	local _k=$1
 	local _interval=${a_interval[${_k}]}
@@ -79,10 +91,12 @@ function encode_diff {
         local negativ="false"
 
 
-        #dlog " encode_diff, testday: $testday"
+        #dlog1 " encode_diff, testday: $testday"
+
+
         if test $testday -lt 0
         then
-                #dlog "is negative '$testday'"
+               # dlog "is negative '$testday'"
                 testday=$(( $testday * (-1) ))
                 negativ="true"
         fi
@@ -141,9 +155,6 @@ echo "found projects"
 echo "${projects[@]}"
 
 
-dlog(){
-	echo "$RSNAPSHOT -->  $1"
-}
 
 for _project in ${projects[@]}
 do
@@ -166,15 +177,15 @@ IFS='
 
 		echo ""
 		echo ""
-		dlog "Project: == $_project =="
+		dlog1 "Project: == $_project =="
 #		cfg="${_projekt_conf}"
 
 		# lookup for backup disk root folder
 		_backup_root=$(awk  '/^snapshot_root/&&!/^'\#'/  {print $2}' ${_projekt_conf})
 		echo ""
-		dlog ""
+		dlog1 ""
 
-		dlog "root folder: $_backup_root"
+		dlog1 "root folder: $_backup_root"
 		# retainpositions in line:
 		# 0 = keyword 'retain', 1 = level= e.g. eins,zwei,drei, 2 = count
 		n=0
@@ -196,49 +207,51 @@ IFS='
 			(( n++ ))
 		done
 
-		dlog "-----------------"
+		dlog1 "-----------------"
 		pdiff=$( decode_pdiff ${_project})
 		ncount=$(( retainscount[0] ))
 
+		#dlog1 "pdiff: $pdiff"
 
 		#t=$( printf "%3d"  $ncount )
-		dlog "retain 0 = ${retainscount[0]} times, every $(encode_diff $pdiff), total $( printf "%3d"  $ncount )"
+		ecdiff=$(encode_diff $pdiff)
+		dlog1 "retain 0 = ${retainscount[0]} times, every $(encode_diff $pdiff), total $( printf \"%3d\"  $ncount )"
 		rr=$(( pdiff * retainscount[0] ))
 		ncount=$(( ncount * retainscount[1] )) 
-		dlog "retain 1 = ${retainscount[1]} times, every $( encode_diff $rr), total $( printf "%3d"  $ncount )"
+		dlog1 "retain 1 = ${retainscount[1]} times, every $( encode_diff $rr), total $( printf "%3d"  $ncount )"
 		rr=$(( rr * retainscount[1] ))
 		ncount=$(( ncount * retainscount[2] )) 
-		dlog "retain 2 = ${retainscount[2]} times, every $( encode_diff $rr), total $( printf "%3d"  $ncount )"
+		dlog1 "retain 2 = ${retainscount[2]} times, every $( encode_diff $rr), total $( printf "%3d"  $ncount )"
 		rr=$(( rr * retainscount[2] ))
 		ncount=$(( ncount * retainscount[3] )) 
-		dlog "retain 3 = ${retainscount[3]} times, every $( encode_diff $rr), total $( printf "%3d"  $ncount )"
+		dlog1 "retain 3 = ${retainscount[3]} times, every $( encode_diff $rr), total $( printf "%3d"  $ncount )"
 		rr=$(( rr * retainscount[3] ))
-		dlog "         last copy after: $( encode_diff $rr)"
-		dlog "-----------------"
+		dlog1 "         last copy after: $( encode_diff $rr)"
+		dlog1 "-----------------"
 
 #		retainslist=$( cat ${cfg} | grep ^retain )
 #		lines=($retainslist)
 		for i in "${lines[@]}"
 		do
-			dlog "$i"
+			dlog1 "$i"
 		done
 		cfg="${_projekt_conf}"
-		dlog "$( cat ${cfg} | grep ^logfile )" 
-		dlog "$( cat ${cfg} | grep ^rsync_short_args )"
-		dlog "$( cat ${cfg} | grep ^rsync_long_args )"
-		dlog "$( cat ${cfg} | grep ^exclude_file )"
-		dlog "$( cat ${cfg} | grep ^ssh_args )"
+		dlog1 "$( cat ${cfg} | grep ^logfile )" 
+		dlog1 "$( cat ${cfg} | grep ^rsync_short_args )"
+		dlog1 "$( cat ${cfg} | grep ^rsync_long_args )"
+		dlog1 "$( cat ${cfg} | grep ^exclude_file )"
+		dlog1 "$( cat ${cfg} | grep ^ssh_args )"
 		for i in "${backups[@]}"
 		do
-			dlog "$i"
+			dlog1 "$i"
 		done
-		dlog "======"
+		dlog1 "======"
 	else
-		dlog ""
-		dlog "======"
-		dlog "Project: $RSNAPSHOT"
-		dlog "${RSNAPSHOT}.conf does not exist, is archive?"
-		dlog "======"
+		dlog1 ""
+		dlog1 "======"
+		dlog1 "Project: $RSNAPSHOT"
+		dlog1 "${RSNAPSHOT}.conf does not exist, is archive?"
+		dlog1 "======"
 
 	fi
 

@@ -1,8 +1,8 @@
 # file: src_folders.sh
-# bk_version 23.12.1
+# bk_version 24.08.1
 # included with 'source'
 
-# Copyright (C) 2017-2023 Richard Albrecht
+# Copyright (C) 2017-2024 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -18,7 +18,7 @@
 #------------------------------------------------------------------------------
 
 
-# 9 folders
+# 8 folder
 
 # 1. folder for rsnapshot configuration files
 readonly bv_conffolder="conf"
@@ -31,27 +31,26 @@ readonly bv_intervaldonefolder="interval_done"
 # number of lines is used as count
 readonly bv_retainscountfolder="retains_count"
 
-# 4. folder for own rsnapshot logs
+# 4. for test messages, send to PC-Desktop, if configured, see 'cfg.ssh_login'
+readonly bv_backup_messages_testfolder="backup_messages_test"
+
+# 5. date of last backup per project 'label_projekt'
+readonly bv_donefolder="done"
+
+# 6. bv_excludefolder files for rsync/rsnasphot
+readonly bv_excludefolder="exclude"
+
+# 7. storage for old daily logfiles, never deleted
+readonly bv_oldlogsfolder="oldlogs"
+
+# 8. ssh tests to chcke if a remote host is alive and ready for backup
+readonly bv_preconditionsfolder="pre"
+
+
+# x. folder for own rsnapshot logs
 # not used
 #readonly bv_rsynclogfolder="rsynclog"
 # used for general rsync commands
 #readonly bv_rsynclogfile="${bv_rsynclogfolder}/rsync.log"
-
-# 5. for test messages, send to PC-Desktop, if configured, see 'cfg.ssh_login'
-readonly bv_backup_messages_testfolder="backup_messages_test"
-
-# 6. date of last backup per project 'label_projekt'
-readonly bv_donefolder="done"
-
-# 7. bv_excludefolder files for rsync/rsnasphot
-readonly bv_excludefolder="exclude"
-
-# 8. storage for old daily logfiles, never deleted
-readonly bv_oldlogsfolder="oldlogs"
-
-# 9. ssh tests to chcke if a remote host is alive and ready for backup
-readonly bv_preconditionsfolder="pre"
-
-
 
 # EOF

@@ -1,5 +1,5 @@
 # file: cfg.ssh_login
-# bk_version 23.01.1
+# bk_version 24.08.1
 # included with 'source'
 
 # Copyright (C) 2017-2023 Richard Albrecht
@@ -23,15 +23,11 @@
 
 ####### personal part #######
 # if 'localhost' or '127.0.0.1'  then only local copy to Desktop
-# used in
-# bk_disks.sh:220:                if [ "${sshhost}" == "localhost" ] || [ "${sshhost}" == "127.0.0.1" ]
-# bk_loop.sh:153:         if [ "${sshhost}" == "localhost" ] || [ "${sshhost}" == "127.0.0.1" ]
-# bk_loop.sh:208:         if [ "${sshhost}" == "localhost" ] || [ "${sshhost}" == "127.0.0.1" ]
 
 
-# shouldn't be empty
+# 'sshhost' shouldn't be empty
 #readonly sshhost="tux2"
-#readonly sshhost2="tux2"
+#readonly sshhost2=""
 # or
 readonly sshhost="localhost"
 #readonly sshhost2="localhost"
@@ -54,17 +50,17 @@ readonly sshhost="localhost"
 #if sshlogin is empty, nothing is copied to remote PC or local Desktop
 
 readonly sshlogin="rleo"
-#readonly sshlogin2=""
+readonly sshlogin2=""
 
 # port must be open at remote host
 readonly sshport="22"
-#readonly sshport2="22"
+readonly sshport2=""
 
 
 # target folder for local/remote copy, slash at end
 
-readonly sshtargetfolder="/home/rleo/Desktop/backup_messages_bbackup/"
-#readonly sshtargetfolder2="/home/rleo/Desktop/backup_messages_bbackup/"
+readonly sshtargetfolder="/home/rleo/Desktop/backup_messages/"
+#readonly sshtargetfolder2="/home/rleo/Desktop/backup_messages_2/"
 ####### personal part #######
 
-
+# EOF

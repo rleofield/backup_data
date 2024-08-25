@@ -2,9 +2,9 @@
 
 # file: stop.sh
 
-# bk_version 23.12.1
+# bk_version  24.08.1
 
-# Copyright (C) 2017-2023 Richard Albrecht
+# Copyright (C) 2017-2024 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -23,10 +23,29 @@ then
         echo "we are not root, use root for stop of backup"
         exit
 fi
+. ./cfg.working_folder
+. ./src_log.sh
+. ./src_exitcodes.sh
 
+# :readonly text_marker_stop="--- stopped ---"
+
+cd $bv_workingfolder
+
+lv_cc_logname="stop"
+
+
+#bv_logfile
+lastlogline=$( awk  'END { print }'  $bv_logfile )
+readonly vtest="$text_marker_stop"
+if [[ $lastlogline == *"$vtest"* ]]
+then
+	dlog "  stop is already set, see last line of log"
+	dlog "  $lastlogline"
+	exit
+fi
 
 touch stop
-
+dlog "  stop is set, backup stops at next chance"
 
 # EOF
 

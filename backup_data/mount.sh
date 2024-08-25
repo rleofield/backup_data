@@ -2,9 +2,9 @@
 
 
 # file: mount.sh
-# bk_version 23.12.1
+# bk_version 24.08.1
 
-# Copyright (C) 2017-2023 Richard Albrecht
+# Copyright (C) 2017-2024 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -26,15 +26,13 @@ then
         exit
 fi
 
-
+. ./cfg.working_folder
 . ./src_log.sh
-
-
-#lv_cc_logname=$(basename "$0" .sh)
 
 
 # call: ./mount.sh $LABEL
 
+readonly targetdisk=$1
 
 label=$1
 #lv_cc_logname="mount:$label"
@@ -44,7 +42,7 @@ merr=""
 
 if [[ "$label" == *luks ]]
 then
-	dlog "is luks"
+	dlog "mount luks device"
 	LUKSKEYFILE=/root/luks/${label}_keyfile
 	if test ! -f $LUKSKEYFILE
 	then
@@ -97,7 +95,7 @@ then
 		exit 1
 	fi
 else
-	dlog "is no luks device, mount normal"
+	dlog "mount normal, no luks device"
 	dlog "'mount -L $label $mountdir'"
 	mount -L $label $mountdir
 	RET=$?

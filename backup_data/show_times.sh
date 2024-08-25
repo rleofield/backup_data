@@ -2,10 +2,10 @@
 
 # file: show_times.sh
 
-# bk_version 23.12.1
+# bk_version 24.08.1
 
 
-# Copyright (C) 2017-2023 Richard Albrecht
+# Copyright (C) 2017-2024 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -20,25 +20,28 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
 
-. /etc/rlf_backup_data.rc
-cd $WORKINGFOLDER
 
 . ./cfg.working_folder
-. ./cfg.target_disk_list
 . ./cfg.projects
 
 
 . ./src_exitcodes.sh
 . ./src_filenames.sh
 
-#SHOWTIMES_LOGFILE="_show_times.log"
-#export SHOWTIMES_LOGFILE 
+
+
+readonly bv_errorlog="cc_show_times_error.log"
+
+use_retains=$1
+if [ -z $use_retains ]
+then
+	use_retains=0
+fi
 
 readonly bv_disklist=$DISKLIST
 
 
 echo "show times for all disks and all projects"
-#echo "result is in '$SHOWTIMES_LOGFILE'"
 
 function log {
    local _msg=$1
@@ -47,17 +50,19 @@ function log {
 }
 
 
-lv_cc_logname="show_times"
+lv_cc_logname=""
 
 function stdatelog {
 	if [  -z ${lv_cc_logname} ]
 	then
-		echo "${lv_cc_logname} is empty"
-		exit
-	fi
-	local _msg="${lv_cc_logname}: $1"
-	local _TODAY=`date +%Y%m%d-%H%M`
+		local _msg="$1"
+		local _TODAY=`date +%Y%m%d-%H%M`
+		log "$_TODAY ==>  $_msg"
+	else
+		local _msg="${lv_cc_logname}: $1"
+		local _TODAY=`date +%Y%m%d-%H%M`
 	log "$_TODAY ==>  $_msg"
+	fi
 }
 
 function errorlog {
@@ -72,8 +77,8 @@ function errorlog {
 cd $bv_workingfolder
 if [ ! -d $bv_workingfolder ] && [ ! $( pwd ) = $bv_workingfolder ]
 then
-	echo "WD '$bv_workingfolder'"
-	echo "WD is wrong"
+	echo "working folder is '$bv_workingfolder'"
+	echo "working folder is wrong"
 	exit 1
 fi
 
@@ -85,11 +90,11 @@ for _disk in $bv_disklist
 do
 	# clean up ssh messages
 	stdatelog ""
-	stdatelog "${lv_cc_logname}: ==== next disk: '$_disk' ===="
+	stdatelog "==== next disk: '$_disk' ===="
 	oldifs2=$IFS
 	IFS=','
 	RET=""
-	./disk_show_times.sh "$_disk"
+	./disk_show_times.sh "$_disk" "$use_retains"
         RET=$?
 	IFS=$oldifs2
 

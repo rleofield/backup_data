@@ -2,11 +2,10 @@
 
 
 # file: umount.sh
-# bk_version 23.12.1
+# bk_version 24.08.1
 
-# Copyright (C) 2017-2023 Richard Albrecht
+# Copyright (C) 2017-2024 Richard Albrecht
 # www.rleofield.de
-
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,9 +23,18 @@
 # exit 1, if umount or cryptsetup fails
 # umount only from /mnt, not from /media
 
+if [[ $(id -u) != 0 ]]
+then
+        echo "we are not root, use root for mount backup disk"
+        exit
+fi
 
+
+. ./cfg.working_folder
 . ./src_log.sh
 
+
+readonly targetdisk=$1
 
 disklabel=$1
 lv_cc_logname="$disklabel:umount"
@@ -34,7 +42,7 @@ lv_cc_logname="$disklabel:umount"
 # check, if is luks device, has 'luks' at end of label
 if [[ "$disklabel" == *luks ]]
 then
-	dlog "is luks"
+	dlog "umount luks device"
 	dlog "LUKS: 'umount /mnt/$disklabel'"
 	umount /mnt/$disklabel
 	RET=$?
@@ -54,7 +62,7 @@ then
 	fi
 else
 	# not a luks device
-	dlog "is not luks, umount normal"
+	dlog "umount normal, no luks device"
 	dlog "'umount /mnt/$disklabel'"
 	umount /mnt/$disklabel
 	RET=$?

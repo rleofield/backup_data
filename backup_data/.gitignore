@@ -7,4 +7,5 @@ backup_messages_test
 *.log
 sha256sum.txt
 install.txt
+cfg.working_folder
 

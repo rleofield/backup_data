@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # file: ping_host
-# bk_version 23.12.1
+# bk_version 24.08.1
 
 
-# Copyright (C) 2017-2023 Richard Albrecht
+# Copyright (C) 2017-2024 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -45,7 +45,7 @@ function do_ping_host {
 #		dlog "ping ok  ping -c1 $_HOST "
                 sshstr="x=99; y=88; if test  -d $sshtargetfolder; then  exit 99; else exit 88; fi"
                 sshstr2="ssh -p $_PORT $_USER@$_HOST '${sshstr}'"
-#		dlog "in ping sshstr2: $sshstr2"
+		dlog "in ping sshstr2: $sshstr2"
                 eval ${sshstr2}  &> /dev/null
                 local _RET=$?
 #		dlog "ping ret: $_RET"
@@ -79,7 +79,10 @@ then
 fi
 
 p=$( func_sshport )
-#echo "do_ping_host, login: ${sshlogin}, host: ${sshhost}, folder: ${sshtargetfolder} ${p}"
+echo "login: '${sshlogin}' "
+echo "host: '${sshhost}'"
+echo "folder: '${sshtargetfolder}'"
+echo "port: '${sshport}'"
 do_ping_host ${sshlogin} ${sshhost} ${sshtargetfolder} ${sshport}
 RET=$?
 if [ $RET -eq 0 ]

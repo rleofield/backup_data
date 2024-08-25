@@ -3,10 +3,10 @@
 
 # file: show_times_disk.sh
 
-# bk_version 23.12.1
+# bk_version 24.08.1
 
 
-# Copyright (C) 2017-2023 Richard Albrecht
+# Copyright (C) 2017-2024 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -23,18 +23,22 @@
 
 
 
-TODAY=`date +%Y-%m-%dT%H:%M`
-readonly LABEL=$1
 
 . ./cfg.working_folder
-. ./cfg.loop_time_duration
+#. ./cfg.waittimeinterval
 . ./cfg.projects
 
 . ./src_exitcodes.sh
 . ./src_filenames.sh
 . ./src_folders.sh
 
-readonly lv_max_last_date="2023-12-15T00:00"
+
+TODAY=`date +%Y-%m-%dT%H:%M`
+use_retains=$2
+
+readonly LABEL=$1
+readonly lv_cc_logname=""
+readonly lv_max_last_date="$max_last_date"
 
 if [ -z $LABEL  ]
 then
@@ -43,11 +47,34 @@ then
 fi
 
 
+# copy from src_log.sh
+
+function targetdisk {
+
+	local _disk_label=$1
+	#${a_targetdisk[${_disk_label}]}
+	# test for a variable that does contain a value 
+#set -x
+	local _targetdrive="empty"
+	if [[ $_disk_label ]]
+	then
+		_targetdrive=${a_targetdisk[${_disk_label}]}
+		if [[ $_targetdrive ]]
+		then
+			echo "$_targetdrive"
+		else
+			echo "$_disk_label"
+		fi
+	else
+		echo "empty"
+	fi
+#set -x	
+}
+
 
 function log {
    local msg=$1
-   #echo -e "$msg" >> $SHOWTIMES_LOGFILE
-   echo -e "$msg" 
+   echo -e "$msg" >> "show_times.log"
 }
 
 
@@ -57,11 +84,11 @@ function stdatelog {
         log "$_TODAY ==>  $1"
 }
 
-function errorlog {
+function dateecho {
         local _TODAY=$( date +%Y%m%d-%H%M )
-        msg=$( echo "$_TODAY err ==> '$1'" )
-        echo -e "$msg" >> $bv_errorlog
+        echo "$_TODAY ==>  $1"
 }
+
 
 
 # use media mount instead of /mnt
@@ -91,22 +118,19 @@ then
 	exit $BK_ARRAYSNOK
 fi
 
-# changed later, if use_mediamount=0
-MOUNTDIR=/mnt/$LABEL
-MARKERDIR=$MOUNTDIR/marker
-
-readonly lv_cc_logname="disk:$LABEL"
-
 
 # diff = old - new 
 # h = 60, d = 1440, w=10080, m=43800,y=525600
 function time_diff_minutes() {
-        local old=$1
-        local new=$2
+        local _old=$1
+        local _new=$2
+	
         # convert the date "1970-01-01 hour:min:00" in seconds from Unix Date Stamp
         # "1980-01-01 00:00"
-        local sec_old=$(date +%s -d $old)
-        local sec_new=$(date +%s -d $new)
+        local sec_old=$(date +%s -d $_old)
+        local sec_new=$(date +%s -d $_new)
+	#stdatelog "diff minutes: old '$_old', new: '$_new' "
+	#stdatelog "diff seconds: old '$sec_old', new: '$sec_new' "
         echo "$(( (sec_new - sec_old) / 60 ))"
 }
 
@@ -118,12 +142,14 @@ function check_disk_label {
         # 0 = success
         # 1 = error
         local goodlink=1
-	local uuid=$( cat "uuid.txt" | grep -w $_LABEL | awk '{print $2}' )
+
+	local _targetdisk=$( targetdisk $_LABEL )
+	local uuid=$( cat "uuid.txt" | grep -v '#' | grep -w $_targetdisk | awk '{print $2}' )
 	#local uuid=$( gawk -v pattern="$_LABEL" '$1 ~ pattern  {print $NF}' $bv_workingfolder/uuid.txt )
 
-        #disklink="/dev/disk/by-label/$_LABEL"
         local disklink="/dev/disk/by-uuid/$uuid"
-        # test, if symbolic link
+
+	# test, if symbolic link
         if test -L ${disklink} 
         then
                 # test, if exists
@@ -134,12 +160,12 @@ function check_disk_label {
         fi
         return $goodlink
 }
-# parameter: string with time value, dd:hh:mm·
-# value in array: string with time value, dd:hh:mm·
-#                                      or hh:mm·
-#                                      or mm·
+# parameter: string with time value, dd:hh:mm  
+# value in array: string with time value, dd:hh:mm  
+#                                      or hh:mm  
+#                                      or mm  
 # return:    minutes
-function decode_pdiff_local {
+function decode_programmed_diff_local {
 	
         local _interval=$1
         local _oldifs=$IFS
@@ -178,36 +204,17 @@ function decode_pdiff_local {
 }
 
 
-function decode_diff_local {
-	local v=$1
-	local oldifs=$IFS
-	IFS=':' 
 
-	local a=($v)
-	local l=${#a[@]}
-	IFS=$oldifs
-
-	# mm only
-	local r_=${a[0]}
-	if test $l -eq 2 
-	then
-		# hh:mm
-        	r_=$(( ( ${a[0]} * 60 ) + ${a[1]} ))
-	fi
-        if test $l -eq 3
-        then
-		# dd:hh:mm
-                r_=$(( ( ( ${a[0]} * 24 )  * 60 + ${a[1]} * 60  ) + ${a[2]} ))
-        fi
-
-	echo $r_
-
-}
-
- # parameter is key in a_interval array
-function decode_pdiff {
+# parameter is key in a_interval array
+function decode_programmed_diff {
 	local _k=$1
-        local _r2=$( decode_pdiff_local ${a_interval[${_k}]} )
+        local _arr=${a_interval[${_k}]}
+	if test -z $_arr 
+	then
+		echo "fatal error: a_interval ${_k} is empty"
+		exit 1
+	fi 
+        local _r2=$( decode_programmed_diff_local $_arr )
         echo $_r2
 }
 
@@ -263,6 +270,7 @@ function encode_diff {
 # $2 = Projekt
 # return 0, 1 
 function check_disk_done {
+	
         local _label=$1
         local _p=$2
 	local _key=${_label}_${_p}
@@ -274,40 +282,34 @@ function check_disk_done {
         # 1 = error
         local _DONEINTERVAL=1
         local _DONEFILE="./${bv_donefolder}/${_key}_done.log"
-        #stdatelog "DONEFILE: '$_DONEFILE'"
         local _LASTLINE=""
         #echo "in function check_disk_done "
-        _LASTLINE="$lv_max_last_date"
+        local _last_done_time="$lv_max_last_date"
 
         if test -f $_DONEFILE
         then
                 # last line in done file
-		_LASTLINE=$(awk NF  $_DONEFILE | awk  'END {print }' -)
+		_last_done_time=$(awk NF  $_DONEFILE | awk  'END {print }' -)
 
         fi
-        local _DIFF=$(time_diff_minutes  $_LASTLINE  $_current  )
+        local _DIFF=$(time_diff_minutes  $_last_done_time  $_current  )
         #local _pdiff=${a_interval[${_key}]}
-	local _pdiff=$( decode_pdiff ${_key} )
-	#echo "if test $_DIFF -ge $_pdiff"
+	local _pdiff=$( decode_programmed_diff ${_key} )
 	if test $_DIFF -ge "$_pdiff"
         then
-#        	echo "diff was greater then reference, take as success"
                 _DONEINTERVAL=0
         fi
+	
         echo $_DONEINTERVAL
 }
 
 
 function check_pre_host {
 
-#	stdatelog "check_pre_host"
 	local _LABEL=$1
 	local _p=$2
 
         local _precondition=${bv_preconditionsfolder}/${_LABEL}_${_p}.${bv_preconditionsfolder}.sh
-
-#	stdatelog "bv_preconditionsfolder: $_LABEL $_p"
-#	stdatelog "cpre: $_precondition"
 
         if [[  -f $_precondition ]]
         then
@@ -325,15 +327,45 @@ function check_pre_host {
 
 
 
+
+# parameter
+#  $1 = file with lines = number of lines in this file is retains count = number of current retains done at this retain key
+# filename is 'disk_project_retains'
+# get number_of_ entries keeped in history  
+function entries_keeped {
+	local _index=$1
+	local _retains_count_file_name=${retains_count_file_names[$_index]}
+#	dateecho "$_retains_count_file_name   = ${retains_count_file_names[$_index]}"
+	local _counter=0
+	local _retain_value=${retains[$_index]}
+	if [ -f ${_retains_count_file_name} ]
+	then
+		# count the lines
+		# count is number of entries_keeped
+		_counter=$(  wc  -l < ${_retains_count_file_name}  )
+	fi
+	echo $_counter
+}
+
+
+
+_targetdisk=$( targetdisk $LABEL )
+stdatelog "label: $LABEL"
+stdatelog "target: $_targetdisk"
 check_disk_label $LABEL
 goodlink=$?
 
-stdatelog ""
-stdatelog "${lv_cc_logname}: test disk ========== '$LABEL' =========="
+dateecho ""
+if [ $_targetdisk != $LABEL ]
+then
+	dateecho "test disk = '$_targetdisk' is project '$LABEL' ="
+else
+	dateecho "test disk = '$_targetdisk' ="
+fi
 if test $goodlink -ne 0
 then
-	# disk label/uuid not found, write label file
-	stdatelog "${lv_cc_logname}: disk '$LABEL' wasn't found in '/dev/disk/by-uuid'"
+	# disk label/uuid not found, or targetdisk/uuid
+	dateecho  "${lv_cc_logname}: disk '$_targetdisk' wasn't found in '/dev/disk/by-uuid'"
 fi
 
 
@@ -350,14 +382,13 @@ nextprojekt=""
 #stdatelog "DONE: '$DONE'"
 
 # find projects in time		
-stdatelog "                             dd:hh:mm               dd:hh:mm               dd:hh:mm"
+dateecho "                 dd:hh:mm               dd:hh:mm               dd:hh:mm"
 for p in $PROJEKTLABELS
 do
         lpkey=${LABEL}_${p}
-	
-#stdatelog "key: $lpkey"
-
-        tcurrent=`date +%Y-%m-%dT%H:%M`
+	stdatelog "lpkey: '$lpkey' "
+	lv_lpkey=$lpkey
+        _current=`date +%Y-%m-%dT%H:%M`
         DONE_FILE="$bv_workingfolder/${bv_donefolder}/${lpkey}_done.log"
         LASTLINE=$lv_max_last_date
         if [ -f $DONE_FILE  ]
@@ -366,8 +397,10 @@ do
 		LASTLINE=$(awk NF  $DONE_FILE | awk  'END {print }' -)
 
         fi
-        pdiff=$(  decode_pdiff ${lpkey} )
-	done_diff_minutes=$(   time_diff_minutes  "$LASTLINE"  "$tcurrent"  )
+        pdiff=$(  decode_programmed_diff ${lpkey} )
+
+	done_diff_minutes=$(   time_diff_minutes  "$LASTLINE"  "$_current"  )
+	stdatelog "pdiff: '$pdiff', done: '$done_diff_minutes' "
 	deltadiff=$(( pdiff - done_diff_minutes ))
 
         # ret , 0 = do backup, 1 = interval not reached, 2 = daytime not reached
@@ -385,30 +418,80 @@ do
         pdiff_minutes_print=$( encode_diff  $pdiff_print )
         pdiff_minutes_print=$( printf "%8s"  $pdiff_minutes_print )
 
-        if test "$DISKDONE" -eq $DONE_REACHED
+        if test $DISKDONE -eq $DONE_REACHED
         then
                 diskdonetext="ok"
-#               stdatelog "check_pre_host $LABEL $p "
                 check_pre_host $LABEL $p 
 		ispre=$?
                 if test $ispre -eq 0
                 then
                         # all is ok,  do backup
-                        stdatelog "${lv_cc_logname}: $txt   $fn0 last, next in $fndelta,  programmed  $pdiff_minutes_print,  reached, source is ok"
+                        dateecho "$txt   $fn0 last, next in $fndelta,  programmed  $pdiff_minutes_print,  reached, source is ok"
                         nextprojects["$p"]=$p
                 #       isdone=true
-
                 else
-                        stdatelog "${lv_cc_logname}: $txt   $fn0 last, next in $fndelta,  programmed  $pdiff_minutes_print,  reached, source not available"
+                        dateecho "$txt   $fn0 last, next in $fndelta,  programmed  $pdiff_minutes_print,  reached, source not available"
                 fi
         fi
+
 
         if test "$DISKDONE" -eq $lv_done_not_reached
         then
                 diskdonetext="not"
-                stdatelog "${lv_cc_logname}: $txt   $fn0 last, next in $fndelta,  programmed  $pdiff_minutes_print,  do nothing"
+                dateecho "$txt   $fn0 last, next in $fndelta,  programmed  $pdiff_minutes_print,  do nothing"
         fi
+if test $use_retains -gt 0
+then
+	# check, if config file ends with 'conf', then we do a backup with 'rsnapshot'
+	lv_rsnapshot_config=${lpkey}.conf
+	log "#  '${lv_rsnapshot_config}' "
+	lv_rsnapshot_cfg_file=${bv_conffolder}/${lv_rsnapshot_config}
 
+	# look up for lines with word 'retain'
+	retainslist=$( cat ./${lv_rsnapshot_cfg_file} | grep ^retain )
+	OIFS=$IFS
+IFS='
+'
+	# convert to array of 'retain' lines
+	# 0 = 'retain', 1 = level, 2 = count
+	lines=($retainslist)
+	#dateecho "# current number of retain entries  './${lv_rsnapshot_cfg_file}' : ${#lines[@]}"
+
+	IFS=$OIFS
+
+
+	declare -A retainscount
+	declare -A retains_count_file_names
+	declare -A retains
+	n=0
+	for i in "${lines[@]}"
+	do
+		# split to array with ()
+		_line=($i)
+
+		# 0 = keyword 'retain', 1 = level= e.g. eins,zwei,drei, 2 = count
+		rlevel=${_line[1]}
+		retains[$n]=$rlevel
+		rcount=${_line[2]}
+		if [[ $rcount -lt 2 ]]
+		then
+			dateecho "retain count is < 2 in retain '$rlevel', this is not allowed in 'rsnapshot' and this backup"
+			exit $BK_ERRORINCOUNTERS
+		fi
+
+		retainscount[$n]=$rcount
+		retains_count_file_names[$n]=$bv_retainscountfolder/${lv_lpkey}_${rlevel}
+
+		ek=$(entries_keeped $n )
+		#dateecho "keeped $ek"
+		#dateecho "line $n"
+		_t0=$(  printf "%8s %4s (%2s)" ${retains[$n]} ${retainscount[$n]} $( entries_keeped $n )   )
+		dateecho "retain $n: $_t0"
+
+		(( n++ ))
+	done
+	dateecho ""
+fi
 done
 
 

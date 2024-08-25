@@ -1,10 +1,9 @@
 #!/bin/bash
 
 # file: bk_main.sh
-# bk_version 23.12.2
+# bk_version 24.08.2
 
-
-# Copyright (C) 2017-2023 Richard Albrecht
+# Copyright (C) 2017-2024 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -17,6 +16,7 @@
 # GNU General Public License for more details.
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
+# https://www.gnu.org/licenses/gpl-3.0
 #------------------------------------------------------------------------------
 
 # call chain:
@@ -29,20 +29,41 @@
 
 
 # set -u, which will exit your script if you try to use an uninitialised variable.
-#set -u
+# set -u
 # set -e exits if subscript fails
-#set -e
+# set -e
 
 
 # prefixes of variables in backup:
-# bv_*  - global vars, alle files
+# bv_*  - global vars, all files
 # lv_*  - local vars, global in file
 # _*    - local in functions or loops
 # BK_*  - exitcodes, upper case, BK_
 
 
+: <<Kommentar
+
+= das ist ein Multilinekommentar
+
+        # === here waittime check ===
+        # here waittime check
+        # 0-----------------wstart -------------------- wend ------------24
+        #                         ^wait^
+        #                      < waitinterval >
+        # 0-----------------dostart ------------------- doend ------------24
+        #   ^wait^                                              ^wait^
+        #   < waitinterval 1 >                                 < waitinterval 2 >
+
+        # check, get_projectwaittimeinterval() only for disk done
+        # result is in:   ( value is in hours )
+        #       lv_loopwaittimestart
+        #       lv_loopwaittimeend
+
+Kommentar
+
 
 . ./cfg.working_folder
+. ./cfg.projects
 . ./cfg.ssh_login
 
 . ./src_test_vars.sh
@@ -51,8 +72,13 @@
 . ./src_log.sh
 . ./src_folders.sh
 
-# values: lv_iscron  = "cron" = backup was started via cronjob
-#         lv_iscron != "cron" = backup was started via commandline
+
+# set -u, which will exit your script if you try to use an uninitialised variable.
+set -u
+
+
+# values: lv_iscron  = "cron"   = backup was started via cronjob
+#         lv_iscron  = "manual" = backup was started via commandline
 readonly lv_iscron=$1
 
 readonly lv_lockfilename="main_lock"
@@ -63,83 +89,84 @@ echo "working folder: $PWD"
 echo "time is:        $( currentdate_for_log )"
 # 
 
-
 readonly lv_tracelogname="main"
 readonly lv_cc_logname="main"
 
 tlog "start"
 
 
-
 function check_working_folder {
-	if [ -d $bv_workingfolder ] && [ $PWD = $bv_workingfolder ]
+	if [ -d "$bv_workingfolder" ] && [ "$PWD" = "$bv_workingfolder" ]
 	then
 		dlog ""
 	else
 		dlog "workingfolder '$bv_workingfolder' is wrong, stop, exit 1 "
 		exit 1
 	fi
-
 }
 
-readonly lv_call_source=$1
+
+# values: lv_iscron  = "cron"   = backup was started via cronjob
+#         lv_iscron  = "manual" = backup was started via commandline
+readonly lv_call_source=$lv_iscron
+
 function start_message {
 	local _call_source=$lv_call_source
 	dlog "========================"
 	dlog "===  start of backup ==="
-	dlog "===  version 23.12.1 ==="
+	dlog "===  version $bv_version ==="
 	dlog "========================"
 	local _runningnumber=$( get_runningnumber )
 
 	if [ "$_call_source" = "cron" ]
 	then
 		dlog "------  is cron start    ------"
-		seqlog "Starte Backup mit Cronjob, Nr: $_runningnumber"
 	else
 		dlog "------  is manual start  ------"
-		seqlog "Starte Backup via Terminal, Nr: $_runningnumber"
 	fi
-
 	dlog ""
 	dlog "--> workingfolder: $bv_workingfolder"
 }
 
-function check_if_already_running {
-	dlog "pgrep -u $USER   bk_main.sh "
-	pidcount=$(  pgrep -u $USER   "bk_main.sh" | wc -l )
 
+function check_if_already_running {
+	temptestlog "pgrep -u $USER   bk_main.sh "
+	pidcount=$(  pgrep -u $USER   "bk_main.sh" | wc -l )
 	# pid appears twice, because of the subprocess finding the pid
 	if [ $pidcount -lt 3 ]
 	then
-			dlog "backup is not running, start" 
-		else
-			dlog "backup is running, exit"
-			dlog "pid = $pidcount"
-			exit 1
+		dlog " == backup is not running, start" 
+	else
+		dlog " == backup is running, exit"
+		dlog " == 'pid = $pidcount'"
+		exit 1
 	fi
-
 }
-
 
 
 function check_main_lock {
 	local _call_source=$lv_call_source
-
 	# remove main_lock, if is startet via cron_start_backup.sh
-	dlog "check '$lv_lockfilename', if exists"
+	dlog " =="
+	dlog " == check '$lv_lockfilename'"
+	# values: "cron"   = backup was started via cronjob
+	#         "manual" = backup was started via commandline
 	if [ $_call_source = "cron" ]
 	then
+		# call_source = "cron"
+		# if main_lock exists, remonve 'main_lock' and starts
 		dlog "check '$lv_lockfilename' for 'cron_start_backup'"
-		if [ -f $lv_lockfilename ]
+		if [ -f "$lv_lockfilename" ]
 		then
 			dlog " '$lv_lockfilename' exists, remove and continue"
-			dlog "remove $lv_lockfilename"
+			dlog "rm $lv_lockfilename"
 			rm $lv_lockfilename
-        		dlog "$lv_lockfilename removed"
+			dlog "$lv_lockfilename removed"
 		fi
 	else
-		# exit, if main_lock exists and is not startet via cron_start_backup.sh
-		dlog "check '$lv_lockfilename' for 'start_backup'"
+		# call_source = "manual"
+		# dont't start, if main_lock exists 
+		#dlog "check '$lv_lockfilename' for 'start_backup'"
 		if [ -f $lv_lockfilename ]
 		then
 			echo "backup is running, $lv_lockfilename exists"
@@ -149,10 +176,8 @@ function check_main_lock {
 			exit 1
 		fi
 	fi
-
-
-	
 }
+
 
 function check_and_remove_rsnapshot_pid_lock {
 	if [ -f  rsnapshot.pid ]
@@ -168,13 +193,10 @@ function check_and_remove_rsnapshot_pid_lock {
 # errors must be present until solved
 function clear_internalerrors_list {
 	dlog " == "
-	dlog " == truncate -s 0 $bv_internalerrors   ==" 
+	dlog " == truncate -s 0 $bv_internalerrors" 
 	truncate -s 0 $bv_internalerrors
 	dlog " == "
 }
-
-
-
 
 
 function shatestfile(){
@@ -190,14 +212,16 @@ function shatestfile(){
 		return 1
 	fi
 	return 0
-
 }
+
 
 function shatestfiles(){
 	local _testfile=$1
 	local exitval=0
 	local oldifs=$IFS
-	while IFS=' ' read -r _lsum _file 
+	IFS=' '
+	# read 2 positions in line
+	while read -r _lsum _file 
 	do
 		if [ -f $_file ]
 		then
@@ -219,26 +243,28 @@ function shatest(){
 	if [ -f "sha256sum.txt" ]
 	then
 		dlog " ==  test sha256sums"
-		#RETSHA256=$( sha256sum -c --quiet sha256sum.txt.sh )
 		shatestfiles sha256sum.txt
 		RETSHA256=$?
 		if [ ${RETSHA256} -gt 0  ]
 		then
-			dlog "sha256sum check fails, create new 'sha256sum.txt' by call of 'get_sha256.sh'"
-			dlog "and start with './start_backup.sh' again"
+			dlog "sha256sum check fails"
+			dlog "create new 'sha256sum.txt' by call of './get_sha256.sh'"
+			dlog "start again with './start_backup.sh'"
 			exit 0
 		else
 			dlog "sha256sum check ok"
 		fi
 	else
-		dlog "sha256sum check fails, create new 'sha256sum.txt.sh' by call of 'get_sha256.sh'"
-		dlog "and start with './start_backup.sh' again"
-
+		dlog "sha256sum check fails, file 'sha256sum.txt' is missing"
+		dlog "create new file 'sha256sum.txt' by call of './get_sha256.sh'"
+		dlog "start again with './start_backup.sh'"
 	fi
 }
 
+
 function list_test_flags(){
-	dlog " ==  list test flags and variables =="
+	dlog " ==  list test flags and variables"
+	dlog "maxlast date: $lv_max_last_date"
 	dlog "maxfillbackupdiskpercent (70):    	$bv_maxfillbackupdiskpercent"
 	dlog "no_check_disk_done (0):			$bv_test_no_check_disk_done"
 	dlog "check_looptimes (1):              	$bv_test_check_looptimes"
@@ -254,8 +280,20 @@ function list_test_flags(){
 
 
 # check folder for rsnapshot configuration files
+# in src_folders.sh
+# 8 folder
+# bv_conffolder="conf"
+# bv_intervaldonefolder="interval_done"
+# bv_retainscountfolder="retains_count"
+# bv_backup_messages_testfolder="backup_messages_test"
+# bv_donefolder="done"
+# bv_excludefolder="exclude"
+# bv_oldlogsfolder="oldlogs"
+# bv_preconditionsfolder="pre"
+
 function check_configuration_folders(){
-	local _folderlist="$bv_conffolder $bv_intervaldonefolder $bv_retainscountfolder $bv_backup_messages_testfolder $bv_donefolder $bv_excludefolder $bv_oldlogsfolder $bv_preconditionsfolder $bv_retainscountfolder"
+	local _folderlist="$bv_conffolder $bv_intervaldonefolder $bv_retainscountfolder $bv_backup_messages_testfolder $bv_donefolder $bv_excludefolder $bv_oldlogsfolder $bv_preconditionsfolder"
+
 	for _folder in $_folderlist
 	do
 		dlog "check folder: '$_folder'"
@@ -266,6 +304,7 @@ function check_configuration_folders(){
 			exit 1
 		fi
 	done
+	dlog " == "
 }
 
 
@@ -289,6 +328,7 @@ function check_ssh_configuration2(){
 }
 
 
+
 function rotate_logs(){
 	# date in year month day
 	local _date=$(date +%Y-%m-%d)
@@ -305,24 +345,26 @@ function rotate_logs(){
 			mv aa_* $_oldlogdir
 			mv rr_* $_oldlogdir
 			mv $bv_logfile $_oldlogdir
-			mv $bv_errorlog $_oldlogdir
+#			mv $bv_errorlog $_oldlogdir
 			mv $bv_tracefile $_oldlogdir
 			if [ -f label_not_found.log ]
 			then
 				mv label_not_found.log "$_oldlogdir"
 			fi
-			# and create new and empty files
+			# create new, empty files
 			touch $bv_logfile
-			touch $bv_errorlog
+#			touch $bv_errorlog
 			touch $bv_tracefile
 			dlog "log rotated to '$_oldlogdir'"
 
 			# date: year month 01
 			local _date01=$(date +%Y-%m-01)
+			dlog "rotate monthly, if date '$_date01'"
 			# if _date = first of month, save logs 
 			if [[ ${_date01} == ${_date} ]]
 			then
 				dlog "rotate monthly at '$_date'"
+				dlog "rotate successloglines.txt '$_date'"
 				mv successloglines.txt $_oldlogdir
 				touch successloglines.txt 
 			fi
@@ -348,6 +390,25 @@ function release_lock(){
 	fi
 }
 
+# gawk is used instead of awk
+which gawk 
+RET=$?
+if [ $RET -ne 0  ]
+then
+	dlog "'gawk' not found"
+	exit 1
+fi
+
+# rsanpshot is used in final backup
+which rsnapshot 
+RET=$?
+if [ $RET -ne 0  ]
+then
+	dlog "'rsnapshot' not found"
+	exit 1
+fi
+
+
 
 check_working_folder
 start_message $lv_iscron
@@ -366,6 +427,18 @@ list_test_flags
 
 # check folder for rsnapshot configuration files
 check_configuration_folders
+
+#check_existence_of_arrays_in_cfg
+
+check_arrays
+RET=$?
+if test $RET -ne 0 
+then
+	dlog "!! arrays in 'cfg.projects' are defined incorrectly !!"
+	exit 1
+fi
+dlog ""
+
 
 # check ssh values in cfg.ssh_login
 if [  -n  "${sshlogin}" ]
@@ -388,9 +461,6 @@ fi
 
 do_once_counter=0
 
-seqlog ""
-
-seqlog "==========================="
 
 while true
 do
@@ -399,15 +469,13 @@ do
 	# is incremented after 'bk_disks.sh' in 'increment_loop_counter'
 	
 
-	seqlog "neuer Durchgang, Nr: $_runningnumber"
 	tlog "counter $_runningnumber"
 	dlog " ===== start main loop ($_runningnumber) =====" 
-	dlog " ===   version 23.10.1   ==="
+	dlog " ===   version $bv_version   ==="
+	dlog ""
 
-        # only in t40
-        # in t40 only
-        _hostname="$(hostname)"
-	dlog "hostname: $_hostname"
+	_hostname="$(hostname)"
+	dlog "  hostname: $_hostname"
 
 
 	# rotate log
@@ -417,24 +485,21 @@ do
 	# set lock
 	set_lock
 
-
-	main_start="$bv_conffolder/main_begin.sh"
-               #  e.g. conf/sdisk_start,sh
-
-	dlog "check for '$main_start' shell script"
+	#  e.g. conf/sdisk_start,sh
 	# in conf folder
 	# shell script, executed at start of disk
-
-
-	if test -f "$main_start"
+	main_start="$bv_conffolder/main_begin.sh"
+ 	if  test_script_file "$main_start"
 	then
+		dlog "'$main_start' found"
 		dlog "execute: '$main_start'"
 		eval ./$main_start
 	else
-		dlog "'$main_start' not found, no special function is executed at start of main loop"
+		startendtestlog "'$main_start' not found"
 	fi
 
 
+	dlog ""
 	# call 'bk_disks.sh' to loop over all backup disks 
 	##########################################################################################
 	./bk_disks.sh $lv_iscron
@@ -448,25 +513,20 @@ do
 	# exit $BK_STOPPED -   normal stop, file 'stop' detected
 
 
-	main_end="$bv_conffolder/main_end.sh"
-	dlog "check for '$main_end' shell script"
 	# in conf folder
 	# shell script, executed at end of main
-
-	if test -f "$main_end"
+	main_end="$bv_conffolder/main_end.sh"
+	if  test_script_file "$main_end"
 	then
+		dlog "'$main_end' found"
 		dlog "execute: '$main_end', "
-
 		eval ./$main_end
 	else
-		dlog "'$main_end' not found, no special function is executed at end of main loop"
+		startendtestlog "'$main_end' not found"
 	fi
-
 
 	# release lock
 	release_lock
-
-	
 
 	# increment counter 
 	increment_loop_counter
@@ -480,18 +540,18 @@ do
 	endmsg=""
 	if [ $RET -eq $BK_NORMALDISKLOOPEND ]
 	then
-		endmsg="all is ok, normal loop"
+		endmsg="all is ok, is 'normal wait in loop'"
 	fi
 	if [ $RET -eq $BK_STOPPED ]
 	then
-		endmsg="stop ist executed manually"
+		endmsg="stop is 'manually stopped'"
 	fi
 	if [ $RET -eq $BK_EXECONCESTOPPED ]
 	then
-		endmsg="stop, is in exec_one loop only"
+		endmsg="stop, is 'run once only'"
 	fi
-	dlog "---  last return says: $endmsg"
-	dlog "---    values are: 'normal stop in loop', 'manually stopped', 'run once only'"
+	dlog "---  last return says: $endmsg "
+#	dlog "---    values are: 'normal stop in loop', 'manually stopped', 'run once only'"
 	sleep 0.5
 
 
@@ -537,7 +597,6 @@ do
 		# normal stop via stop.sh
 		# no 'test_do_once_count' is set in 'src_test_vars.sh'
 		#dlog "stopped with 'stop' file"
-		seqlog "Ende des Backup via 'Stop' Kommando: $_runningnumber"
 		tlog "end, return from bk_disks: $RET"
 		sync
 		exit 1
@@ -572,7 +631,6 @@ do
 			else
 				# 'test_do_once_count' is reached, exit
 				dlog "$text_marker_stop, end, 'test_do_once_count' loops reached, '$do_once_counter -eq $bv_test_do_once_count' "
-				seqlog "Ende des Backup, Testlauf mit mehreren Durchgängen: $_runningnumber, Zahl der Durchgänge: $do_once_counter"
 				sync
 				exit 1
 			fi
@@ -580,7 +638,6 @@ do
 			# 'test_execute_once' is set, exit
 			dlog "$text_marker_stop, end reached, 'test_execute_once', RET: '$RET', exit 1 "
 			tlog "end, 'test_execute_once', return from bk_disks.sh: $RET"
-			seqlog "Ende des Backup, Testlauf mit einem Durchgang: $_runningnumber"
 			sync
 			exit 1
 		fi

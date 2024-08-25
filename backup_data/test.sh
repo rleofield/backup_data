@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # file: test.sh
-# bk_version 23.12.2
+# bk_version 24.08.1
 
 
-# Copyright (C) 2017-2023 Richard Albrecht
+# Copyright (C) 2017-2024 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -21,13 +21,35 @@
 
 
 . ./cfg.working_folder
-. ./cfg.loop_time_duration
-. ./cfg.target_disk_list
 . ./cfg.projects
 . ./src_folders.sh
 
 readonly errlog="test_errors.log"
   
+# copy from src_log.sh
+
+function targetdisk {
+
+	local _disk_label=$1
+	#${a_targetdisk[${_disk_label}]}
+	# test for a variable that does contain a value 
+
+	local _targetdrive="empty"
+	if [[ $_disk_label ]]
+	then
+		_targetdrive=${a_targetdisk[${_disk_label}]}
+		if [[ $_targetdrive ]]
+		then
+			echo "$_targetdrive"
+		else
+			echo "$_disk_label"
+		fi
+	else
+		echo "empty"
+	fi
+	
+}
+
 
 
 dlognomarker(){
@@ -76,15 +98,15 @@ do
 			dlog "--- 'conf/$RSNAPSHOT_CONFIG' --- doesn't exist"
 		fi
 		
-		RSNAPSHOT_CONFIG=${lpkey}.arch
-		dlog "try with .arch:  $RSNAPSHOT_CONFIG"
+		#RSNAPSHOT_CONFIG=${lpkey}.arch
+		#dlog "try with .arch:  $RSNAPSHOT_CONFIG"
 
-		if test -f "./conf/$RSNAPSHOT_CONFIG"
-		then
-				dlog "        is arch configuration: ${RSNAPSHOT_CONFIG}"
-			else
-				dlog "        no arch configured: ${RSNAPSHOT_CONFIG}"
-		fi
+		#if test -f "./conf/$RSNAPSHOT_CONFIG"
+		#then
+		#		dlog "        is arch configuration: ${RSNAPSHOT_CONFIG}"
+		#	else
+		#		dlog "        no arch configured: ${RSNAPSHOT_CONFIG}"
+		#fi
 
 
 		dlog "check reachability"
@@ -127,4 +149,5 @@ fi
 echo "ok"
 
 
+# EOF
 

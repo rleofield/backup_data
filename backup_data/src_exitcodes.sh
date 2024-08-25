@@ -1,9 +1,9 @@
 
 # file exitcodes.sh 
-# bk_version 23.12.1
+# bk_version 24.08.1
 # included with 'source'
 
-# Copyright (C) 2017-2023 Richard Albrecht
+# Copyright (C) 2017-2024 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -114,32 +114,41 @@ readonly BK_DLOG_CC_LOGNAME_NOT_SET=17
 readonly BK_LOOP_TEST_RETURN=18
 
 
-# no folder 'rsnapshot' in working dir
-# not used
-# readonly BK_NOFOLDERRSNAPSHOT=14
 
-# normal loop, end disks loop
-readonly BK_NORMALDISKLOOPEND=99
+# associative arrays, values from 50 and more
+#            associative
+readonly BK_ASSOCIATIVE_ARRAY_EXISTS=50
+readonly BK_ASSOCIATIVE_ARRAY_NOT_EXISTS=51
+readonly BK_ASSOCIATIVE_ARRAY_IS_EMPTY=52
+readonly BK_ASSOCIATIVE_ARRAY_IS_NOT_EMPTY=53
+readonly BK_ASSOCIATIVE_ARRAY_IS_OK=$BK_SUCCESS
+
+# indexed arrays, values from 60 and more
+#           indexed
+readonly BK_INDEXED_ARRAY_EXISTS=60
+readonly BK_INDEXED_ARRAY_NOT_EXISTS=61
+readonly BK_INDEXED_ARRAY_IS_EMPTY=62
+readonly BK_INDEXED_ARRAY_IS_NOT_EMPTY=63
+readonly BK_INDEXED_ARRAY_IS_OK=$BK_SUCCESS
+
 
 
 readonly BK_FATAL=255
 
 
-# in is_stopped.sh only
-# all gt 100
+# normal loop, end disks loop
+readonly BK_NORMALDISKLOOPEND=99
 
-readonly BK_WAITING=100  # used in is_stopped
-# in is_stopped.sh and main_loop.sh
+# in is_stopped.sh only
+# values from 100 and more
+readonly BK_WAITING=100
 readonly BK_STOPPED=101
 readonly BK_EXECONCESTOPPED=102
-
-readonly BK_WAITINTERVAL=103 
+readonly BK_WAITINTERVAL=103
 readonly BK_WAITEND=104
-
-# only used is BK_RUNNING
 readonly BK_RUNNING=105
 
-# only in project.sh, at not used place
+# 
 readonly BK_ERRORINCOUNTERS=106
 
 
@@ -149,26 +158,26 @@ readonly text_marker="--- marker ---"
 readonly text_backup_stopped="backup stopped"  # used in 'check_stop' in 'bk_disks.sh'
 readonly text_stop_exit="backup exits with error"  # used 'stop_exit' in 'bk_disks.sh'
 
-# used in 'bk_disks', 522, 538, if loop is in wait interval, calls 'check_stop wait interval loop' if in interval
+# used in 'bk_disks', if loop is in wait interval, calls 'check_stop wait interval loop' if in interval
 # used in is_stopped.sh, exit $BK_WAITINTERVAL=102
 readonly text_wait_interval_reached="wait interval reached"  
 
-# used in 'bk_disks', 5508, only shirt info aboute end if interval in log, no stop
+# used in 'bk_disks', only short info about end, if interval in log, no stop
 readonly text_waittime_end="waittime end"  # used in 'bk_disks.sh', 550, after wait time loop
 
-# used in 'bk_disks.sh', 570, after end of main loop
-# used in 'is_stopped.sh', 58, exit $BK_WAITING=100 
+# used in 'bk_disks.sh', after end of main loop
+# used in 'is_stopped.sh', exit $BK_WAITING=100 
 readonly text_marker_waiting="--- waiting ---"
 
 
-# used in bk_main.sh:191:     '$do_once_counter = $bv_test_do_once_count' 
-# used in bk_main.sh:227:     dlog "$text_marker_stop, end reached, start backup again with './start_backup.sh"
-# used in bk_main.sh:237: test only,  dlog "$text_marker_stop, end reached, bv_test_execute_once "
-# used in is_stopped.sh:62:   vtest="$text_marker_stop", exit BK_STOPPED=101
+# used in bk_main.sh:     '$do_once_counter = $bv_test_do_once_count' 
+# used in bk_main.sh:     dlog "$text_marker_stop, end reached, start backup again with './start_backup.sh"
+# used in bk_main.sh:     test only,  dlog "$text_marker_stop, end reached, bv_test_execute_once "
+# used in is_stopped.sh:  vtest="$text_marker_stop", exit BK_STOPPED=101
 readonly text_marker_stop="--- stopped ---"
 
 
-# used ins bk_main, 216, after $bv_internalerrors length is not 0, shows internal errors (rsync, rsnapshot)
+# used ins bk_main, after $bv_internalerrors length is not 0, shows internal errors (rsync, rsnapshot)
 # used in is_stopped.sh   exit BK_FATAL=255
 readonly text_marker_error="--- end, error     ---"
 readonly text_marker_error_in_waiting="--- waiting, error ---"

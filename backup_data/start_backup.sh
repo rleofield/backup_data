@@ -1,9 +1,10 @@
 #!/bin/bash
 
 # file: start_backup.sh
-# bk_version 24.03.1
+# bk_version 24.08.2
 
-# Copyright (C) 2017-2023 Richard Albrecht
+
+# Copyright (C) 2017-2024 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -27,6 +28,10 @@
 #					./bk_rsnapshot.sh,  do rsnapshot
 
 
+
+readonly bv_version="24.08.1"
+
+
 readonly lv_lockfilename="main_lock"
 
 readonly callfilename=$(basename "$0")
@@ -40,14 +45,6 @@ then
         exit
 fi
 
-
-# gawk is used in
-#	get_loopcounter()
-if [ ! -f  /usr/bin/gawk ]
-then
-	echo "gawk not found"
-	exit 1
-fi
 
 # STARTFOLDER is set from: /etc/rlf_backup_data.rc, 
 #   if exists ok, otherwise exits
@@ -89,7 +86,7 @@ then
 	exit 1
 fi
 
-echo "'$STARTFOLDER' exists, change" 
+echo "working folder '$STARTFOLDER' exists, if terminal stands not there, change" 
 #echo "all backupfolders have chmod 700 and owned by root, this prevents from deleting, with user rights"
 
 cd $STARTFOLDER 
@@ -97,15 +94,17 @@ cd $STARTFOLDER
 #  start 'bk_main.sh' in background and returns
 #   if 'bk_main.sh' is running, display a message and exit
 # check, if already running, look for process 'bk_main.sh'
-echo "check, if 'bk_main.sh' is running"
-echo "ps aux | grep bk_main.sh | grep -v grep | grep -v vim | wc -l "
+echo "check, if 'backup' is running"
+#echo "check, if 'bk_main.sh' is running"
+#echo "ps aux | grep bk_main.sh | grep -v grep | grep -v vim | wc -l "
 wc=$( ps aux | grep bk_main.sh | grep -v grep | grep -v vim | wc -l )
-echo "nr of lines with 'bk_main': $wc"
+#echo "nr of lines with 'bk_main': $wc"
 if [ $wc -gt 0  ]
 then
-	echo "count of 'bk_main.sh' in 'ps aux' is > 0 : $wc"	
 	echo "Backup is running, exit"
+	echo " ----- count of 'bk_main.sh' in 'ps aux' is > 0, count: $wc"	
 	echo "==  end  == "
+	echo "Backup is running, exit"
 	exit 1
 fi
 
@@ -115,40 +114,42 @@ if [ -f $lv_lockfilename ]
 then
 	if test $wc -eq 0 
 	then
-		echo "backup is running, '$lv_lockfilename' exists"
-		echo "old backup wasn't stopped before rebooting "
-		echo "try  'ps aux |  grep -v grep | grep bk_main'"
-		echo "if result is empty, remove '$lv_lockfilename' and try again with './start_backup.sh'"
+		echo "backup seemed to be running, lock file '$lv_lockfilename' exists"
+		echo " ----- old backup wasn't stopped before rebooting "
+		echo " -----  look at the processlist with: 'ps aux |  grep -v grep | grep bk_main'"
+		echo " -----  if result is empty, then backup is not running"
+		echo " -----  remove '$lv_lockfilename'  manually"
+		echo " ----- and then try start backup again with './start_backup.sh'"
 		echo "exit 1"
 		exit 1
 	fi
 fi
 
 
-
-
-
-
-echo "Backup is not running, start in '$STARTFOLDER'"
-echo "write WORKINGFOLDER, set in '/etc/rlf_backup_data_rc', to file 'cfg.working_folder'" 
+echo "backup is not running, start in workingfolder '$STARTFOLDER'"
+echo "write 'WORKINGFOLDER', set in '/etc/$rlf_backup_data_rc', to file 'cfg.working_folder'" 
 
 # create file 'cfg.working_folder'
-echo "write new file 'cfg.working_folder'"
-echo "# BK_WORKINGFOLDER from /etc/rlf_backup_data_rc" > cfg.working_folder
-echo "# bk version 23.12.1" >> cfg.working_folder
+#echo "write new file 'cfg.working_folder'"
+echo "# BK_WORKINGFOLDER from /etc/$rlf_backup_data_rc" > cfg.working_folder
+echo "# bk version $bv_version" >> cfg.working_folder
 echo "bv_workingfolder=\"$STARTFOLDER\"" >> cfg.working_folder
+echo "# EOF" >> cfg.working_folder
+chmod 755 cfg.working_folder
 #echo "export WORKINGFOLDER" >> cfg.working_folder
 
 echo ""
 echo "working folder is: '$(pwd)'"
-echo "start command: nohup ./bk_main.sh 'manual' > out_bk_main"
+echo " ----- start command: nohup ./bk_main.sh 'manual' > out_bk_main"
 nohup ./bk_main.sh "manual" > out_bk_main &
 
 
 # wait for sync
 sync
 sleep 0.5
-echo "'bk_main.sh' started"
+echo " ----- "
+echo "backup is started in backgrund, terminal can now be closed"
+echo " ----- "
 
 
 exit 0

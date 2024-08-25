@@ -3,9 +3,9 @@
 
 # file: show_last_folder.sh
 
-# bk_version 23.12.1
+# bk_version 24.08.1
 
-# Copyright (C) 2017-2023 Richard Albrecht
+# Copyright (C) 2017-2024 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -23,15 +23,14 @@
 IFS="$(printf '\n\t')"
 
 . ./cfg.working_folder
-. ./cfg.target_disk_list
 . ./cfg.projects
 
 . ./src_exitcodes.sh
 . ./src_filenames.sh
 
 
-cd $bv_workingfolder
-if [ ! -d $bv_workingfolder ] && [ ! $( pwd ) = $bv_workingfolder ]
+cd $bv_workingfolder || exit
+if [ ! -d $bv_workingfolder ] && [ ! "$( pwd )" = $bv_workingfolder ]
 then
 	echo "WD '$bv_workingfolder'"
 	echo "WD is wrong"
@@ -39,63 +38,69 @@ then
 fi
 
 # set disk label
-DISKLABEL="label"
+DISKLABEL=$1
+
+if [ ! "$DISKLABEL" ]
+then
+	echo "no disklabel given"
+	echo "usage: show_last_folder.sh label project"
+	exit 1
+fi
 
 # set projekt
-PROJECT="project"
+PROJECT=$2
+if [ ! "$PROJECT" ]
+then
+	echo "no project for disklabel '$DISKLABEL'  given"
+	echo "usage: show_last_folder.sh label project"
+	exit 1
+fi
 
+
+
+# shellcheck disable=SC2116
 PROJECT_LABEL=$( echo "${DISKLABEL}_${PROJECT}" )
 
-if [ -f conf/${PROJECT_LABEL}.conf ]
+if [ -f conf/"${PROJECT_LABEL}".conf ]
 then
-	echo "ok, conf/${PROJECT_LABEL}.conf exists"
+	echo "conf/${PROJECT_LABEL}.conf exists"
 else
-	echo "conf/${PROJECT_LABEL}.conf not found, please edit DISKLABEL and PROJECT in this file"
+	echo "conf/${PROJECT_LABEL}.conf not found, please correct DISKLABEL and PROJECT "
 	exit 1
 	
 fi
 
 #array=($(ls -d */))
-retains=($(grep retain conf/${PROJECT_LABEL}.conf | awk '{ print $2 }'))
-numbers=($(grep retain conf/${PROJECT_LABEL}.conf | awk '{ print $3 }'))
-
-#echo "${#retains[@]}"
-#echo "${#numbers[@]}"
-#echo "${!numbers[@]}"
-#echo "dd"
+# retain   eins 6
+#          2    3
+retains=($(grep retain conf/"${PROJECT_LABEL}".conf | awk '{ print $2 }'))
+numbers=($(grep retain conf/"${PROJECT_LABEL}".conf | awk '{ print $3 }'))
 
 
-echo "${retains[*]}"
-echo "${numbers[*]}"
+sroot=$( grep snapshot_root  conf/"${PROJECT_LABEL}".conf | awk '{print $2}' )
+echo "disk base folder: $sroot"
+disk=$( echo "$sroot" | cut -d'/' -f3 )
+echo "disk $disk"
+
 count=${#retains[@]}
 ((count--))
-
-#echo "nr retains : $count"
 
 first=""
 while [ $count -ge 0 ]
 do
 	retainvalue=${retains[count]}
+
 	i=${numbers[count]}
 	((i--))
 	ok=0
 	while [ $i -ge  0 ]
 	do
-#		echo "i: $i "
-		p=$( echo "/mnt/${DISKLABEL}/rs/${PROJECT}/${retainvalue}.$i")
+		p="${sroot}${retainvalue}.$i"
 		if [ -d "$p" ]
 		then
-			d0=$( ls -1F $p | grep '/' | cut -d '/' -f 1 )
-			for _d in $d0
-			do
-				_dd=$p/$_d
-				if [ -d "$_dd" ]
-				then
-					echo "exists:      $_dd"
-				fi
-			done
+			echo "exists:         $p"
 		else
-			echo                 "doesn't exist:  $p"
+			echo "doesn't exist:  $p"
 		fi
 		((i--))
 	done

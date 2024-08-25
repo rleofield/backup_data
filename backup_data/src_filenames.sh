@@ -1,10 +1,10 @@
 # file: scr_filenames.sh
-# bk_version 23.12.1
+# bk_version 24.08.1
 # included with 'source'
 
 
 
-# Copyright (C) 2017-2023 Richard Albrecht
+# Copyright (C) 2017-2024 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -30,6 +30,7 @@ readonly bv_internalerrors="errors.txt"
 
 
 readonly bv_notifyfileprefix="Backup-HD"
+readonly bv_createdatfileprefix="created_at_"
 
 
 
@@ -38,6 +39,17 @@ readonly bv_executedprojectsfile="tempfile_executedprojects.txt"
 
 # in cron_start_backup.sh
 # in bk_main
+
+# arrays in cfg.projects
+readonly bk_arr_properties="a_properties"
+readonly bk_arr_projects="a_projects"
+readonly bk_arr_interval="a_interval"
+readonly bk_arr_targetdisk="a_targetdisk"
+readonly bk_arr_waittime="a_waittime"
+#readonly bk_arr_test="a_test"
+#readonly bk_arr_cfglist="$bk_arr_properties $bk_arr_projects $bk_arr_interval $bk_arr_targetdisk $bk_arr_waittime $bk_arr_test"
+readonly bk_arr_cfglist="$bk_arr_properties $bk_arr_projects $bk_arr_interval $bk_arr_targetdisk $bk_arr_waittime"
+
 
 
 # EOF

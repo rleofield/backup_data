@@ -3,9 +3,9 @@
 
 # file: show_disks.sh
 
-# bk_version 23.12.1
+# bk_version 24.08.1
 
-# Copyright (C) 2017-2023 Richard Albrecht
+# Copyright (C) 2017-2024 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -23,7 +23,6 @@
 
 
 . ./cfg.working_folder
-. ./cfg.target_disk_list
 . ./cfg.projects
 
 . ./src_exitcodes.sh
@@ -33,15 +32,30 @@
 SHOW_DISKS_LOGFILE="list_disks_log.log"
 lv_cc_logname="show_disks"
 
+#bv_disklist is from cfg.projects
 readonly bv_disklist=$DISKLIST
 
 
-#bv_disklist is from cfg.target_disk_list
+
+# copy from src_log.sh
+function targetdisk {
+	local _disk_label=$1
+	local _targetdrive=${a_targetdisk[${_disk_label}]}
+	# test for a variable that does contain a value  
+	if [[ $_targetdrive ]]
+	then
+		echo "$_targetdrive"
+	else
+		echo "$_disk_label"
+	fi
+}
+
+
 
 function log {
    local msg=$1
    #echo -e "$msg" >> $SHOW_DISKS_LOGFILE
-   echo -e "$msg" 
+   echo -e "$msg"    
 }
 
 
@@ -55,13 +69,6 @@ function sddatelog {
         log "${_TODAY} -> ${lv_cc_logname}: $1"
 }
 
-function errorlog {
-        local _TODAY=`date +%Y%m%d-%H%M`
-	msg=$( echo "$_TODAY err ==> '$1'" )
-	echo -e "$msg" >> $bv_errorlog
-}
-
-
 
 cd $bv_workingfolder
 if [ ! -d $bv_workingfolder ] && [ ! $( pwd ) = $bv_workingfolder ]
@@ -74,18 +81,13 @@ fi
 
 
 function check_disk_label {
-	#pwd
-
         local _LABEL=$1
-
         # 0 = success
         # 1 = error
-        local goodlink=1
+	local _targetdisk=$( targetdisk $_LABEL )
 
-        #echo "local uuid=$( cat uuid.txt | grep -w $_LABEL | awk '{print $2}' )"
-        local uuid=$( cat "uuid.txt" | grep -w $_LABEL | awk '{print $2}' )
+        local uuid=$( cat "uuid.txt" | grep -w $_targetdisk | awk '{print $2}' )
 #	local uuid=$( gawk -v pattern="$_LABEL" '$1 ~ pattern  {print $NF}' uuid.txt )
-	#sddatelog "/dev/disk/by-uuid/$uuid"
         local disklink="/dev/disk/by-uuid/$uuid"
         # test, if symbolic link
         if test -L ${disklink} 
@@ -105,7 +107,9 @@ do
         LABEL=$_disk
         check_disk_label $_disk
         goodlink=$?
-        RET="disk: '$LABEL' "
+	_targetdisk=$( targetdisk $LABEL )
+
+        RET="disk: '$_targetdisk' "
         if [ $goodlink -ne 0 ]
         then
 		

@@ -1,10 +1,9 @@
 # file: src_log.sh
-# bk_version 23.12.1
+# bk_version 24.08.2
 # included with 'source'
 
-#set -o nounset                              # Treat unset variables as an error
 
-# Copyright (C) 2017-2023 Richard Albrecht
+# Copyright (C) 2017-2024 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -31,12 +30,16 @@
 # bk_rsnapshot.sh:39:readonly lv_tracelogname="rsnapshot"
 
 
-# ./bk_main.sh·
+
+# ./bk_main.sh  
 #	./bk_disks.sh, all disks
 #		./bk_loop.sh.   all projects in disk
 #			./bk_project.sh, one project with 1-n folder trees
 #				./bk_rsnapshot.sh,  do rsnapshot
 #				./bk_archive, no snapshot, rsync only, files accumulated
+
+
+
 
 # standard date time format
 # https://www.w3schools.com/XML/schema_dtypes_date.asp
@@ -44,14 +47,16 @@
 # Time Data Type = hh:mm:ss
 # Date Data Type = YYYY-MM-DD
 
+# default old date: used, if no value in folder 'done' ist set
+readonly lv_max_last_date="$max_last_date"
 
-readonly bv_errorlog="cc_error.log"
+
+# cat cc_log.log | grep -e  "retain" | grep -w retain| grep -e eins -e zwei -e drei -e vier
+
+#readonly bv_errorlog="cc_error.log"
 readonly bv_logfile="cc_log.log"
 readonly bv_tracefile="trace.log"
 
-# if empty, no log is written
-#readonly bv_sequencefile="programmablauf.log"
-readonly bv_sequencefile=""
 
 # == daily_rotate ==
 # default = 1,  =  rotate logs
@@ -120,84 +125,65 @@ function tlog() {
 	fi
 
 	local _TODAY=$( currentdate_for_log )
-	local _msg="$_TODAY ${space} ${tracelogname}--» $1"
+	local _msg="$_TODAY ${space} ${tracelogname}--   $1"
 	echo -e "$_msg" >> $bv_tracefile
 	return 0
 }
 
-# not ready
-function seqlog() {
 
-	local tracelogname=$lv_tracelogname
-	if [  -z ${tracelogname} ]
-	then 
-		echo "${tracelogname} is empty in trace"
-		tracelogname="not set"
-		# exit
-	fi
-
-	if [  -z ${bv_sequencefile} ]
-	then
-		# echo "sequencefilename is empty "
-		# can be not existent, return 0
-		return 0
-	fi
-
-	# calulate leading spaces for log of lv_tracelogname
-	space=""
-	if test $tracelogname = "main" 
-	then
-		space=" "
-	fi
-	if test $tracelogname = "disks" 
-	then
-		space="  "
-	fi
-	if test $tracelogname = "loop" 
-	then
-		space="    "
-	fi
-	if test $tracelogname = "project" 
-	then
-		space="      "
-	fi
-	if test $tracelogname = "archive" 
-	then
-		space="        "
-	fi
-	if test $tracelogname = "rsnapshot" 
-	then
-		space="        "
-	fi
-
-	local _TODAY=$( currentdate_for_log )
-	local _msg="$_TODAY ${space} ${tracelogname}--» $1"
-	echo -e "$_msg" >> $bv_sequencefile
-	return 0
+# AAAA used to log test of arrays
+# if not empty, dlog is ignored
+arraytestmarkerlog="AAAA"
+#arraytestmarkerlog=""
+function arraytestlog {
+	dlog "$arraytestmarkerlog $1"
 }
 
-
-
-
-function errorlog {
-	local _TODAY=$( currentdate_for_log )
-	msg=$( echo "$_TODAY err ==> '$1'" )
-	echo -e "$msg" >> $bv_errorlog
+# DDDD used to log use of scripts, at main, at start/end disks, start/end project
+# if not empty, dlog is ignored
+startendtestmarkerlog="DDDD"
+#startendtestmarkerlog=""
+function startendtestlog {
+	dlog "$startendtestmarkerlog $1"
+}
+# XXXX used to temporary usage if dlog,
+# if not empty, dlog is ignored
+temptestmarkerlog="XXXX"
+#temptestmarkerlog=""
+function temptestlog {
+	dlog "$temptestmarkerlog $1"
 }
 
 # param = message
 # insert lv_cc_logname 
 # lv_cc_logname is set in local file, not here
 function dlog {
+
+	local msg=$1
+	local oldifs=$IFS
+	local prefixlist="$temptestmarkerlog $startendtestmarkerlog $arraytestmarkerlog"
+	IFS=$' \t\n'
+	# XXXX used to temporary usage if dlog,
+	# DDDD used to log use of scripts, at main, at start/end disks, start/end project
+	# AAAA used to log test of arrays
+	for _pre in $prefixlist
+	do
+		if [[ $msg == "$_pre"* ]]
+		then
+			return 0;
+		fi
+	done
+	IFS=$oldifs
 	local cc_logname=$lv_cc_logname
 	if test  -z "$cc_logname"
 	then 
-		cc_logname="not set"
+		cc_logname="log"
 	fi
-	local _msg="${cc_logname}:  $1"
+	local _msg="${cc_logname}:  $msg"
 	local _TODAY=$( currentdate_for_log )
-	local msg2="$_TODAY --» $_msg"
-	echo -e "$msg2" >> $bv_logfile
+	local msg2="$_TODAY --   $_msg"
+	echo -e "$msg2" >> $bv_workingfolder/$bv_logfile
+	
 }
 
 
@@ -208,7 +194,12 @@ function get_loopcounter {
 	if test -f "loop_counter.log"  
 	then
 		#ret=$(cat loop_counter.log |  awk  'END {print}' | cut -d ':' -f 2 |  sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-		ret=$( gawk -F":" '{gsub(/ */,"",$2); print $2}' loop_counter.log )
+		wc=$( cat  loop_counter.log | wc -l )
+		if [ $wc -eq 1 ]
+		then
+			#ret=$( gawk -F ":" '{gsub(/ */,"",$2); print $2}' loop_counter.log )
+			ret=$( tail  -n1 loop_counter.log | cut -d' ' -f3 )
+		fi	
 	fi
 	echo $ret
 }
@@ -237,11 +228,316 @@ function increment_loop_counter(){
 	then
 		_counter=0
 	fi
+	# write back to 'loop_counter.log'
 	echo "loop counter: $_counter" > loop_counter.log
 
 }
 
 
+
+function is_associative_array {
+	local  nn=$1
+	#arraytestlog "nn: $nn"
+	local retv=$BK_ASSOCIATIVE_ARRAY_NOT_EXISTS
+	local associative_array_pattern="declare -A"
+
+	dc=$( declare -p $nn )
+	arraytestlog "declare command: $dc"
+
+	if [[ "$(declare -p $nn 2>/dev/null)" == ${associative_array_pattern}* ]]
+	then
+		arraytestlog "array '$nn' exists and is associative array"
+		empty_array_pattern="${associative_array_pattern} $nn=()"
+		#wc=$(declare -p $name) | wc -l
+		# 1 bei arr
+		if [[ "$(declare -p $nn 2>/dev/null)" == ${empty_array_pattern}* ]]
+		then
+			arraytestlog "array '$nn' is empty"
+			retv=$BK_ASSOCIATIVE_ARRAY_IS_EMPTY
+		fi
+		if test $retv -ne 0
+		then
+			# declare -A a_waittim=([cdisk_dserver]="10-10" )
+			not_empty_array_pattern="${associative_array_pattern} $nn=(["
+			if [[ "$(declare -p $nn 2>/dev/null)" == ${not_empty_array_pattern}* ]]
+			then
+				arraytestlog "array '$nn' is not empty"
+				retv=$BK_ASSOCIATIVE_ARRAY_IS_NOT_EMPTY
+			fi
+		fi
+	else
+		arraytestlog "array '$nn' is not an associative array"
+	fi
+	return $retv
+}
+
+function is_associative_array_ok {
+	local nn=$1
+	is_associative_array "$nn"
+	ret=$?
+	if [ $ret -eq $BK_ASSOCIATIVE_ARRAY_IS_EMPTY ] || [ $ret -eq $BK_ASSOCIATIVE_ARRAY_IS_NOT_EMPTY ]
+	then
+		return $BK_ASSOCIATIVE_ARRAY_IS_OK
+	fi
+	return $ret
+}
+
+
+function associative_array_has_value {
+	local -n name=$1
+	#declare -p name 2>/dev/null
+	local key=$2
+	#arraytestlog "has value array check start '$key'"
+	local keys=(${!name[@]})
+	#arraytestlog "has value array  check inside key '$key'"
+	#local kis=1
+	for k in ${keys[@]}
+	do
+		if [ $k = $key ]
+		then
+			arraytestlog "has key '$k'"
+			return 0
+		fi
+	done
+	arraytestlog "key '$key' not found"
+	return 1
+}
+
+
+function is_indexed_array {
+	local name=$1
+	local retv=$BK_INDEXED_ARRAY_NOT_EXISTS
+	local indexed_array_pattern="declare -a"
+	if !  [[ "$(declare -p $name 2>/dev/null)" == ${indexed_array_pattern}* ]] 
+	then 
+		arraytestlog "array '$name' is not an indexed array"
+		return $BK_INDEXED_ARRAY_NOT_EXISTS
+	fi
+		
+	arraytestlog "array '$name' exists and is indexed array"
+	empty_array_pattern="${indexed_array_pattern} $name=()"
+	#wc=$(declare -p $name) | wc -l
+	if [[ "$(declare -p $name 2>/dev/null)" == ${empty_array_pattern}* ]] 
+	then
+		arraytestlog "array '$name' is empty"
+		return $BK_INDEXED_ARRAY_IS_EMPTY
+	fi
+	# declare -a a_wait=([0]="abc," [1]="def")
+	not_empty_array_pattern="${indexed_array_pattern} $name=(["
+	if [[ "$(declare -p $name 2>/dev/null)" == ${not_empty_array_pattern}* ]]   
+	then
+		arraytestlog "array '$name' is not empty"
+		arraytestlog "33333 array '$name' is not empty"
+		return $BK_INDEXED_ARRAY_IS_NOT_EMPTY
+	fi
+	return $retv
+}
+
+
+
+function targetdisk {
+	local _disk_label=$1
+	arraytestlog " in targetdisk  '$_disk_label'"
+
+	# test for a variable that does contain a value 
+	local _targetdrive="empty"
+	local _array="a_targetdisk"
+	local retval="empty"
+	if ! [[ $_disk_label ]]
+	then
+		arraytestlog "label is empty"
+		echo $retval
+		return 1
+	fi
+	retval=$_disk_label
+	is_associative_array_ok "a_targetdisk"
+	RET=$?
+	arraytestlog "RET $RET"
+	if test $RET -gt 0 
+	then
+		arraytestlog "array '$_array' is empty, use normal disklabel '$_disk_label'"
+		echo $retval
+		return 0
+	fi
+
+	arraytestlog "targetdisk array '$_array' check key, if inside, key '$_disk_label'"
+	associative_array_has_value "a_targetdisk" "$_disk_label"
+	RET=$?
+	if test $RET -gt 0 
+	then
+		arraytestlog "targetdisk array '$_array': disklabel not found '$retval'"
+		retval=$_disk_label
+		echo $retval
+		return 0
+	fi
+
+	retval=${a_targetdisk[${_disk_label}]}
+	arraytestlog "targetdisk array '$_array' is not empty, found disklabel '$retval'"
+	
+	echo $retval
+	return 0
+}
+
+function check_arrays {
+	local aok=0
+	for _arr in $bk_arr_cfglist
+	do
+#		dlog "checked array: '$_arr'"
+		is_associative_array $_arr
+		RET=$?
+#		dlog "checked array ret: '$RET'"
+		if [ $RET -ne 0 ]
+		then
+			if [ $RET -eq $BK_ASSOCIATIVE_ARRAY_NOT_EXISTS ]
+			then
+				dlog "array '$_arr' in 'cfg.projects' doesn't exist"
+				dlog "add array entry in 'cfg.projects'"
+				dlog "'declare -A $_arr'"
+				dlog "'$_arr=()'"
+				dlog "------"
+				aok=1
+			fi
+			if [ $RET -eq $BK_ASSOCIATIVE_ARRAY_IS_EMPTY ]
+			then
+				dlog "array '$_arr' in 'cfg.projects' is empty"
+			fi
+			if [ $RET -eq $BK_ASSOCIATIVE_ARRAY_IS_NOT_EMPTY ]
+			then
+				dlog "array '$_arr' in 'cfg.projects' is not empty"
+			fi
+		fi
+	done
+	return $aok
+}
+
+
+function get_waittimestart() {
+	local _waittimeinterval=$1
+	local _oldifs=$IFS
+	local _start="09"
+	IFS='-'
+	# split to array with ()
+	local waittimearray=($_waittimeinterval)
+	IFS=$_oldifs
+	# read configured values from cfg.waittimeinterval
+	# must be 2 values
+	if [ ${#waittimearray[@]} = 2 ]
+	then
+		_start=${waittimearray[0]}
+	fi
+	echo $_start
+}
+
+function get_waittimeend() {
+	local _waittimeinterval=$1
+	local _oldifs=$IFS
+	local _end="09"
+	IFS='-'
+	# split to array with ()
+	local waittimearray=($_waittimeinterval)
+	IFS=$_oldifs
+	# read configured values from cfg.waittimeinterval
+	# must be 2 values
+	if [ ${#waittimearray[@]} = 2 ]
+	then
+		_end=${waittimearray[1]}
+	fi
+	echo $_end
+}
+
+
+function encode_diff_to_string {
+
+        # testday is in minutes
+        local testday=$1
+        local ret=""
+        local is_negative=1 # = "false"
+
+        if test $testday -lt "0"
+        then
+                testday=$(( testday * (-1) ))
+                is_negative=0     # = "true"
+        fi
+
+        # all in minutes
+        local hour=60
+        local day=$(( hour * 24 ))
+        local days=$(( testday/day  ))
+
+        local remainder=$(( testday - days*day   ))
+        local hours=$(( remainder/hour   ))
+        local minutes=$(( remainder - hours*hour  ))
+
+        if test $days -eq "0"
+        then
+                if test $hours -eq "0"
+                then
+                        ret=$( printf "%02d"  $minutes )
+                else
+                        ret=$( printf "%02d:%02d"  $hours $minutes )
+                fi
+        else
+                ret=$( printf "%02d:%02d:%02d"  $days $hours $minutes )
+        fi
+
+        # add minus sign, if negative 
+        if test $is_negative -eq "0" # = "true" 
+        then
+                ret="-$ret"
+        fi
+        local _encoded_diff_var="$ret"
+        echo "$_encoded_diff_var"
+
+}
+
+function encode_diff_unit {
+
+        # testday is in minutes
+        local testday=$1
+        local ret=""
+
+        local hour=60
+        local day=$(( hour * 24 ))
+
+        local days=$(( testday/day  ))
+        local remainder=$(( testday - days*day   ))
+        local hours=$(( remainder/hour   ))
+        local minutes=$(( remainder - hours*hour  ))
+
+        if test $days -eq "0"
+        then
+                if test $hours -eq 0
+                then
+                        ret="minutes"
+                else
+                        ret="hours"
+                fi
+        else
+                ret="days"
+        fi
+
+        local _state="$ret"
+        echo "$_state"
+}
+
+# script file test
+# -e     True if exists.
+# -f     True, if exists and is a regular file.
+# -r     True, if exists and is readable.
+# -x     True, if exists and is executable.
+# -s     True, if exists and has size bigger than 0 (not empty).
+# -n    string is not null 
+function test_script_file {
+	local name=$1
+#	   exists            not null          size > 0           is file           readable         executable
+	[ -e "$name" ] &&  [ -n "$name" ] && [ -s "$name" ] && [ -f "$name" ] && [ -r "$name" ] && [ -x "$name" ]
+}
+
+function test_normal_file {
+	local name=$1
+#	   exists            not null          size > 0           is file           readable
+	[ -e "$name" ] &&  [ -n "$name" ] && [ -s "$name" ] && [ -f "$name" ] && [ -r "$name" ] 
+}
 
 # EOF
 

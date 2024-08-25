@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # file: bk_archive.sh
-# bk_version 23.12.1
+# bk_version 24.08.1
 
 
-# Copyright (C) 2017-2023 Richard Albrecht
+# Copyright (C) 2017-2024 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -29,9 +29,6 @@
 #				./bk_archive.sh,    no history, rsync only,  <- this file
 
 
-# set -u, which will exit your script if you try to use an uninitialised variable.
-# set -u
-#set -e
 
 # prefixes of variables in backup:
 # bv_*  - global vars, alle files
@@ -43,10 +40,12 @@
 . ./cfg.working_folder
 
 . ./src_exitcodes.sh
-. ./src_global_strings.sh
 . ./src_folders.sh
 . ./src_log.sh
 
+
+# set -u, which will exit your script if you try to use an uninitialised variable.
+set -u
 
 # exitvalues
 # exit $BK_RSYNCFAILS  - one of the the backup lines fails
@@ -73,7 +72,7 @@ function write_rsync_command_log() {
 # $2 = $PROJECT)
 # par1 = label of backup-disk
 readonly lv_disklabel=$1
-# par2 = name of the project·
+# par2 = name of the project  
 readonly lv_project=$2
 
 readonly lv_lpkey=${lv_disklabel}_${lv_project}
@@ -111,7 +110,7 @@ readonly lv_workingfolder=$bv_workingfolder
 # archive_root /mnt/fluks/rs/ls5eth/
 # rsync_command_log	aa_fluks_ls5.log
 # rsync_log		rr_fluks_ls5.log
-# rsync_args		-av --numeric-ids --relative·
+# rsync_args		-av --numeric-ids --relative  
 # ssh_args		-p 22
 # exclude_file		fluks_ls5
 # backup	 		rleo@ls5eth:/media/rleo/ls5ssd/bilder  	.
@@ -153,6 +152,7 @@ write_rsync_command_log "-- $lv_logdate, start -- "
 write_rsync_command_log "-- $lv_logdate, start backup from './${lv_archiveconfigname}' -- " 
 
 
+
 readonly list_of_backuplines=$(  cat ./${lv_archiveconfigname} | grep -w ^backup )
 oldifs=$IFS
 IFS='
@@ -166,6 +166,7 @@ dlog "# number of backup entries  in './${lv_archiveconfigname}' : ${#backupline
 lineounter=0
 RET=0
 _ok=0
+
 
 
 for _line in "${backuplinesarray[@]}"
@@ -248,7 +249,7 @@ exit 0
 #       1      Syntax or usage error
 #       2      Protocol incompatibility
 #       3      Errors selecting input/output files, dirs
-#       4      Requested  action not supported: an attempt was made to manipulate 64-bit files on a platform·
+#       4      Requested  action not supported: an attempt was made to manipulate 64-bit files on a platform  
 #              that cannot support them; or an option was specified that is supported by the client and not by the server.
 #       5      Error starting client-server protocol
 #       6      Daemon unable to append to log-file
