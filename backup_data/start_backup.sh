@@ -36,6 +36,7 @@ readonly lv_lockfilename="main_lock"
 
 readonly callfilename=$(basename "$0")
 echo "start of: $callfilename"
+echo "version: '$bv_version'"
 
 echo ""
 

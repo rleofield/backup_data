@@ -167,10 +167,11 @@ function is_number(){
         # remove all numbers from _input
         #       ${_input//[0-9]/}
         #
-        # if length is zero, the it was a number
+        # if length is zero, then it was a number
         # -n = nicht length 0
         local _var=${_input//[0-9]/}
         if [[ ! -n ${_var} ]]
+
         then
                 # is number
                 return 0

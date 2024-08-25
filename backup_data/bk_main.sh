@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_main.sh
-# bk_version 24.08.2
+# bk_version 24.10.2
 
 # Copyright (C) 2017-2024 Richard Albrecht
 # www.rleofield.de
@@ -130,8 +130,13 @@ function start_message {
 
 
 function check_if_already_running {
-	temptestlog "pgrep -u $USER   bk_main.sh "
-	pidcount=$(  pgrep -u $USER   "bk_main.sh" | wc -l )
+	#env > env_start.txt
+	local u="root"
+	temptestlog "pidcount=pgrep -u $u   bk_main.sh"
+	dlog " user: $u"
+	#dlog "user: $USER"
+	local pidcount=$(  pgrep -u "$u"   "bk_main.sh" | wc -l )
+	dlog " pidcount: $pidcount"
 	# pid appears twice, because of the subprocess finding the pid
 	if [ $pidcount -lt 3 ]
 	then
@@ -154,14 +159,22 @@ function check_main_lock {
 	if [ $_call_source = "cron" ]
 	then
 		# call_source = "cron"
-		# if main_lock exists, remonve 'main_lock' and starts
-		dlog "check '$lv_lockfilename' for 'cron_start_backup'"
+		# if main_lock exists, remove 'main_lock' and starts
+		dlog "   check '$lv_lockfilename' for 'cron_start_backup'"
 		if [ -f "$lv_lockfilename" ]
 		then
-			dlog " '$lv_lockfilename' exists, remove and continue"
-			dlog "rm $lv_lockfilename"
+			dlog "  '$lv_lockfilename' exists, remove and continue"
+			dlog "  rm '$lv_lockfilename'"
 			rm $lv_lockfilename
-			dlog "$lv_lockfilename removed"
+			dlog "  '$lv_lockfilename' removed"
+		fi
+		dlog "   check 'stop' for 'cron_start_backup'"
+		if [ -f "stop" ]
+		then
+			dlog "  'stop' exists, remove and continue"
+			dlog "  rm stop"
+			rm stop
+			dlog "  'stop' removed"
 		fi
 	else
 		# call_source = "manual"
@@ -169,10 +182,10 @@ function check_main_lock {
 		#dlog "check '$lv_lockfilename' for 'start_backup'"
 		if [ -f $lv_lockfilename ]
 		then
-			echo "backup is running, $lv_lockfilename exists"
-			dlog "backup is running, $lv_lockfilename exists, exit 1"
-			echo "exit 1"
-			dlog "exit 1"
+			echo "   backup is running, '$lv_lockfilename' exists"
+			dlog "   backup is running, '$lv_lockfilename' exists, exit 1"
+			echo "   exit 1"
+			dlog "   exit 1"
 			exit 1
 		fi
 	fi
@@ -327,8 +340,6 @@ function check_ssh_configuration2(){
 	return 0
 }
 
-
-
 function rotate_logs(){
 	# date in year month day
 	local _date=$(date +%Y-%m-%d)
@@ -471,12 +482,9 @@ do
 
 	tlog "counter $_runningnumber"
 	dlog " ===== start main loop ($_runningnumber) =====" 
-	dlog " ===   version $bv_version   ==="
-	dlog ""
-
+	dlog " ===   version: $bv_version   ==="
 	_hostname="$(hostname)"
-	dlog "  hostname: $_hostname"
-
+	dlog " ===   hostname: $_hostname   ==="
 
 	# rotate log
 	rotate_logs
@@ -489,7 +497,7 @@ do
 	# in conf folder
 	# shell script, executed at start of disk
 	main_start="$bv_conffolder/main_begin.sh"
- 	if  test_script_file "$main_start"
+	if  test_script_file "$main_start"
 	then
 		dlog "'$main_start' found"
 		dlog "execute: '$main_start'"
@@ -511,7 +519,6 @@ do
 	# exit $BK_EXECONCESTOPPED - test 'exec once' stopped
 	# exit $BK_NORMALDISKLOOPEND  - 99, normal end
 	# exit $BK_STOPPED -   normal stop, file 'stop' detected
-
 
 	# in conf folder
 	# shell script, executed at end of main

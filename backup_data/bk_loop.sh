@@ -2,7 +2,7 @@
 
 
 # file: bk_loop.sh
-# bk_version 24.08.1
+# bk_version 24.10.2
 
 # Copyright (C) 2017-2024 Richard Albrecht
 # www.rleofield.de
@@ -632,10 +632,14 @@ uuid=$( get_disk_uuid )
 
 if [[ $goodlink -eq 0 ]]
 then
-	dlog "-- UUID check: disk '$lv_label_name' with UUID '$uuid' found in /dev/disk/by-uuid" 
+	dlog "-- UUID check: disk '$lv_label_name' " 
+	dlog "--             with UUID '$uuid'" 
+	dlog "--             found in /dev/disk/by-uuid" 
 	tlog "disk '$lv_label_name' with UUID '$uuid' found" 
 else
-	dlog "-- UUID check: disk '$lv_label_name' with UUID '$uuid' not found in /dev/disk/by-uuid," 
+	dlog "-- UUID check: disk '$lv_label_name'" 
+	dlog "--             with UUID '$uuid'" 
+	dlog "--             not found in /dev/disk/by-uuid" 
 #	dlog "  check array 'a_targetdisk' in 'cfg.projects', if array has a value" 
 #	dlog " exit 'BK_DISKLABELNOTFOUND'" 
 	tlog " disk '$lv_label_name' with UUID '$uuid' not found " 

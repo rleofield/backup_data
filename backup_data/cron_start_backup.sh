@@ -64,6 +64,7 @@ cron_dlog ""
 cron_dlog ""
 cron_dlog "======================="
 cron_dlog "start of: $callfilename"
+cron_dlog "version: '$bv_version'"
 cron_dlog "======================="
 
 cron_dlog ""

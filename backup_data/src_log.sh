@@ -1,5 +1,5 @@
 # file: src_log.sh
-# bk_version 24.08.2
+# bk_version 24.10.2
 # included with 'source'
 
 
@@ -162,6 +162,7 @@ function dlog {
 	local msg=$1
 	local oldifs=$IFS
 	local prefixlist="$temptestmarkerlog $startendtestmarkerlog $arraytestmarkerlog"
+	#local prefixlist="$startendtestmarkerlog $arraytestmarkerlog"
 	IFS=$' \t\n'
 	# XXXX used to temporary usage if dlog,
 	# DDDD used to log use of scripts, at main, at start/end disks, start/end project
@@ -170,6 +171,7 @@ function dlog {
 	do
 		if [[ $msg == "$_pre"* ]]
 		then
+#			echo -e "early return pre: $_pre, msg: $msg" >> $bv_workingfolder/$bv_logfile
 			return 0;
 		fi
 	done

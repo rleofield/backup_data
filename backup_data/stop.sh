@@ -27,7 +27,9 @@ fi
 . ./src_log.sh
 . ./src_exitcodes.sh
 
-# :readonly text_marker_stop="--- stopped ---"
+
+# in src_exitcodes.sh
+# readonly text_marker_stop="--- stopped ---"
 
 cd $bv_workingfolder
 
@@ -39,8 +41,8 @@ lastlogline=$( awk  'END { print }'  $bv_logfile )
 readonly vtest="$text_marker_stop"
 if [[ $lastlogline == *"$vtest"* ]]
 then
-	dlog "  stop is already set, see last line of log"
-	dlog "  $lastlogline"
+	dlog "  backup is already stopped, see last line of log"
+	dlog "$text_marker_stop, end reached, start backup again with './start_backup.sh'"
 	exit
 fi
 
