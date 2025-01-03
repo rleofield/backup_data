@@ -5,7 +5,7 @@
 
 
 # file: bk_disk.sh
-# bk_version 24.08.1
+# bk_version 25.01.1
 
 # Copyright (C) 2017-2024 Richard Albrecht
 # www.rleofield.de
@@ -89,30 +89,9 @@ readonly lv_successloglinestxt="successloglines.txt"
 
 
 # backup waits after end of loop
-# 
-# min=01, max=23
-# identical values means no interval is set
-#lv_waittimestart="09"
-#lv_waittimeend="09"
-#function get_globalwaittimeinterval() {
-#	local _w=$1
-#	# 'waittimeinterval' ist set in cfg.waittimeinterval 
-#	local _waittimeinterval=$_w
-#	local _oldifs=$IFS
-#	IFS='-'
-#	# split to array with ()
-#	local dononearray=($_waittimeinterval)
-#	IFS=$_oldifs
-#	# read configured values from cfg.waittimeinterval
-#	# must be 2 values
-#	if [ ${#dononearray[@]} = 2 ]
-#	then
-#		# copy to local vars, global in file
-#		lv_waittimestart=${dononearray[0]}
-#		lv_waittimeend=${dononearray[1]}
-#	fi
-#}
-
+# set in cfg.projects
+readonly lv_waittimestart=$(  get_waittimestart $bv_globalwaittimeinterval )
+readonly lv_waittimeend=$(  get_waittimeend $bv_globalwaittimeinterval )
 
 
 function rsyncerrorlog {
@@ -659,19 +638,15 @@ dlog ""
 tlog "end list"
 
 function is_in_global_waitinterval {
-	local _waittime=$bv_globalwaittimeinterval
-	local wstart=$( get_waittimestart $_waittime )
-	local wend=$( get_waittimeend $_waittime )
+	# local vars set at start of 'bk_disks.sh'
+	#echo "disks first: $lv_waittimestart"
+	#echo "disks second: $lv_waittimeend"
 
-        local hour=$(date +%H)
-        if [ $bv_test_use_minute_loop -eq 0 ]
-	then
-		if [ "$hour" -ge "$wstart" ] && [ "$hour" -lt "$wend"  ]
-		then
-			return 0
-		fi
-	fi
-	return 1
+	local wstart=$lv_waittimestart
+	local wend=$lv_waittimeend
+	is_in_waittime $wstart $wend
+	RET=$?
+	return $RET
 }
 
 
@@ -722,16 +697,11 @@ dlog "loopmsg: $loopmsg "
 
 dlog ""
 
-waittimestart=$(  get_waittimestart $bv_globalwaittimeinterval )
-waittimeend=$(  get_waittimeend $bv_globalwaittimeinterval )
-
-#get_globalwaittimeinterval $bv_globalwaittimeinterval
 
 #is_waittimeinterval_empty
-if test $waittimeend == $waittimestart
+if test $lv_waittimeend == $lv_waittimestart
 then
-	# 'bv_globalwaittimeinterval' ist not set in cfg.projects 
-	dlog "global waittime interval is not set or '0', set in 'cfg.projects', var 'bv_globalwaittimeinterval'"
+	dlog "global waittime interval is not set or empty, set in 'cfg.projects', var 'bv_globalwaittimeinterval'"
 fi
 
 
@@ -744,20 +714,20 @@ then
 fi
 
 
-
-# check for stop in wait interval
+# uses $bv_globalwaittimeinterval
+# uses is_in_waittime $wstart $wend
+#   set in cfg.projects
 is_in_global_waitinterval
 RET=$?
 if [ "$RET" -eq 0 ] 
 then
-	# in waittime interval or minute loop used
-	wstart=$( get_waittimestart $bv_globalwaittimeinterval )
-	wend=$( get_waittimeend $bv_globalwaittimeinterval )
+	# is in global waittime interval or minute loop used
+	wstart=$lv_waittimestart
+	wend=$lv_waittimeend
         hour=$(date +%H)
 	dlog "$text_marker $text_wait_interval_reached, current: $hour, begin wait interval: $wstart, end wait interval: $wend"
 	count=0
-	waittimeend=$(  get_waittimeend $bv_globalwaittimeinterval )
-	while [  $hour -lt $waittimeend ] 
+	while [  $hour -lt $wend ] 
         do
 
 		#dlog "time $(date +%H:%M:%S), wait until $lv_waittimeend"
@@ -771,14 +741,14 @@ then
 			mminute=$(date +%M)
 
 			#dlog "value of minute, in loop: $mminute"
-			dlog "$text_marker ${text_wait_interval_reached}, time $(date +%H:%M:%S), wait until $waittimeend"
+			dlog "$text_marker ${text_wait_interval_reached}, time $(date +%H:%M:%S), wait until $wend"
 		fi
 		count=$(( count+1 ))
 
 		# every 10 sec check stop file
 		sleep "10s"
 
-		#dlog "before stop: "
+# check for stop in wait interval
 		check_stop "wait interval loop"
 	done
 	_minute2=$(date +%M)
@@ -791,9 +761,9 @@ else
 	# not in waittime interval
 	# waittime interval = stop from - to
 	hour=$(date +%H:%M)
-	waittimestart=$(  get_waittimestart $bv_globalwaittimeinterval )
-	waittimeend=$(  get_waittimeend $bv_globalwaittimeinterval )
-	dlog "time '$hour' not in waittime interval: '$waittimestart - $waittimeend'"
+	wstart=$lv_waittimestart
+	wend=$lv_waittimeend
+	dlog "time '$hour' not in waittime interval: '$wstart - $wend'"
 
 	loopcounter=$( printf "%05d"  $( get_loopcounter ) )
 

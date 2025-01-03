@@ -2,7 +2,7 @@
 
 
 # file: bk_loop.sh
-# bk_version 24.10.2
+# bk_version 25.01.1
 
 # Copyright (C) 2017-2024 Richard Albrecht
 # www.rleofield.de
@@ -129,7 +129,7 @@ function get_projectwaittimeinterval {
 	lv_loopwaittimestart="09"
 	lv_loopwaittimeend="09"
 	local _lpkey=$1
-#	local _waittime=""
+#	check, if array 'a_waittime' is an aasociative array
 	is_associative_array_ok "a_waittime"
 	ret=$?
 	if [ ! $ret ]
@@ -137,8 +137,8 @@ function get_projectwaittimeinterval {
 		dlog "'a_waittime' array doesn't exist "
 		return $BK_ASSOCIATIVE_ARRAY_NOT_EXISTS
 	fi
-	# array exists and has length > 0
-	array_length=${#a_waittime[@]}  # ok, if array=() is set
+# 	array 'a_waittime' exists, check, if length > 0
+	array_length=${#a_waittime[@]}
 	if [ $array_length -gt 0 ]
 	then
 	#                echo "array length > 0 "
@@ -146,20 +146,59 @@ function get_projectwaittimeinterval {
 	# ${parameter+word}  | substitute word      | substitute word  | substitute null
 
 #		dlog "associative_array_has_value 'a_waittime' '$_lpkey'"
+# 		array 'a_waittime' exists and has length > 0, check, if projekt key is inside
 		associative_array_has_value "a_waittime" "$_lpkey"
 		ret=$?
 #		dlog "associative_array_has_value ret  '$ret'"
 		if [ $ret -eq 0 ]
 		then
+# 			array 'a_waittime' exists and has length > 0 and has projekt key is inside
+#			get the value	
+#			value is an array
+#  				for example '08-10'
 			local _waittime=${a_waittime[${_lpkey}]}
 			if [ $_waittime ]
 			then
-				#get_waittimeinterval $_waittime
+#				override file global values, set before start of this function 
 				lv_loopwaittimestart=$( get_waittimestart $_waittime )
 				lv_loopwaittimeend=$( get_waittimeend $_waittime )
 			fi
 		fi
 	fi
+	return $BK_SUCCESS
+}
+
+
+function get_project_properties {
+	local _lpkey=$1
+	local _value=""
+	is_associative_array_ok "a_properties"
+	ret=$?
+	if [ ! $ret ]
+	then
+		dlog "'a_properties' array doesn't exist "
+		return $BK_ASSOCIATIVE_ARRAY_NOT_EXISTS
+	fi
+#	dlog "'a_properties' array  exist "
+	# array exists and has length > 0
+	array_length=${#a_properties[@]}  # ok, if array=() is set
+	if [ $array_length -gt 0 ]
+	then
+	#                echo "array length > 0 "
+	# in script:         | Set and Not Null     | Set But Null     | Unset
+	# ${parameter+word}  | substitute word      | substitute word  | substitute null
+
+#		dlog "associative_array_has_value 'a_properties' '$_lpkey'"
+		associative_array_has_value "a_properties" "$_lpkey"
+		ret=$?
+#		dlog "associative_array_has_value ret  '$ret'"
+		if [ $ret -eq 0 ]
+		then
+			_value=${a_properties[${_lpkey}]}
+#		dlog "value $_value"
+		fi
+	fi
+	echo $_value
 	return $BK_SUCCESS
 }
 
@@ -301,24 +340,13 @@ readonly PROJECT_DONE_WAITINTERVAL_REACHED=2
 
 
 function is_in_waitinterval {
-        local _lpkey=$1
-
-        get_projectwaittimeinterval $_lpkey
-#		dlog "ZZZZZZZZZZZ in 'is_in_waitinterval' lpkey: '$_lpkey',  from $lv_loopwaittimestart to $lv_loopwaittimeend"
-        local wstart=$lv_loopwaittimestart
-        local wend=$lv_loopwaittimeend
-
-        local hour=$(date +%H)
-        if [ $bv_test_use_minute_loop -eq 0 ]
-	then
-		if [ "$hour" -ge "$wstart" ] && [ "$hour" -lt "$wend"  ] 
-		then
-			return 0
-		fi
-	fi
-	return 1
-
-
+	local _lpkey=$1
+	get_projectwaittimeinterval $_lpkey
+	local wstart=$lv_loopwaittimestart
+	local wend=$lv_loopwaittimeend
+	is_in_waittime $wstart $wend
+	RET=$?
+	return $RET
 }
 
 # par1 = disklabel_project_key
@@ -810,7 +838,7 @@ do
 		wend=$lv_loopwaittimeend
 		temp_timeline=$( echo "${timeline} wait from $wstart to $wend")
 		timeline=$temp_timeline
-#		dlog "$timeline wait,  from $lv_loopwaittimestart to $lv_loopwaittimeend"
+#		dlog "$timeline wait,  from '$wstart' to '$wend'"
 	fi
 	dlog "$timeline"
 	
@@ -1086,16 +1114,27 @@ then
 			then
 				backupdisk=$( echo "$snapshotroot" | cut -d'/' -f3 )
 			fi
-			#dlog "echo $snapshotroot | cut -d'/' -f3 "
-			#dlog "backup disk: $backupdisk "
+			# test, if snapshot_root is used or folder with name from label
+			#parray=${a_properties[$lpkey]}
+			parray=$( get_project_properties $lpkey )
+			#dlog "parray: $parray"
+			ignore_snapshot_root=$(echo ${parray[@]} | grep -w -o "ignore_snapshot_root" | wc -l )
+			#echo "ignore_snapshot_root: $ignore_snapshot_root"
+			dlog "snapshotroot:  $snapshotroot "
+			#dlog "backup disk:   $backupdisk "
+			#dlog "target disk:   $lv_targetdisk "
 			if [ -n "$backupdisk" ]
 			then
-				if [ "$backupdisk" != "$lv_targetdisk" ]
+				#echo "if [ $ignore_snapshot_root == 0 ]"
+				if [ $ignore_snapshot_root == 0 ]
 				then
-					dlog "- snapshot_root in 'conf/${lpkey}': '$snapshotroot'"
-					dlog "- targetdisk in configuration: '$lv_targetdisk'"
-					dlog "!!! backup disk in configuration: '$backupdisk' is != targetdisk: '$lv_targetdisk' !!! "
-					exit $BK_RSYNCFAILS
+					if [ "$backupdisk" != "$lv_targetdisk" ]
+					then
+						dlog "- snapshot_root in 'conf/${lpkey}': '$snapshotroot'"
+						dlog "- targetdisk in configuration: '$lv_targetdisk'"
+						dlog "!!! backup disk in configuration: '$backupdisk' is != targetdisk: '$lv_targetdisk' !!! "
+						exit $BK_RSYNCFAILS
+					fi
 				fi
 			fi
 			if [ "$lv_disklabel" != "$lv_targetdisk" ]
@@ -1104,7 +1143,7 @@ then
 			else
 				dlog "=== disk '$lv_disklabel', start of project '$_project' ==="
 			fi
-
+			
 			tlog "do: '$_project'"
 
 			# e.g. conf/sdisk_start,sh

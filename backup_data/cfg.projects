@@ -23,7 +23,7 @@
 readonly bv_version="24.08.1"
 
 # default old backup date: used, if no value in folder 'done' ist set
-readonly max_last_date="2024-07-01T00:00"
+readonly max_last_date="2024-12-01T00:00"
 
 
 # backup waits in this intervall, nothing ist done
@@ -55,6 +55,12 @@ readonly DISKLIST="bbackup"
 declare -A a_properties
 a_properties=()
 a_properties['bbackup']="noumount"
+
+# use snapshot_root direct, don't use disk label for snapshot_root
+# in bk_loop.sh, in inner loop
+#a_properties['huh12_pserver']="ignore_snapshot_root"
+#a_properties['huh12_cube']="ignore_snapshot_root"
+#a_properties['huh12_eserver']="ignore_snapshot_root"
 
 
 

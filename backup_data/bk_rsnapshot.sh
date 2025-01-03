@@ -2,7 +2,7 @@
 
 # file: bk_rsnapshot.sh
 
-# bk_version 24.08.1
+# bk_version 25.01.1
 
 
 # Copyright (C) 2017-2024 Richard Albrecht
@@ -90,12 +90,12 @@ dlog "== start bk_rsnapshot.sh, '$lv_retain' =="
 
 
 readonly lv_rsnapshot_config=./${bv_conffolder}/${lv_lpkey}.conf
-readonly lv_rsnapshot_root=$(cat ${lv_rsnapshot_config} | grep snapshot_root | grep -v '#' | awk '{print $2}')
+readonly lv_ro_rsnapshot_root=$(cat ${lv_rsnapshot_config} | grep snapshot_root | grep -v '#' | awk '{print $2}')
 
 
-if test ! -d $lv_rsnapshot_root 
+if test ! -d $lv_ro_rsnapshot_root 
 then
-       	dlog "snapshot root folder '$lv_rsnapshot_root' doesn't exist" 
+       	dlog "snapshot root folder '$lv_ro_rsnapshot_root' doesn't exist" 
         dlog "give up, also don't do remaining rsnapshots"
 	exit $BK_NORSNAPSHOTROOT
 fi
@@ -188,7 +188,7 @@ then
 			runningnumber=$( get_runningnumber )
 			TODAY_LOG2=$( currentdateT )
 
-			readonly lv_created_at_filename="$lv_rsnapshot_root.sync/${bv_createdatfileprefix}${TODAY_LOG2}_number_$runningnumber.txt"
+			readonly lv_created_at_filename="$lv_ro_rsnapshot_root.sync/${bv_createdatfileprefix}${TODAY_LOG2}_number_$runningnumber.txt"
 			dlog "'created at' info file: '$lv_created_at_filename'"
 			readonly lv_created_at_line="created at: ${TODAY_LOG2}, loop: $runningnumber"
 			dlog "write line to info file: '$lv_created_at_line'"
@@ -245,7 +245,7 @@ then
 		rs_exitcode=$BK_ROTATE_FAILS
 		rs_exitcode_txt="rotate fails"
 	else
-		zero_interval_folder=$( echo "${lv_rsnapshot_root}${lv_retain}.0" )
+		zero_interval_folder=$( echo "${lv_ro_rsnapshot_root}${lv_retain}.0" )
 		dlog "interval.0 folder: ${zero_interval_folder} check, after rotate"
 		if test -d ${zero_interval_folder} 
 		then

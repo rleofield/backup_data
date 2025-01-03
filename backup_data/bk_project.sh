@@ -4,7 +4,7 @@
 # disable: Declare and assign separately to avoid masking return
 
 # file: bk_project.sh
-# bk_version 24.08.1
+# bk_version 25.01.1
 
 
 
@@ -163,9 +163,9 @@ then
 	exit $BK_RSYNCFAILS
 fi
 
-readonly lv_rsnapshot_root=$(cat ./${lv_rsnapshot_cfg_file} | grep ^snapshot_root | grep -v '#' | awk '{print $2}')
+readonly lv_ro_rsnapshot_root=$(cat ./${lv_rsnapshot_cfg_file} | grep ^snapshot_root | grep -v '#' | awk '{print $2}')
 
-dlog "snapshot_root: '$lv_rsnapshot_root'"
+dlog "snapshot_root: '$lv_ro_rsnapshot_root'"
 
 # 3 local arrays
 declare -A retainscount
@@ -291,7 +291,7 @@ function update_counter {
 	#dlog " --- by one line, file '${retains_count_file_name}', retain level:  '$_currentretain'"
 
 
-	zero_interval_folder=$( echo "${lv_rsnapshot_root}${_currentretain}.0" )
+	zero_interval_folder=$( echo "${lv_ro_rsnapshot_root}${_currentretain}.0" )
 #	dlog "interval.0 folder: ${zero_interval_folder} check"
 	# test RET	
 	# dlog "interval.0 folder: ${zero_interval_folder} check fails"
@@ -311,7 +311,7 @@ function update_counter {
 		# loop number is at end
 		#set -x
 		# created in bk_rsnapshot.sh:191
-		local cr_file=$( ls -1 ${lv_rsnapshot_root}${_currentretain}.0/${bv_createdatfileprefix}*  )
+		local cr_file=$( ls -1 ${lv_ro_rsnapshot_root}${_currentretain}.0/${bv_createdatfileprefix}*  )
 		dlog "check created info file: '$cr_file'"
 		local _created_time=""
 		if [ ! -z $cr_file ]
@@ -538,7 +538,7 @@ if test $counter -ge  $max_count
 then	
 	# do index 1 = second level
 	index=1
-	dlog "counter: $counter -ge  $max_count index: $index, root: $lv_rsnapshot_root"
+	dlog "counter: $counter -ge  $max_count index: $index, root: $lv_ro_rsnapshot_root"
 	tlog "do second"
 	##########  do rs index = 1  #############################################################
 	do_rs_123 $index
@@ -552,7 +552,7 @@ then
 	then
 		# do index 2 = third level
 		index=2
-		dlog "counter: $counter -ge  $max_count index: $index, root: $lv_rsnapshot_root"
+		dlog "counter: $counter -ge  $max_count index: $index, root: $lv_ro_rsnapshot_root"
 		tlog "do third"
 		##########  do rs index = 2  #############################################################
 		do_rs_123 $index
@@ -566,7 +566,7 @@ then
 		then
 	                # do index 3 = fourth level
 			index=3
-			dlog "counter: $counter -ge  $max_count index: $index, root: $lv_rsnapshot_root"
+			dlog "counter: $counter -ge  $max_count index: $index, root: $lv_ro_rsnapshot_root"
 			tlog "do fourth"
 
 			##########  do rs index = 3  #############################################################
@@ -592,7 +592,7 @@ then
 				# oldindex 3
 				index=4 # 1 after last
 
-				dlog "counter: $counter -gt  $max_count index: $index, root: $lv_rsnapshot_root"
+				dlog "counter: $counter -gt  $max_count index: $index, root: $lv_ro_rsnapshot_root"
 				#_oldfile=${retains_count_file_names[$oldindex]}
 				#oldretain=${retains[$oldindex]}
 				dlog ""
@@ -614,7 +614,7 @@ fi
 
 ########### final generic start #####################
 # final stage at end of project
-# final_func "$lv_disklabel" "$lv_project" "$lv_rsnapshot_root" "$firstretain"
+# final_func "$lv_disklabel" "$lv_project" "$lv_ro_rsnapshot_root" "$firstretain"
 # end final stage 
 ########### final generic end  #####################
 

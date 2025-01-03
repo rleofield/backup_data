@@ -2,7 +2,7 @@
 
 # file: stop.sh
 
-# bk_version  24.08.1
+# bk_version  25.01.1
 
 # Copyright (C) 2017-2024 Richard Albrecht
 # www.rleofield.de
@@ -45,6 +45,16 @@ then
 	dlog "$text_marker_stop, end reached, start backup again with './start_backup.sh'"
 	exit
 fi
+
+readonly vtest1="$text_marker_error_in_stop"
+if [[ $lastlogline == *"$vtest1"* ]]
+then
+	dlog "  backup is already stopped, see last line of log"
+	dlog "$text_marker_error_in_stop, end reached, start backup again with './start_backup.sh'"
+	exit
+fi
+
+
 
 touch stop
 dlog "  stop is set, backup stops at next chance"

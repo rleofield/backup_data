@@ -25,7 +25,6 @@
 
 
 . ./cfg.working_folder
-#. ./cfg.waittimeinterval
 . ./cfg.projects
 
 . ./src_exitcodes.sh

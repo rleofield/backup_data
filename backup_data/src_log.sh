@@ -1,5 +1,5 @@
 # file: src_log.sh
-# bk_version 24.10.2
+# bk_version 25.01.1
 # included with 'source'
 
 
@@ -224,7 +224,7 @@ function increment_loop_counter(){
 	_counter=$(( _counter + 1 ))
 
 	# wraps at 99.999 = 100.000 loops
-	# normallly not more than 10.000 loops are used in rsnapshot
+	# normally not more than 10.000 loops are used in rsnapshot
 	# see './show_config.sh | g -e total -e Project'
 	if (( _counter > 99999 ))
 	then
@@ -329,7 +329,7 @@ function is_indexed_array {
 	if [[ "$(declare -p $name 2>/dev/null)" == ${not_empty_array_pattern}* ]]   
 	then
 		arraytestlog "array '$name' is not empty"
-		arraytestlog "33333 array '$name' is not empty"
+		#arraytestlog "33333 array '$name' is not empty"
 		return $BK_INDEXED_ARRAY_IS_NOT_EMPTY
 	fi
 	return $retv
@@ -412,6 +412,77 @@ function check_arrays {
 	return $aok
 }
 
+: <<Kommentar
+
+# here waittime check
+	if  (( first != second )) 
+	then
+		if  (( first < second ))
+		then
+			if (( hour  >= first )) && (( hour <  second ))
+			then
+				return 0
+			fi
+		else
+			if (( hour >= first )) && (( hour < 24 ))
+			then
+				return 0
+			fi
+			if (( 0 <   first )) && (( hour < second ))
+			then
+				return 0
+			fi
+		fi
+	fi
+	return 1
+}
+Kommentar
+
+
+
+function is_in_waittime() {
+	local first=$1
+	local second=$2
+	local first10=10#"$first"
+	local second10=10#"$second"
+	local hour=$(date +%H)
+	local hour10=10#"$hour"
+
+	# skip, if fast test loop is used
+	if [ $bv_test_use_minute_loop -eq 0 ]
+	then
+		# first value equal second, no wait, ret = 1
+		if  (( first10 != second10 )) 
+		then
+			# first value is lower than the second
+			if  (( first10 < second10 ))
+			then
+			#	echo "first value is lower than the second"
+				#            >=                           <
+				if (( hour10  >= first10 )) && (( hour10 <  second10 ))
+				then
+					return 0
+				fi
+			else
+				# first value is greater than the second
+				if (( hour10 >= first10 )) && (( hour10 < 24 ))
+				then
+					return 0
+				fi
+				#	echo "if [ 0 -le  $first ] && [ $hour -lt $second ]"
+				if (( 0 <   first10 )) && (( hour10 < second10 ))
+				then
+					return 0
+				fi
+			fi
+		#else	
+			#echo "first value is equal to the the second"
+		fi
+	fi
+	#echo "end"
+	return 1
+}
+
 
 function get_waittimestart() {
 	local _waittimeinterval=$1
@@ -423,10 +494,13 @@ function get_waittimestart() {
 	IFS=$_oldifs
 	# read configured values from cfg.waittimeinterval
 	# must be 2 values
+	#set -x
 	if [ ${#waittimearray[@]} = 2 ]
 	then
+	#	echo "log array 0 : ${waittimearray[0]}"
 		_start=${waittimearray[0]}
 	fi
+	#set +x
 	echo $_start
 }
 
@@ -436,12 +510,13 @@ function get_waittimeend() {
 	local _end="09"
 	IFS='-'
 	# split to array with ()
-	local waittimearray=($_waittimeinterval)
+	local waittimearray=( $_waittimeinterval )
 	IFS=$_oldifs
 	# read configured values from cfg.waittimeinterval
 	# must be 2 values
 	if [ ${#waittimearray[@]} = 2 ]
 	then
+	#	echo "log array 1 : ${waittimearray[1]}"
 		_end=${waittimearray[1]}
 	fi
 	echo $_end

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_main.sh
-# bk_version 24.10.2
+# bk_version 25.01.1
 
 # Copyright (C) 2017-2024 Richard Albrecht
 # www.rleofield.de
@@ -40,26 +40,6 @@
 # _*    - local in functions or loops
 # BK_*  - exitcodes, upper case, BK_
 
-
-: <<Kommentar
-
-= das ist ein Multilinekommentar
-
-        # === here waittime check ===
-        # here waittime check
-        # 0-----------------wstart -------------------- wend ------------24
-        #                         ^wait^
-        #                      < waitinterval >
-        # 0-----------------dostart ------------------- doend ------------24
-        #   ^wait^                                              ^wait^
-        #   < waitinterval 1 >                                 < waitinterval 2 >
-
-        # check, get_projectwaittimeinterval() only for disk done
-        # result is in:   ( value is in hours )
-        #       lv_loopwaittimestart
-        #       lv_loopwaittimeend
-
-Kommentar
 
 
 . ./cfg.working_folder
