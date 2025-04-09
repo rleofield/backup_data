@@ -4,11 +4,11 @@
 # disable: Declare and assign separately to avoid masking return
 
 # file: bk_project.sh
-# bk_version 25.01.1
+# bk_version 25.02.1
 
 
 
-# Copyright (C) 2017-2024 Richard Albrecht
+# Copyright (C) 2017-2025 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -65,9 +65,9 @@ set -u
 # exit $BK_DISKLABELNOTFOUND	- disk with uuid nit found in /dev/disk/by-uuid, disk ist not in system 
 # exit $BK_NOINTERVALSET	- no backup time inteval configured in 'cfg.projects'
 # exit $BK_TIMELIMITNOTREACHED	- for none project at this disk time limit is not reached
-# exit $BK_DISKNOTUNMOUNTED	- disk couldn't be unmounted
+# exit $BK_DISKNOTUNMOUNTED	- disk could not be unmounted
 # exit $BK_MOUNTDIRTNOTEXIST	- mount folder for backup disk is not present in '/mnt'
-# exit $BK_DISKNOTMOUNTED	- disk couldn't be mounted 
+# exit $BK_DISKNOTMOUNTED	- disk could not be mounted 
 # exit $BK_DISKNOTMOUNTED	- rsync error, see logs
 # exit $BK_SUCCESS		- all was ok
 
@@ -495,6 +495,7 @@ function do_rs_first {
 
 		# main done is written here
 		# write _done.log
+		# write_done_file
 		# snapshot: "write last date: '$_currenttime' to ./${bv_donefolder}/${lv_lpkey}_done.log"
 		local _currenttime=$( currentdateT )
 		echo "$_currenttime" > ./${bv_donefolder}/${lv_lpkey}_done.log
@@ -622,6 +623,8 @@ fi
 
 
 tlog "end"
+
+# lv_label_name="$lv_disklabel ($lv_targetdisk)"
 
 dlog "==  end project '$lv_project' at disk '$lv_label_name' and sync =="
 sync

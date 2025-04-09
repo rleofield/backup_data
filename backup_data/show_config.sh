@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # file: show_config.sh
-# bk_version 24.08.1
+# bk_version 25.03.1
 
 
-# Copyright (C) 2017-2024 Richard Albrecht
+# Copyright (C) 2017-2025 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -209,22 +209,23 @@ IFS='
 
 		dlog1 "-----------------"
 		pdiff=$( decode_pdiff ${_project})
-		ncount=$(( retainscount[0] ))
 
 		#dlog1 "pdiff: $pdiff"
 
 		#t=$( printf "%3d"  $ncount )
 		ecdiff=$(encode_diff $pdiff)
-		dlog1 "retain 0 = ${retainscount[0]} times, every $(encode_diff $pdiff), total $( printf \"%3d\"  $ncount )"
+		rr=$pdiff
+		ncount=$(( retainscount[0] ))
+		dlog1 "retain 0 = ${retainscount[0]} times, every $( encode_diff $rr), total $( printf '%3d'  $ncount )"
 		rr=$(( pdiff * retainscount[0] ))
 		ncount=$(( ncount * retainscount[1] )) 
-		dlog1 "retain 1 = ${retainscount[1]} times, every $( encode_diff $rr), total $( printf "%3d"  $ncount )"
+		dlog1 "retain 1 = ${retainscount[1]} times, every $( encode_diff $rr), total $( printf '%3d'  $ncount )"
 		rr=$(( rr * retainscount[1] ))
 		ncount=$(( ncount * retainscount[2] )) 
-		dlog1 "retain 2 = ${retainscount[2]} times, every $( encode_diff $rr), total $( printf "%3d"  $ncount )"
+		dlog1 "retain 2 = ${retainscount[2]} times, every $( encode_diff $rr), total $( printf '%3d'  $ncount )"
 		rr=$(( rr * retainscount[2] ))
 		ncount=$(( ncount * retainscount[3] )) 
-		dlog1 "retain 3 = ${retainscount[3]} times, every $( encode_diff $rr), total $( printf "%3d"  $ncount )"
+		dlog1 "retain 3 = ${retainscount[3]} times, every $( encode_diff $rr), total $( printf '%3d'  $ncount )"
 		rr=$(( rr * retainscount[3] ))
 		dlog1 "         last copy after: $( encode_diff $rr)"
 		dlog1 "-----------------"

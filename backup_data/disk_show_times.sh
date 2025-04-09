@@ -35,11 +35,11 @@
 TODAY=`date +%Y-%m-%dT%H:%M`
 use_retains=$2
 
-readonly LABEL=$1
+readonly _disk=$1
 readonly lv_cc_logname=""
 readonly lv_max_last_date="$max_last_date"
 
-if [ -z $LABEL  ]
+if [ -z $_disk  ]
 then
 	echo 	"Usage: show_times_disk.sh disklabel "
 	exit 1
@@ -73,7 +73,7 @@ function targetdisk {
 
 function log {
    local msg=$1
-   echo -e "$msg" >> "show_times.log"
+#   echo -e "$msg" >> "show_times.log"
 }
 
 
@@ -87,6 +87,14 @@ function dateecho {
         local _TODAY=$( date +%Y%m%d-%H%M )
         echo "$_TODAY ==>  $1"
 }
+
+_targetdisk=$( targetdisk $_disk )
+
+
+if [ $_targetdisk != $_disk ]
+then
+	_targetdisk="${_disk}(${_targetdisk})"
+fi
 
 
 
@@ -348,27 +356,31 @@ function entries_keeped {
 
 
 
-_targetdisk=$( targetdisk $LABEL )
-stdatelog "label: $LABEL"
+_targetdisk=$( targetdisk $_disk )
+stdatelog "label: $_disk"
 stdatelog "target: $_targetdisk"
-check_disk_label $LABEL
+check_disk_label $_disk
 goodlink=$?
 
 dateecho ""
-if [ $_targetdisk != $LABEL ]
+
+
+
+if [ $_targetdisk != $_disk ]
 then
-	dateecho "test disk = '$_targetdisk' is project '$LABEL' ="
-else
-	dateecho "test disk = '$_targetdisk' ="
+	_targetdisk="${_disk}(${_targetdisk})"
 fi
+dateecho "==== next disk: '$_targetdisk' ===="
+dateecho ""
 if test $goodlink -ne 0
 then
 	# disk label/uuid not found, or targetdisk/uuid
 	dateecho  "${lv_cc_logname}: disk '$_targetdisk' wasn't found in '/dev/disk/by-uuid'"
+	dateecho ""
 fi
 
 
-PROJEKTLABELS=${a_projects[$LABEL]}
+PROJEKTLABELS=${a_projects[$_disk]}
 
 DONE_REACHED=0
 lv_done_not_reached=1
@@ -380,11 +392,12 @@ nextprojekt=""
 #DONE=$bv_donefolder
 #stdatelog "DONE: '$DONE'"
 
+stdatelog "==== next disk: '$_targetdisk' ===="
 # find projects in time		
 dateecho "                 dd:hh:mm               dd:hh:mm               dd:hh:mm"
 for p in $PROJEKTLABELS
 do
-        lpkey=${LABEL}_${p}
+        lpkey=${_disk}_${p}
 	stdatelog "lpkey: '$lpkey' "
 	lv_lpkey=$lpkey
         _current=`date +%Y-%m-%dT%H:%M`
@@ -403,7 +416,7 @@ do
 	deltadiff=$(( pdiff - done_diff_minutes ))
 
         # ret , 0 = do backup, 1 = interval not reached, 2 = daytime not reached
-        DISKDONE=$(check_disk_done $LABEL $p )
+        DISKDONE=$(check_disk_done $_disk $p )
 
         txt=$( printf "%-14s\n"  $( echo "${p}" ) )
         n0=$( printf "%5s\n"  $done_diff_minutes )
@@ -420,7 +433,7 @@ do
         if test $DISKDONE -eq $DONE_REACHED
         then
                 diskdonetext="ok"
-                check_pre_host $LABEL $p 
+                check_pre_host $_disk $p 
 		ispre=$?
                 if test $ispre -eq 0
                 then

@@ -5,9 +5,9 @@
 
 
 # file: bk_disk.sh
-# bk_version 25.01.1
+# bk_version 25.03.1
 
-# Copyright (C) 2017-2024 Richard Albrecht
+# Copyright (C) 2017-2025 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -68,13 +68,13 @@ readonly lv_iscron=$1
 # in function tlog() in src_log.sh
 readonly lv_tracelogname="disks"
 
-#  in cfg.projects
+#  get from cfg.projects, var $DISKLIST
 readonly bv_disklist=$DISKLIST
 
 
 # logname, not readonly, changed to diskname later
 # must be set, if empty 
-# used in function dlog un src_log.sh
+# used in function dlog in src_log.sh
 # $lv_cc_logname must be set at start of each bk_ file
 # changed to diskname var in line 541 and 543
 lv_cc_logname="disks"
@@ -452,10 +452,15 @@ function list_connected_disks_by_uuid(){
 		_line=$(grep  ${_uuid}  uuid.txt | grep -v '#' ) || true
 		#   Following syntax deletes the longest match of $substring from front of $string
 		#   ${string##substring}
-		# don't show name swap and boot
+		#   search for swap and boot
+		#   if not found, 
+		# don't show name 'swap' and 'boot'
 		if ! [ -z "${_line##*swap*}" ] && ! [ -z "${_line##*boot*}" ] 
 		then
-			if echo $_line | grep -v '#'
+#			if echo $_line | grep -v '#'
+			#  regex operator =~
+			#  check, if # is not in _line
+			if [[ ! "$_line" =~ "#" ]]
 			then
 				dlog "  connected disk:  $_line"
 			fi
@@ -474,26 +479,57 @@ check_stop  "at start of loop through disklist (bk_disks.sh)"
 
 #IFS=' '
 
-_hostname="$(hostname)"
+readonly _hostname="$(hostname)"
 
 dlog ""
 dlog "show all disks connected at '$_hostname' "
 list_connected_disks_by_uuid
 
 dlog ""
+#dlog "disklist: $bv_disklist"
 
-dlist=""
-for _d in $bv_disklist
+_dlist=""
+for _disk in $bv_disklist
 do
-	td=$( targetdisk "$_d" )
-	if [ "$_d" != "$td" ]
+	_targetdisk=$( targetdisk "$_disk" )
+	if [ "$_disk" != "$_targetdisk" ]
 	then
-		td="${_d}(${td})"
+		_targetdisk="${_disk}(${_targetdisk})"
 	fi
-	dlist="${dlist} $td"
+	_dlist="${_dlist} $_targetdisk"
 done
-dlist="${dlist#"${dlist%%[![:space:]]*}"}"
-dlog "check all projects in disks: '$dlist'"
+
+# see
+# http://linux-wiki/dokuwiki/doku.php?id=shell:bash#string_suche
+
+# ${file%%20*} liefert erstes Vorkommen von Pattern vom Ende und alles davor
+# ${file%%pattern*}
+# %% erstes vom Ende, bis dahin und davor, Wildcard für 'davor' kommt nach dem Pattern
+
+# suche vom Ende
+# a="abcxxde";echo ${a%%'x'*}
+# liefert "abc",  erstes Vorkommen von x und davor
+# a="abcxxde";echo ${a%'x'*}
+# liefert "abcx", letzes Vorkommen von x und davor
+
+
+# erstes vorkommen von 'kein space', alles davor 
+# :space: can't be used, 'meld' complains
+spaces_before=${_dlist%%[!" "]*}
+
+# ${file#*pattern} liefert alles ab erstem Vorkommen von pattern
+# erstes, ab da bis ende, wildcard vorher, wenn nötig 
+
+# suche vom Anfang
+# a="abcxxde";echo ${a##*'x'} 
+# liefert "de",  letztes Vorkommen von x und dahinter
+# a="abcxxde";echo ${a#*'x'}  
+# liefert "xde", erstes Vorkommen von x und dahinter
+
+
+_dlist=${_dlist#${spaces_before}}
+
+dlog "check all projects in disks: '$_dlist'"
 dlog ""
 
 # loop disk list
@@ -526,10 +562,10 @@ do
 	# exit BK_DISKLABELNOTFOUND	- disk with uuid not found in /dev/disk/by-uuid
 	# exit BK_NOINTERVALSET		- no backup time inteval configured in 'cfg.projects'
 	# exit BK_TIMELIMITNOTREACHED	- for none project at this disk time limit is not reached
-	# exit BK_DISKNOTUNMOUNTED	- ddisk couldn't be unmounted
+	# exit BK_DISKNOTUNMOUNTED	- ddisk could not be unmounted
 	# exit BK_MOUNTDIRTNOTEXIST	- mount folder for backup disk is not present in '/mnt'
-	# exit BK_DISKNOTMOUNTED	- disk couldn't be mounted 
-	# exit BK_DISKNOTMOUNTED	- disk couldn't be unmounted
+	# exit BK_DISKNOTMOUNTED	- disk could not be mounted 
+	# exit BK_DISKNOTMOUNTED	- disk could not be unmounted
 	# exit BK_RSYNCFAILS		- rsync error
 	# exit BK_ROTATE_FAILS		- rotate error
 	# exit BK_SUCCESS		- all was ok
@@ -559,11 +595,11 @@ do
 
 	if test $RET -eq $BK_DISKNOTMOUNTED 
 	then
-		msg="HD with label: '$_targetdisk' couldn't be mounted" 
+		msg="HD with label: '$_targetdisk' could not be mounted" 
 	fi
 	if test ${RET} -eq $BK_DISKNOTUNMOUNTED 
 	then
-		msg="HD with label: '$_targetdisk' couldn't be unmounted" 
+		msg="HD with label: '$_targetdisk' could not be unmounted" 
 	fi
 	if test  ${RET} -eq $BK_RSYNCFAILS 
 	then

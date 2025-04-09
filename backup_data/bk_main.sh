@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # file: bk_main.sh
-# bk_version 25.01.1
+# bk_version 25.03.1
 
-# Copyright (C) 2017-2024 Richard Albrecht
+# Copyright (C) 2017-2025 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -110,14 +110,14 @@ function start_message {
 
 
 function check_if_already_running {
-	#env > env_start.txt
 	local u="root"
 	temptestlog "pidcount=pgrep -u $u   bk_main.sh"
-	dlog " user: $u"
-	#dlog "user: $USER"
+
+	#pgrep -u "$u"   "bk_main.sh" | wc -l
 	local pidcount=$(  pgrep -u "$u"   "bk_main.sh" | wc -l )
-	dlog " pidcount: $pidcount"
+	echo  " pidcount: $pidcount"
 	# pid appears twice, because of the subprocess finding the pid
+
 	if [ $pidcount -lt 3 ]
 	then
 		dlog " == backup is not running, start" 
@@ -132,7 +132,7 @@ function check_if_already_running {
 function check_main_lock {
 	local _call_source=$lv_call_source
 	# remove main_lock, if is startet via cron_start_backup.sh
-	dlog " =="
+	#dlog " =="
 	dlog " == check '$lv_lockfilename'"
 	# values: "cron"   = backup was started via cronjob
 	#         "manual" = backup was started via commandline
@@ -169,6 +169,7 @@ function check_main_lock {
 			exit 1
 		fi
 	fi
+#	dlog " == ok"
 }
 
 
@@ -185,10 +186,10 @@ function check_and_remove_rsnapshot_pid_lock {
 # do not clear in main loop
 # errors must be present until solved
 function clear_internalerrors_list {
-	dlog " == "
-	dlog " == truncate -s 0 $bv_internalerrors" 
+	#dlog " == "
+	dlog " == clear error list '$bv_internalerrors'"
 	truncate -s 0 $bv_internalerrors
-	dlog " == "
+	dlog ""
 }
 
 
@@ -200,7 +201,7 @@ function shatestfile(){
 #	echo "$a, found sum $a"
 	if [ $_lsum1 != $a ]
 	then
-		dlog "$_file was changed. sha256sum  $a, "
+		dlog "'$_file' was changed. sha256sum  $a, "
 		dlog "         sha256sum  must be $_lsum1 "
 		return 1
 	fi
@@ -219,15 +220,18 @@ function shatestfiles(){
 		if [ -f $_file ]
 		then
 			shatestfile  $_file $_lsum 
+			#echo "$_file, $_lsum"
 			local RET=$?
 			if [ $RET -eq 0 ]
 			then
-				dlog "$_file is ok"
+				dlog "  '$_file' is ok"
 			else
 				exitval=1
 			fi
 		fi
-	done < <(cat $_testfile )
+	#done < <(cat $_testfile )
+	done <  $_testfile 
+
 	IFS=$oldifs
 	return $exitval
 }
@@ -257,18 +261,18 @@ function shatest(){
 
 function list_test_flags(){
 	dlog " ==  list test flags and variables"
-	dlog "maxlast date: $lv_max_last_date"
-	dlog "maxfillbackupdiskpercent (70):    	$bv_maxfillbackupdiskpercent"
-	dlog "no_check_disk_done (0):			$bv_test_no_check_disk_done"
-	dlog "check_looptimes (1):              	$bv_test_check_looptimes"
-	dlog "execute_once (0):                 	$bv_test_execute_once"
-	dlog "do_once_count (0):                	$bv_test_do_once_count"
-	dlog "test_use_minute_loop (0):              	$bv_test_use_minute_loop"
-	dlog "test_short_minute_loop (0):            	$bv_test_short_minute_loop"
-	dlog "test_short_minute_loop_seconds_10 (0): 	$bv_test_short_minute_loop_seconds_10"
-	dlog "test_minute_loop_duration (2):         	$bv_test_minute_loop_duration"
-	dlog "daily_rotate (1):                 	$bv_daily_rotate"
-	dlog " == "
+	dlog "   maxlast date: '$lv_max_last_date'"
+	dlog "   maxfillbackupdiskpercent (70):           $bv_maxfillbackupdiskpercent"
+	dlog "   no_check_disk_done (0):                   $bv_test_no_check_disk_done"
+	dlog "   check_looptimes (1):                      $bv_test_check_looptimes"
+	dlog "   execute_once (0):                         $bv_test_execute_once"
+	dlog "   do_once_count (0):                        $bv_test_do_once_count"
+	dlog "   test_use_minute_loop (0):                 $bv_test_use_minute_loop"
+	dlog "   test_short_minute_loop (0):               $bv_test_short_minute_loop"
+	dlog "   test_short_minute_loop_seconds_10 (0):    $bv_test_short_minute_loop_seconds_10"
+	dlog "   test_minute_loop_duration (2):            $bv_test_minute_loop_duration"
+	dlog "   daily_rotate (1):                         $bv_daily_rotate"
+	#dlog " == "
 }
 
 
@@ -285,11 +289,12 @@ function list_test_flags(){
 # bv_preconditionsfolder="pre"
 
 function check_configuration_folders(){
+	dlog " ==  check existence of folders for backup scripts"
 	local _folderlist="$bv_conffolder $bv_intervaldonefolder $bv_retainscountfolder $bv_backup_messages_testfolder $bv_donefolder $bv_excludefolder $bv_oldlogsfolder $bv_preconditionsfolder"
 
 	for _folder in $_folderlist
 	do
-		dlog "check folder: '$_folder'"
+		dlog "   check folder: '$_folder'"
 		if  [ ! -d $_folder   ]
 		then
 			dlog "folder: '$_folder' doesn't exist, exit 1"
@@ -297,21 +302,21 @@ function check_configuration_folders(){
 			exit 1
 		fi
 	done
-	dlog " == "
+	#dlog " == "
 }
 
 
 function check_ssh_configuration(){
-	dlog "ssh configuration: $sshlogin, $sshhost, $sshport, $sshtargetfolder"
+	dlog "   1: login: $sshlogin, host: $sshhost, port: $sshport, folder: $sshtargetfolder"
 	if [  -z  "${sshtargetfolder}" ]
 	then
-		dlog "ssh configuration: 'sshtargetfolder' is empty"
+		dlog "   ssh configuration: 'sshtargetfolder' is empty"
 		return 1
 	fi
 	return 0
 }
 function check_ssh_configuration2(){
-	dlog "ssh configuration 2: $sshlogin2, $sshhost2, $sshport2, $sshtargetfolder2"
+	dlog "   2: login: $sshlogin2, host: $sshhost2, port: $sshport2, folder: $sshtargetfolder2"
 	if [  -z  "${sshtargetfolder2}" ]
 	then
 		dlog "ssh configuration 2: 'sshtargetfolder2' is empty"
@@ -319,6 +324,26 @@ function check_ssh_configuration2(){
 	fi
 	return 0
 }
+
+
+function check_ssh_config(){
+	if [  -n  "${sshlogin}" ]
+	then
+		if ! check_ssh_configuration
+		then
+			dlog "ssh login value is emtpy"
+		fi
+	fi
+
+	if [  -n  "${sshlogin2}" ]
+	then
+		if  ! check_ssh_configuration2
+		then
+			dlog "ssh login value 2 is emtpy"
+		fi
+	fi
+}
+
 
 function rotate_logs(){
 	# date in year month day
@@ -382,7 +407,7 @@ function release_lock(){
 }
 
 # gawk is used instead of awk
-which gawk 
+which gawk > /dev/null
 RET=$?
 if [ $RET -ne 0  ]
 then
@@ -391,7 +416,7 @@ then
 fi
 
 # rsanpshot is used in final backup
-which rsnapshot 
+which rsnapshot > /dev/null
 RET=$?
 if [ $RET -ne 0  ]
 then
@@ -432,24 +457,10 @@ dlog ""
 
 
 # check ssh values in cfg.ssh_login
-if [  -n  "${sshlogin}" ]
-then
-	if ! check_ssh_configuration
-	then
-		dlog "ssh login value is emtpy"
-	fi
-fi
-
-if [  -n  "${sshlogin2}" ]
-then
-	if  ! check_ssh_configuration2
-	then
-		dlog "ssh login value 2 is emtpy"
-	fi
-fi
+dlog " ==  check ssh configuration to send success messages"
+check_ssh_config
 
 # loop, until 'bk_disks.sh' returns  not '$BK_NORMALDISKLOOPEND'
-
 do_once_counter=0
 
 

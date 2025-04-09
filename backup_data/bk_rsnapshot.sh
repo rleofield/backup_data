@@ -260,7 +260,7 @@ else
 	dlog "==> return in sync first wasn't ok, check logfile or config in  '${lv_rsnapshot_config}' "
 fi
 
-#dlog "sync to disk"
+dlog "sync to disk, after rotate"
 sync
 
 dlog "== end bk_rsnapshot.sh: $rs_exitcode_txt ($rs_exitcode) =="

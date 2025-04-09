@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # file: start_backup.sh
-# bk_version 24.08.2
+# bk_version 25.03.1
 
 
-# Copyright (C) 2017-2024 Richard Albrecht
+# Copyright (C) 2017-2025 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -29,7 +29,7 @@
 
 
 
-readonly bv_version="24.08.1"
+readonly bv_version="25.03.1"
 
 
 readonly lv_lockfilename="main_lock"
@@ -141,16 +141,16 @@ chmod 755 cfg.working_folder
 
 echo ""
 echo "working folder is: '$(pwd)'"
-echo " ----- start command: nohup ./bk_main.sh 'manual' > out_bk_main"
+#echo " ----- start command: nohup ./bk_main.sh 'manual' > out_bk_main"
 nohup ./bk_main.sh "manual" > out_bk_main &
 
 
 # wait for sync
 sync
 sleep 0.5
-echo " ----- "
-echo "backup is started in backgrund, terminal can now be closed"
-echo " ----- "
+#echo " ----- "
+echo "backup is started in background, terminal can now be closed"
+#echo " ----- "
 
 
 exit 0

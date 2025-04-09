@@ -1,9 +1,9 @@
 # file: src_log.sh
-# bk_version 25.01.1
+# bk_version 25.03.1
 # included with 'source'
 
 
-# Copyright (C) 2017-2024 Richard Albrecht
+# Copyright (C) 2017-2025 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -381,6 +381,7 @@ function targetdisk {
 }
 
 function check_arrays {
+	dlog " ==  check arrays in 'cfg.projects'"
 	local aok=0
 	for _arr in $bk_arr_cfglist
 	do
@@ -392,20 +393,20 @@ function check_arrays {
 		then
 			if [ $RET -eq $BK_ASSOCIATIVE_ARRAY_NOT_EXISTS ]
 			then
-				dlog "array '$_arr' in 'cfg.projects' doesn't exist"
-				dlog "add array entry in 'cfg.projects'"
-				dlog "'declare -A $_arr'"
-				dlog "'$_arr=()'"
-				dlog "------"
+				dlog "   array '$_arr' doesn't exist"
+				dlog "   -- add array entry with"
+				dlog "      'declare -A $_arr'"
+				dlog "      '$_arr=()'"
+				dlog "      ------"
 				aok=1
 			fi
 			if [ $RET -eq $BK_ASSOCIATIVE_ARRAY_IS_EMPTY ]
 			then
-				dlog "array '$_arr' in 'cfg.projects' is empty"
+				dlog "   array '$_arr' is empty"
 			fi
 			if [ $RET -eq $BK_ASSOCIATIVE_ARRAY_IS_NOT_EMPTY ]
 			then
-				dlog "array '$_arr' in 'cfg.projects' is not empty"
+				dlog "   array '$_arr' is not empty"
 			fi
 		fi
 	done

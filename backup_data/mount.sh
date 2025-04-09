@@ -2,9 +2,9 @@
 
 
 # file: mount.sh
-# bk_version 24.08.1
+# bk_version 25.04.1
 
-# Copyright (C) 2017-2024 Richard Albrecht
+# Copyright (C) 2017-2025 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -42,7 +42,7 @@ merr=""
 
 if [[ "$label" == *luks ]]
 then
-	dlog "mount luks device"
+	dlog "mount LUKS device"
 	LUKSKEYFILE=/root/luks/${label}_keyfile
 	if test ! -f $LUKSKEYFILE
 	then
@@ -80,7 +80,7 @@ then
 		RET=$?
 		if test $RET -ne 0
 		then
-			dlog "LUKS Device couldn't be opened"
+			dlog "LUKS device could not be opened"
 			exit 1
 		fi
 	else
@@ -91,17 +91,17 @@ then
 	RET=$?
 	if test $RET -ne 0
 	then
-		dlog "LUKS Device couldn't be mounted"
+		dlog "LUKS device could not be mounted"
 		exit 1
 	fi
 else
-	dlog "mount normal, no luks device"
+	dlog "mount normal, no LUkS device"
 	dlog "'mount -L $label $mountdir'"
 	mount -L $label $mountdir
 	RET=$?
 	if test $RET -ne 0
 	then
-		dlog "Device couldn't be mounted"
+		dlog "device could not be mounted"
 		exit 1
 	fi
 fi

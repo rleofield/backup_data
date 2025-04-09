@@ -41,7 +41,6 @@ fi
 readonly bv_disklist=$DISKLIST
 
 
-echo "show times for all disks and all projects"
 
 function log {
    local _msg=$1
@@ -85,19 +84,13 @@ fi
 
 
 
+stdatelog "show times for all disks and all projects"
 
 for _disk in $bv_disklist
 do
-	# clean up ssh messages
 	stdatelog ""
-	stdatelog "==== next disk: '$_disk' ===="
-	oldifs2=$IFS
-	IFS=','
-	RET=""
 	./disk_show_times.sh "$_disk" "$use_retains"
         RET=$?
-	IFS=$oldifs2
-
 	if [[ $RET = "$BK_DISKLABELNOTFOUND" ]]
 	then
 		stdatelog "${lv_cc_logname}: HD with label: '$_disk' not found"

@@ -2,9 +2,9 @@
 
 
 # file: umount.sh
-# bk_version 24.08.1
+# bk_version 25.08.1
 
-# Copyright (C) 2017-2024 Richard Albrecht
+# Copyright (C) 2017-2025 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify

@@ -2,9 +2,9 @@
 
 # file: cron_start_backup.sh
 
-# bk_version 24.08.2
+# bk_version 25.03.1
 
-# Copyright (C) 2017-2024 Richard Albrecht
+# Copyright (C) 2017-2025 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -43,7 +43,7 @@ then
 fi
 
 
-readonly bv_version="24.08.1"
+readonly bv_version="25.03.1"
 
 
 readonly callfilename=$(basename "$0")

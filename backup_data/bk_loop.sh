@@ -2,9 +2,9 @@
 
 
 # file: bk_loop.sh
-# bk_version 25.01.1
+# bk_version 25.02.1
 
-# Copyright (C) 2017-2024 Richard Albrecht
+# Copyright (C) 2017-2025 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -52,9 +52,9 @@
 # exit $BK_DISKLABELNOTFOUND	- disk with uuid nit found in /dev/disk/by-uuid, disk ist not in system 
 # exit $BK_NOINTERVALSET	- no backup time inteval configured in 'cfg.projects'
 # exit $BK_TIMELIMITNOTREACHED	- for none project at this disk time limit is not reached
-# exit $BK_DISKNOTUNMOUNTED	- ddisk couldn't be unmounted
+# exit $BK_DISKNOTUNMOUNTED	- ddisk could not be unmounted
 # exit $BK_MOUNTDIRTNOTEXIST	- mount folder for backup disk is not present in '/mnt'
-# exit $BK_DISKNOTMOUNTED	- disk couldn't be mounted 
+# exit $BK_DISKNOTMOUNTED	- disk could not be mounted 
 # exit $BK_RSYNCFAILS		- rsync error, see logs
 # exit $BK_SUCCESS		- all was ok
 # exit $BK_NORSNAPSHOTROOT	- no backup root set in  config
@@ -152,14 +152,16 @@ function get_projectwaittimeinterval {
 #		dlog "associative_array_has_value ret  '$ret'"
 		if [ $ret -eq 0 ]
 		then
-# 			array 'a_waittime' exists and has length > 0 and has projekt key is inside
+# 			array 'a_waittime' exists and has length > 0 and has project key is inside
 #			get the value	
 #			value is an array
-#  				for example '08-10'
+#  			for example '08-10'
 			local _waittime=${a_waittime[${_lpkey}]}
 			if [ $_waittime ]
 			then
-#				override file global values, set before start of this function 
+# 				in src_log.sh: 488 function get_waittimestart()
+# 				in src_log.sh: 508 function get_waittimeend()
+#				file global values are overwritten with "09"at start of the functions 
 				lv_loopwaittimestart=$( get_waittimestart $_waittime )
 				lv_loopwaittimeend=$( get_waittimeend $_waittime )
 			fi
@@ -866,7 +868,7 @@ _length_nextprojects=${#lv_dirty_projects_array[@]}
 # start of backup
 # - mount disk
 # - do rsnapshot with bk_project.sh and bk_rsnapshot.sh
-# - umount, if programmmed or no /media/user disk 
+# - umount, if programmed or no /media/user disk 
 #
 
 dlog "time limit for at least one project is reached, projects: ${lv_dirty_projects_array[*]}"
@@ -887,7 +889,8 @@ dlog " continue with test of mount state of disk: '$lv_targetdisk'"
 dlog ""
 
 # check mountdir at /mnt
-dlog "check mountdir"
+dlog "check mountdir, label: $lv_disklabel disk: $lv_targetdisk"
+
 
 
 # first, check mount at /media/user
@@ -980,14 +983,14 @@ else
 	RET=$?
 	if test $RET -ne 0
 	then
-		dlog " == end, couldn't mount disk '$lv_targetdisk' to  '$lv_mountfolder', mount error =="
+		dlog " == end, could not mount disk '$lv_targetdisk' to  '$lv_mountfolder', mount error =="
 	fi
 	
 	# check marker folder, if not ok, then disk is not mounted
 	if test ! -d $lv_markerfolder
 	then
 		dlog " mount,  markerdir '$lv_markerfolder' not found"
-		dlog " == end, couldn't mount disk '$lv_targetdisk' to  '$lv_mountfolder', no marker folder =="
+		dlog " == end, could not mount disk '$lv_targetdisk' to  '$lv_mountfolder', no marker folder =="
 		exit $BK_DISKNOTMOUNTED
 	fi
 fi
@@ -1050,7 +1053,7 @@ lv_loop_successlist=()
 declare -a lv_loop_unsuccesslist
 lv_loop_unsuccesslist=()
 
-PRET=""
+PRET="$BK_SUCCESS"
 
 # do backup, if disk is not full
 #   if disk is full, see else part
@@ -1110,15 +1113,14 @@ then
 				fi
 			fi
 			backupdisk=""
+			# extract backupdisk from snapshot_root
 			if test -n $snapshotroot
 			then
 				backupdisk=$( echo "$snapshotroot" | cut -d'/' -f3 )
 			fi
 			# test, if snapshot_root is used or folder with name from label
-			#parray=${a_properties[$lpkey]}
-			parray=$( get_project_properties $lpkey )
-			#dlog "parray: $parray"
-			ignore_snapshot_root=$(echo ${parray[@]} | grep -w -o "ignore_snapshot_root" | wc -l )
+			parray_project=$( get_project_properties $lpkey )
+			ignore_snapshot_root=$(echo ${parray_project[@]} | grep -w -o "ignore_snapshot_root" | wc -l )
 			#echo "ignore_snapshot_root: $ignore_snapshot_root"
 			dlog "snapshotroot:  $snapshotroot "
 			#dlog "backup disk:   $backupdisk "
@@ -1128,6 +1130,8 @@ then
 				#echo "if [ $ignore_snapshot_root == 0 ]"
 				if [ $ignore_snapshot_root == 0 ]
 				then
+					# snapshot_root is equal to backupdisk and targetdisk
+					# if not = error
 					if [ "$backupdisk" != "$lv_targetdisk" ]
 					then
 						dlog "- snapshot_root in 'conf/${lpkey}': '$snapshotroot'"
@@ -1135,11 +1139,22 @@ then
 						dlog "!!! backup disk in configuration: '$backupdisk' is != targetdisk: '$lv_targetdisk' !!! "
 						exit $BK_RSYNCFAILS
 					fi
+				else
+					# snapshot_root is equal to backupdisk and targetdisk?
+					# is ignored, use backupdisk, not targetdisk
+					# in bk_rsnapshot, value in snapshot_root is used
+					dlog "- 'ignore_snapshot_root' is set, backupdisk = '$backupdisk'"
+					
+					__mountfolder=${snapshotroot%%"rs/${_project}"*}
+					dlog "- mountfolder = '$__mountfolder'"
+					__markerfolder=${__mountfolder}marker
+					dlog "- markerfolder = '$__markerfolder'"
+					
 				fi
 			fi
 			if [ "$lv_disklabel" != "$lv_targetdisk" ]
 			then
-				dlog "=== disk '$lv_disklabel', start of project '$_project', targetdisk: '$lv_targetdisk'=="
+				dlog "=== disk '$lv_disklabel', start of project '$_project', targetdisk: '$lv_targetdisk'==="
 			else
 				dlog "=== disk '$lv_disklabel', start of project '$_project' ==="
 			fi
@@ -1395,9 +1410,9 @@ if test -d $lv_markerfolder
 then
 	_oldifs15=$IFS
 	#IFS=','
-	parray=${a_properties[$lv_disklabel]}
+	parray_lv_disklabel=${a_properties[$lv_disklabel]}
 
-	umount_is_configured=$(echo ${parray[@]} | grep -w -o "umount" | wc -l )
+	umount_is_configured=$(echo ${parray_lv_disklabel[@]} | grep -w -o "umount" | wc -l )
 	if test $umount_is_configured -eq 1 
 	then
 
@@ -1535,7 +1550,6 @@ else
 	projecterrorssize=${#projecterrors[@]}
 fi
 
-
 if test ${projecterrorssize} -gt 0 
 then
 
@@ -1594,14 +1608,11 @@ fi
 # don't delete files, is > redirection
 # files are used in bk_disks
 # write successarray, read again  in 'bk_disks.sh'
-#echo "222  ${lv_loop_successlist[@]} "
 echo ${lv_loop_successlist[@]} > $bv_successarray_tempfile
-#dlog "UUUUU file: '$bv_successarray_tempfile'"
+
 #cp $bv_successarray_tempfile fff.txt
-#dlog "UUUUU lv_loop_successlist: ${lv_loop_successlist[@]} "
 # write unsuccessarray, read again  in 'bk_disks.sh'
 echo ${lv_loop_unsuccesslist[@]} > $bv_unsuccessarray_tempfile
-#dlog "FFFFF cat $bv_successarray_tempfile"
 #echo "cat $bv_successarray_tempfile"
 #cat $bv_successarray_tempfile
 
