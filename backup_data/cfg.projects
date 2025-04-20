@@ -1,8 +1,8 @@
 # file: cfg.projects
-# bk_version 24.08.1
+# bk_version 25.03.1
 # included with 'source'
 
-# Copyright (C) 2017-2023 Richard Albrecht
+# Copyright (C) 2017-2025 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -20,19 +20,24 @@
 
 ####### general part  #######
 
-readonly bv_version="24.08.1"
+readonly bv_version="25.04.1"
 
 # default old backup date: used, if no value in folder 'done' ist set
-readonly max_last_date="2024-12-01T00:00"
+readonly max_last_date="2025-03-01T00:00"
 
 
 # backup waits in this intervall, nothing ist done
-# values  > 23 or < 1 didn't work
+# values  > 23 or < 01 didn't work
 # first value must be smaller than the second
+# separated with -
+# no spaces allowed
+# numbers must have 2 digits 
 # individual waittimes for each project are set below
 readonly bv_globalwaittimeinterval=09-10
 
 ####### general part  #######
+
+
 
 ####################################################################
 
@@ -54,7 +59,7 @@ readonly DISKLIST="bbackup"
 
 declare -A a_properties
 a_properties=()
-a_properties['bbackup']="noumount"
+a_properties['bbackup']="xumount"
 
 # use snapshot_root direct, don't use disk label for snapshot_root
 # in bk_loop.sh, in inner loop
@@ -101,24 +106,60 @@ a_waittime['bbackup_testData']=09-10
 
 # 
 #  'targetdisk()' is used, if label of backup-disk is changed
-# targetdisk is the label the backup-disk and also mountpoint in '/,mnt'
+# targetdisk is the label the backup-disk and also mountpoint in '/mnt'
 # disklabel is the new projectlabel
 
 
 #   with 'targetdisk()' the history in folder with old label can be used
+#     normally this is not used, but the array must be declared
+#     and is empty by default 
 
-#   in folders 'interval_done', 'retains_count' and 'pre' the files with old name must be adapted the new label 'xxxxxx'
-#     'xxxxxx_lserver_done.txt'             in 'interval_done'
-#     'xxxxxx_lserver_{one/two/three/four}' in 'retains_count',-
-#     'xxxxxx_lserver.pre.sh'               in 'pre'
 
-# in 'conf/projectfile' the following names must be changed and renamed
-#     'logfile /usr/local/bin/backup_data/aa_xxxxxx_lserver.log'
-#     'rsync_long_args  --delete --numeric-ids --relative --delete-excluded --log-file=/usr/local/bin/backup_data/rr_xxxxxx_lserver.log'
-#     'exclude_file /usr/local/bin/backup_data/exclude/xxxxxx_lserver'
-#      only 'snapshot_root' must point to the old label
+# move backup target
 
-# normally this is not used, but the array must be declared 
+# 1. nur ein Verzeichnis, ohne weitere Prüfungen
+#   a_properties['huh12_pserver']="ignore_snapshot_root"
+#   prüft nicht, ob 'snapshot_root' in rsnapshot 
+#    auf der durch den Label der HD vorgegebenen HD ist
+#   kann verwendet werden, um einen Backupfolder an anderer Stelle unterzubringen
+#   alle Prüfungen der HD, Existenz bei USB, freier Platz usw.,  
+#   werden mit der bisherigen HD ausgeführt
+#   Vorsicht: die durch 'snapshot_root' angegebene  Disk wird 
+#      nicht geprüft, 
+#      nicht eingebunden 
+#      und auch nicht ausgehängt
+
+
+# 2. complete disk with all backup folders
+
+#  setup
+#  1. set a_targetdisk['kluks']="edisk"
+#    targetdisk replaces the label of the harddisk from the configuration
+#         with another disk
+#    all checks of the HD, existence at USB, free space etc.,
+#          are executed with the target disk,
+#          also the check for 'snapshot_root', if "ignore_snapshot_root" is not set
+#     log in folder 'interval_done' uses old label, not targetdisk
+#     log in folder 'done' uses old label, not targetdisk
+#  2. set 'snapshot_root' in all 'conf/disk_label.conf' to targetdisk
+#  3. copy all folder in backup from disk with label to targetdisk
+#  test
+#  start backup
+
+#     function targetdisk {
+#           returns targetdisk 
+
+#  reverse
+#  0. stop backup
+#  1. remove a_targetdisk['kluks']="edisk"
+#  2. adapt 'snapshot_root' in 'conf/disk_label.conf' 
+#  3. copy all in backup from targetdisk to disk with label
+#  test
+#  start backup
+
+
+
+
 
 # EOF
 

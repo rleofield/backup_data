@@ -4,7 +4,7 @@
 # disable: Declare and assign separately to avoid masking return
 
 # file: bk_project.sh
-# bk_version 25.02.1
+# bk_version 25.04.1
 
 
 
@@ -48,7 +48,6 @@
 . ./cfg.working_folder
 . ./cfg.projects
 
-
 . ./src_test_vars.sh
 . ./src_exitcodes.sh
 . ./src_filenames.sh
@@ -60,7 +59,7 @@
 set -u
 
 # exit values, in bk_loop.sh
-# exit BK_DISKLABELNOTGIVEN 	- disk label from caller is empty
+# exit $BK_DISKLABELNOTGIVEN 	- disk label from caller is empty
 # exit $BK_ARRAYSNOK         	- property arrays have errors
 # exit $BK_DISKLABELNOTFOUND	- disk with uuid nit found in /dev/disk/by-uuid, disk ist not in system 
 # exit $BK_NOINTERVALSET	- no backup time inteval configured in 'cfg.projects'
@@ -260,7 +259,6 @@ firstretain=${retains[0]}
 # retain from conf splitted
 
 
-readonly intervaldonefile="${lv_lpkey}_done.txt"
 
 
 # remove index 0 counter, set count to 0, = interval eins
@@ -355,6 +353,7 @@ function update_counter {
 	else
 		msg=$( printf "%2d of %2d"  $_counter $_max_count )
 	fi
+	local intervaldonefile="${lv_lpkey}_done.txt"
 	dlog "write reportline to '$bv_intervaldonefolder/$intervaldonefile'"
 	reportline=$(  echo "($msg)${space}${_currentretain} at: $_currenttime created '${_created_time}'" )
 	dlog "reportline is:  $reportline"

@@ -1,6 +1,6 @@
 
 # file exitcodes.sh 
-# bk_version 24.08.1
+# bk_version 25.04.1
 # included with 'source'
 
 # Copyright (C) 2017-2024 Richard Albrecht
@@ -32,7 +32,7 @@
 # used in bk_disks.sh
 
 # BK_SUCCESS=0
-# BK_ARRAYSNOK=1  # exit, but checked in 'bk_disks.sh'
+##### BK_ARRAYSNOK=1  # exit, but checked in 'bk_disks.sh'
 # BK_DISKLABELNOTGIVEN=2
 # BK_DISKLABELNOTFOUND=3
 # BK_DISKNOTUNMOUNTED=4
@@ -60,7 +60,8 @@ readonly BK_SUCCESS=0
 # used in bk_projects.sh, line 91 
 #   after check of existence of 'a_properties', 'a_projects', 'a_interval' in cfg.projects
 #   reason: one of the arrays is wrong
-readonly BK_ARRAYSNOK=1  # exit, but checked in 'bk_disks.sh'
+
+# readonly BK_ARRAYSNOK=1  # exit, but checked in 'bk_disks.sh'
 
 # disklabel was not given in call of script
 readonly BK_DISKLABELNOTGIVEN=2

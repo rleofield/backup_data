@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: test.sh
-# bk_version 24.08.1
+# bk_version 24.03.1
 
 
 # Copyright (C) 2017-2024 Richard Albrecht

@@ -1,5 +1,5 @@
 # file: src_log.sh
-# bk_version 25.03.1
+# bk_version 25.04.1
 # included with 'source'
 
 
@@ -66,9 +66,11 @@ readonly bv_daily_rotate=1
 
 
 # all time, dates with minute accuracy, not seconds
+
+
 function currentdateT() {
 	# YYYY-MM-DDThh:mm
-	echo `date +%Y-%m-%dT%H:%M`
+	date +%Y-%m-%dT%H:%M
 }
 
 function currentdate_for_log() {
@@ -77,14 +79,16 @@ function currentdate_for_log() {
 }
 
 function date2seconds(){
-	echo "$(date +%s -d $1)"
+	# par = datestring
+	# return date in seconds
+	date +%s -d "$1"
 }
 
 
 
 function tlog() {
 	local tracelogname=$lv_tracelogname
-	if [  -z ${tracelogname} ]
+	if [  -z "${tracelogname}" ]
 	then 
 		echo "${tracelogname} is empty in trace"
 		tracelogname="not set"
@@ -163,8 +167,10 @@ function dlog {
 	local oldifs=$IFS
 	local prefixlist="$temptestmarkerlog $startendtestmarkerlog $arraytestmarkerlog"
 	#local prefixlist="$startendtestmarkerlog $arraytestmarkerlog"
+	# set IFS to <space><tab><newline>
+	# default IFS=$' \t\n'
 	IFS=$' \t\n'
-	# XXXX used to temporary usage if dlog,
+	# XXXX used to temporary usage of dlog,
 	# DDDD used to log use of scripts, at main, at start/end disks, start/end project
 	# AAAA used to log test of arrays
 	for _pre in $prefixlist
@@ -189,7 +195,6 @@ function dlog {
 }
 
 
-
 # get_loopcounter
 function get_loopcounter {
 	local ret="0"
@@ -211,7 +216,7 @@ function get_runningnumber {
 	local number=$( get_loopcounter )
 	# 5 digits
 	# < 99999
-        local fmt="%05d"
+	local fmt="%05d"
 	# > 5 digits, doesn't occur
 	local _runningnumber=$( printf ${fmt}  ${number} )
 	echo $_runningnumber
@@ -232,49 +237,49 @@ function increment_loop_counter(){
 	fi
 	# write back to 'loop_counter.log'
 	echo "loop counter: $_counter" > loop_counter.log
-
 }
 
 
-
 function is_associative_array {
-	local  nn=$1
-	#arraytestlog "nn: $nn"
+	local  testarray=$1
+	#arraytestlog "testarray: $testarray"
 	local retv=$BK_ASSOCIATIVE_ARRAY_NOT_EXISTS
 	local associative_array_pattern="declare -A"
 
-	dc=$( declare -p $nn )
+	dc=$( declare -p $testarray )
+	#echo "dc: $dc"
 	arraytestlog "declare command: $dc"
 
-	if [[ "$(declare -p $nn 2>/dev/null)" == ${associative_array_pattern}* ]]
+	if [[ "$(declare -p $testarray 2>/dev/null)" == ${associative_array_pattern}* ]]
 	then
-		arraytestlog "array '$nn' exists and is associative array"
-		empty_array_pattern="${associative_array_pattern} $nn=()"
+		arraytestlog "array '$testarray' exists and is associative array"
+		empty_array_pattern="${associative_array_pattern} $testarray=()"
 		#wc=$(declare -p $name) | wc -l
 		# 1 bei arr
-		if [[ "$(declare -p $nn 2>/dev/null)" == ${empty_array_pattern}* ]]
+		if [[ "$(declare -p $testarray 2>/dev/null)" == ${empty_array_pattern}* ]]
 		then
-			arraytestlog "array '$nn' is empty"
+			arraytestlog "array '$testarray' is empty"
 			retv=$BK_ASSOCIATIVE_ARRAY_IS_EMPTY
 		fi
 		if test $retv -ne 0
 		then
 			# declare -A a_waittim=([cdisk_dserver]="10-10" )
-			not_empty_array_pattern="${associative_array_pattern} $nn=(["
-			if [[ "$(declare -p $nn 2>/dev/null)" == ${not_empty_array_pattern}* ]]
+			not_empty_array_pattern="${associative_array_pattern} $testarray=(["
+			if [[ "$(declare -p $testarray 2>/dev/null)" == ${not_empty_array_pattern}* ]]
 			then
-				arraytestlog "array '$nn' is not empty"
+				arraytestlog "array '$testarray' is not empty"
 				retv=$BK_ASSOCIATIVE_ARRAY_IS_NOT_EMPTY
 			fi
 		fi
 	else
-		arraytestlog "array '$nn' is not an associative array"
+		arraytestlog "array '$testarray' is not an associative array"
 	fi
 	return $retv
 }
 
 function is_associative_array_ok {
 	local nn=$1
+	#	dlog "is_associative_array_ok: '$nn'"
 	is_associative_array "$nn"
 	ret=$?
 	if [ $ret -eq $BK_ASSOCIATIVE_ARRAY_IS_EMPTY ] || [ $ret -eq $BK_ASSOCIATIVE_ARRAY_IS_NOT_EMPTY ]
@@ -336,14 +341,11 @@ function is_indexed_array {
 }
 
 
-
 function targetdisk {
 	local _disk_label=$1
 	arraytestlog " in targetdisk  '$_disk_label'"
 
 	# test for a variable that does contain a value 
-	local _targetdrive="empty"
-	local _array="a_targetdisk"
 	local retval="empty"
 	if ! [[ $_disk_label ]]
 	then
@@ -351,6 +353,8 @@ function targetdisk {
 		echo $retval
 		return 1
 	fi
+	local _targetdrive="empty"
+	local _array="a_targetdisk"
 	retval=$_disk_label
 	is_associative_array_ok "a_targetdisk"
 	RET=$?
@@ -375,7 +379,7 @@ function targetdisk {
 
 	retval=${a_targetdisk[${_disk_label}]}
 	arraytestlog "targetdisk array '$_array' is not empty, found disklabel '$retval'"
-	
+
 	echo $retval
 	return 0
 }

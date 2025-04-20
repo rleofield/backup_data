@@ -2,7 +2,7 @@
 
 
 # file: umount.sh
-# bk_version 25.08.1
+# bk_version 25.04.1
 
 # Copyright (C) 2017-2025 Richard Albrecht
 # www.rleofield.de

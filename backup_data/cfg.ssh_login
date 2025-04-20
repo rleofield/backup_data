@@ -23,6 +23,8 @@
 
 ####### personal part #######
 # if 'localhost' or '127.0.0.1'  then only local copy to Desktop
+# used in
+# bk_disks.sh:333:   if [ "${sshhost}" == "localhost" ] || [ "${sshhost}" == "127.0.0.1" ]
 
 
 # 'sshhost' shouldn't be empty
@@ -47,7 +49,7 @@ readonly sshhost="localhost"
 #
 # in all cases, message is copied to local folder 'backup_messages_test'
 
-#if sshlogin is empty, nothing is copied to remote PC or local Desktop
+# if sshlogin is empty, nothing is copied to remote PC or local Desktop
 
 readonly sshlogin="rleo"
 readonly sshlogin2=""
@@ -57,7 +59,7 @@ readonly sshport="22"
 readonly sshport2=""
 
 
-# target folder for local/remote copy, slash at end
+# target folder for local/remote copy, slash at end!
 
 readonly sshtargetfolder="/home/rleo/Desktop/backup_messages/"
 #readonly sshtargetfolder2="/home/rleo/Desktop/backup_messages_2/"

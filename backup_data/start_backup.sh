@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: start_backup.sh
-# bk_version 25.03.1
+# bk_version 25.04.1
 
 
 # Copyright (C) 2017-2025 Richard Albrecht
@@ -28,13 +28,13 @@
 #					./bk_rsnapshot.sh,  do rsnapshot
 
 
+readonly callfilename=$(basename "$0")
 
-readonly bv_version="25.03.1"
+readonly bv_version="25.04.1"
 
 
 readonly lv_lockfilename="main_lock"
 
-readonly callfilename=$(basename "$0")
 echo "start of: $callfilename"
 echo "version: '$bv_version'"
 
@@ -87,8 +87,12 @@ then
 	exit 1
 fi
 
-echo "working folder '$STARTFOLDER' exists, if terminal stands not there, change" 
-#echo "all backupfolders have chmod 700 and owned by root, this prevents from deleting, with user rights"
+echo "working folder '$STARTFOLDER' exists" 
+echo "change to '$STARTFOLDER'"
+echo ""
+# all backupfolders have right value of 750 and owned by root
+#    rwxr-x--- 1 root root    
+# this prevents from deleting with user rights"
 
 cd $STARTFOLDER 
 
@@ -97,17 +101,16 @@ cd $STARTFOLDER
 # check, if already running, look for process 'bk_main.sh'
 echo "check, if 'backup' is running"
 #echo "check, if 'bk_main.sh' is running"
-#echo "ps aux | grep bk_main.sh | grep -v grep | grep -v vim | wc -l "
+echo "ps aux | grep bk_main.sh | grep -v grep | grep -v vim | wc -l "
 wc=$( ps aux | grep bk_main.sh | grep -v grep | grep -v vim | wc -l )
 #echo "nr of lines with 'bk_main': $wc"
 if [ $wc -gt 0  ]
 then
-	echo "Backup is running, exit"
-	echo " ----- count of 'bk_main.sh' in 'ps aux' is > 0, count: $wc"	
-	echo "==  end  == "
-	echo "Backup is running, exit"
+	echo "====  Backup is running, exit"
+	echo "====  Backup is running, exit"
 	exit 1
 fi
+
 
 
 
@@ -128,7 +131,7 @@ fi
 
 
 echo "backup is not running, start in workingfolder '$STARTFOLDER'"
-echo "write 'WORKINGFOLDER', set in '/etc/$rlf_backup_data_rc', to file 'cfg.working_folder'" 
+echo "write 'WORKINGFOLDER' to file 'cfg.working_folder'" 
 
 # create file 'cfg.working_folder'
 #echo "write new file 'cfg.working_folder'"
@@ -140,7 +143,7 @@ chmod 755 cfg.working_folder
 #echo "export WORKINGFOLDER" >> cfg.working_folder
 
 echo ""
-echo "working folder is: '$(pwd)'"
+echo "current working folder is: '$(pwd)'"
 #echo " ----- start command: nohup ./bk_main.sh 'manual' > out_bk_main"
 nohup ./bk_main.sh "manual" > out_bk_main &
 

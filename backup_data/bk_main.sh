@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_main.sh
-# bk_version 25.03.1
+# bk_version 25.04.1
 
 # Copyright (C) 2017-2025 Richard Albrecht
 # www.rleofield.de
@@ -41,7 +41,6 @@
 # BK_*  - exitcodes, upper case, BK_
 
 
-
 . ./cfg.working_folder
 . ./cfg.projects
 . ./cfg.ssh_login
@@ -57,9 +56,9 @@
 set -u
 
 
-# values: lv_iscron  = "cron"   = backup was started via cronjob
-#         lv_iscron  = "manual" = backup was started via commandline
-readonly lv_iscron=$1
+# values: "cron"   = backup was started via cronjob
+#         "manual" = backup was started via commandline
+readonly lv_call_source=$1
 
 readonly lv_lockfilename="main_lock"
 
@@ -86,9 +85,6 @@ function check_working_folder {
 }
 
 
-# values: lv_iscron  = "cron"   = backup was started via cronjob
-#         lv_iscron  = "manual" = backup was started via commandline
-readonly lv_call_source=$lv_iscron
 
 function start_message {
 	local _call_source=$lv_call_source
@@ -109,29 +105,9 @@ function start_message {
 }
 
 
-function check_if_already_running {
-	local u="root"
-	temptestlog "pidcount=pgrep -u $u   bk_main.sh"
-
-	#pgrep -u "$u"   "bk_main.sh" | wc -l
-	local pidcount=$(  pgrep -u "$u"   "bk_main.sh" | wc -l )
-	echo  " pidcount: $pidcount"
-	# pid appears twice, because of the subprocess finding the pid
-
-	if [ $pidcount -lt 3 ]
-	then
-		dlog " == backup is not running, start" 
-	else
-		dlog " == backup is running, exit"
-		dlog " == 'pid = $pidcount'"
-		exit 1
-	fi
-}
-
-
 function check_main_lock {
 	local _call_source=$lv_call_source
-	# remove main_lock, if is startet via cron_start_backup.sh
+	# remove main_lock, if is startet via 'cron_start_backup.sh'
 	#dlog " =="
 	dlog " == check '$lv_lockfilename'"
 	# values: "cron"   = backup was started via cronjob
@@ -198,7 +174,6 @@ function shatestfile(){
 	local _lsum1=$2
 	local sum=$( sha256sum $_file1 )
 	local a=$( echo $sum | cut -f1 -d " " )
-#	echo "$a, found sum $a"
 	if [ $_lsum1 != $a ]
 	then
 		dlog "'$_file' was changed. sha256sum  $a, "
@@ -236,6 +211,19 @@ function shatestfiles(){
 	return $exitval
 }
 
+# example for lines in sha256sum.txt
+#	4953... bk_archive.sh
+#	4ac3... bk_disks.sh
+#	fdf4... bk_loop.sh
+#	7417... bk_main.sh
+#	028f... bk_project.sh
+#	94dc... bk_rsnapshot.sh
+#	2e8c... src_exitcodes.sh
+#	43ef--- src_filenames.sh
+#	3c6c... src_folders.sh
+#	1dcb... src_log.sh
+#	ea21... mount.sh
+#	0b79... umount.sh
 function shatest(){
 	if [ -f "sha256sum.txt" ]
 	then
@@ -272,24 +260,23 @@ function list_test_flags(){
 	dlog "   test_short_minute_loop_seconds_10 (0):    $bv_test_short_minute_loop_seconds_10"
 	dlog "   test_minute_loop_duration (2):            $bv_test_minute_loop_duration"
 	dlog "   daily_rotate (1):                         $bv_daily_rotate"
-	#dlog " == "
 }
 
 
-# check folder for rsnapshot configuration files
-# in src_folders.sh
-# 8 folder
-# bv_conffolder="conf"
-# bv_intervaldonefolder="interval_done"
-# bv_retainscountfolder="retains_count"
-# bv_backup_messages_testfolder="backup_messages_test"
-# bv_donefolder="done"
-# bv_excludefolder="exclude"
-# bv_oldlogsfolder="oldlogs"
-# bv_preconditionsfolder="pre"
-
+# check existence of folders for rsnapshot configuration files
+#  set in file src_folders.sh
+#  8 folder
+# 	bv_conffolder="conf"
+# 	bv_intervaldonefolder="interval_done"
+# 	bv_retainscountfolder="retains_count"
+# 	bv_backup_messages_testfolder="backup_messages_test"
+# 	bv_donefolder="done"
+# 	bv_excludefolder="exclude"
+# 	bv_oldlogsfolder="oldlogs"
+# 	bv_preconditionsfolder="pre"
 function check_configuration_folders(){
 	dlog " ==  check existence of folders for backup scripts"
+#                          1              2                      3                      4                              5              6                 7                 8
 	local _folderlist="$bv_conffolder $bv_intervaldonefolder $bv_retainscountfolder $bv_backup_messages_testfolder $bv_donefolder $bv_excludefolder $bv_oldlogsfolder $bv_preconditionsfolder"
 
 	for _folder in $_folderlist
@@ -302,7 +289,6 @@ function check_configuration_folders(){
 			exit 1
 		fi
 	done
-	#dlog " == "
 }
 
 
@@ -427,14 +413,13 @@ fi
 
 
 check_working_folder
-start_message $lv_iscron
-check_if_already_running
-check_main_lock $lv_iscron
+start_message
+check_main_lock
 check_and_remove_rsnapshot_pid_lock
 clear_internalerrors_list 
 
 # if fails, create sha file, if needed
-# sha256sum *.sh > sha256sum.txt.sh
+# sha256sum.sh generates sha256sum.txt
 shatest
 
 
@@ -444,8 +429,8 @@ list_test_flags
 # check folder for rsnapshot configuration files
 check_configuration_folders
 
-#check_existence_of_arrays_in_cfg
-
+# check_existence_of_arrays_in_cfg
+#  is in scr_log.sh
 check_arrays
 RET=$?
 if test $RET -ne 0 
@@ -463,7 +448,8 @@ check_ssh_config
 # loop, until 'bk_disks.sh' returns  not '$BK_NORMALDISKLOOPEND'
 do_once_counter=0
 
-
+# start of main loop
+# runs, until stop.sh ist executed
 while true
 do
 	dlog "" 
@@ -501,7 +487,7 @@ do
 	dlog ""
 	# call 'bk_disks.sh' to loop over all backup disks 
 	##########################################################################################
-	./bk_disks.sh $lv_iscron
+	./bk_disks.sh 
 	RET=$?
 	# RET can't be 'readonly'
 	##########################################################################################
@@ -641,7 +627,7 @@ do
 		fi
 	fi
 
-	# no stop set
+	# no stop was set
 	dlog " ----> goto next loop  <----"
 	tlog " ----> goto next loop  <----"
 	sleep 1

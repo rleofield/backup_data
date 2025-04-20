@@ -2,7 +2,7 @@
 
 # file: cron_start_backup.sh
 
-# bk_version 25.03.1
+# bk_version 25.04.1
 
 # Copyright (C) 2017-2025 Richard Albrecht
 # www.rleofield.de
@@ -43,7 +43,7 @@ then
 fi
 
 
-readonly bv_version="25.03.1"
+readonly bv_version="25.04.1"
 
 
 readonly callfilename=$(basename "$0")
@@ -119,7 +119,6 @@ then
 fi
 
 cron_dlog "'$STARTFOLDER' exists, change, and write new file .cfg" 
-#echo "all backupfolders have chmod 700 and owned by root, this prevents vom deleting, with user rights"
 
 
 cd "$STARTFOLDER" || exit 1
@@ -142,8 +141,6 @@ chmod 755 cfg.working_folder
 cron_dlog "check, if already running, lookup for process 'bk_main.sh'"
 cron_dlog "ps aux | grep bk_main.sh | grep -v grep | wc -l "
 wc=$( ps aux | grep bk_main.sh | grep -v grep | wc -l )
-
-
 if [ $wc -gt 0  ]
 then
 	cron_dlog "count of 'bk_main.sh' in 'ps aux' is > 0 : $wc"	

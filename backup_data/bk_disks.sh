@@ -5,7 +5,7 @@
 
 
 # file: bk_disk.sh
-# bk_version 25.03.1
+# bk_version 25.04.1
 
 # Copyright (C) 2017-2025 Richard Albrecht
 # www.rleofield.de
@@ -60,10 +60,6 @@ set -u
 # exit $BK_NORMALDISKLOOPEND  - 99, normal end
 # exit $BK_STOPPED -   normal stop, file 'stop' detected
 
-
-# in start_backup.sh:nohup ./bk_main.sh "manual"
-# in cron_start_backup.sh:nohup ./bk_main.sh "cron"
-readonly lv_iscron=$1
 
 # in function tlog() in src_log.sh
 readonly lv_tracelogname="disks"

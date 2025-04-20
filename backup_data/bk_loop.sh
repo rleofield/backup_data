@@ -2,7 +2,7 @@
 
 
 # file: bk_loop.sh
-# bk_version 25.02.1
+# bk_version 25.04.1
 
 # Copyright (C) 2017-2025 Richard Albrecht
 # www.rleofield.de

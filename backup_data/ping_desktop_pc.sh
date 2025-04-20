@@ -20,9 +20,11 @@
 #------------------------------------------------------------------------------
 
 
-
+. ./cfg.working_folder
 . ./cfg.ssh_login
 . ./src_log.sh
+
+#cd $bv_workingfolder
 
 lv_cc_logname="ping"
 
@@ -67,6 +69,9 @@ function func_sshport {
         echo $p
 }
 
+echo "===  test ssh login entries in 'cfg.ssh_login'  ==="
+echo ""
+
 if [ ${sshhost} = "localhost" ]
 then
 	echo "is localhost"
@@ -78,11 +83,13 @@ then
 	exit
 fi
 
-p=$( func_sshport )
+
+echo "===  sshlogin  ==="
 echo "login: '${sshlogin}' "
 echo "host: '${sshhost}'"
 echo "folder: '${sshtargetfolder}'"
 echo "port: '${sshport}'"
+
 do_ping_host ${sshlogin} ${sshhost} ${sshtargetfolder} ${sshport}
 RET=$?
 if [ $RET -eq 0 ]
@@ -90,6 +97,21 @@ then
 	echo "ok"
 else
 	echo "nok"
+fi
+if [  -n  "${sshlogin2}" ]
+then
+	echo "===  sshlogin2  ==="
+	echo "login: '${sshlogin2}' "
+	echo "host: '${sshhost2}'"
+	echo "folder: '${sshtargetfolder2}'"
+	echo "port: '${sshport2}'"
+	do_ping_host ${sshlogin2} ${sshhost2} ${sshtargetfolder2} ${sshport2}
+	if [ $RET -eq 0 ]
+	then
+		echo "ok"
+	else
+		echo "nok"
+	fi
 fi
 
 # EOF
