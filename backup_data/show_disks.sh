@@ -2,10 +2,9 @@
 
 
 # file: show_disks.sh
+# bk_version 26.01.1
 
-# bk_version 24.08.1
-
-# Copyright (C) 2017-2024 Richard Albrecht
+# Copyright (C) 2017-2026 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -25,11 +24,27 @@
 . ./cfg.working_folder
 . ./cfg.projects
 
-. ./src_exitcodes.sh
 . ./src_filenames.sh
+. ./src_exitcodes.sh
+. ./src_log.sh
 . ./src_folders.sh
 
+
+# set -u, which will exit your script if you try to use an uninitialised variable.
+# = set -o unset·
+set -u
+
+
+
 SHOW_DISKS_LOGFILE="list_disks_log.log"
+test_normal_file $SHOW_DISKS_LOGFILE
+RET=$?
+#echo "ret $RET"
+if ! test $RET 
+then
+	rm $SHOW_DISKS_LOGFILE 
+fi
+
 lv_cc_logname="show_disks"
 
 #bv_disklist is from cfg.projects
@@ -37,25 +52,10 @@ readonly bv_disklist=$DISKLIST
 
 
 
-# copy from src_log.sh
-function targetdisk {
-	local _disk_label=$1
-	local _targetdrive=${a_targetdisk[${_disk_label}]}
-	# test for a variable that does contain a value  
-	if [[ $_targetdrive ]]
-	then
-		echo "$_targetdrive"
-	else
-		echo "$_disk_label"
-	fi
-}
-
-
-
 function log {
    local msg=$1
    #echo -e "$msg" >> $SHOW_DISKS_LOGFILE
-   echo -e "$msg"    
+   echo -e "$msg"
 }
 
 
@@ -114,7 +114,7 @@ do
         then
 		
                 RET="${RET} ist nicht verbunden"
-		aw="awk '{ print $1 }'"
+		#aw="awk '{ print $1 }'"
 		F=$( find $bv_oldlogsfolder -name "cc_log*" | grep -v save | xargs grep $_disk | grep 'is mounted' | sort | awk '{ print $1 }'| cut -d '/' -f 3 | tail -f -n1 )
         	sddatelog "$RET, letztes Backup war: $F "
         else

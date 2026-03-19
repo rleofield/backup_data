@@ -1,8 +1,9 @@
 # file: src_folders.sh
-# bk_version 24.08.1
+
+# bk_version 26.01.1
 # included with 'source'
 
-# Copyright (C) 2017-2024 Richard Albrecht
+# Copyright (C) 2017-2026 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -43,14 +44,29 @@ readonly bv_excludefolder="exclude"
 # 7. storage for old daily logfiles, never deleted
 readonly bv_oldlogsfolder="oldlogs"
 
-# 8. ssh tests to chcke if a remote host is alive and ready for backup
+# 8. ssh tests to check, if a remote host is alive and ready for backup
 readonly bv_preconditionsfolder="pre"
 
+# list of all folders
+# 1. $bv_conffolder 
+# 2. $bv_intervaldonefolder 
+# 3. $bv_retainscountfolder 
+# 4. $bv_backup_messages_testfolder 
+# 5. $bv_donefolder 
+# 6. $bv_excludefolder 
+# 7. $bv_oldlogsfolder 
+# 8. $bv_preconditionsfolder
 
-# x. folder for own rsnapshot logs
-# not used
-#readonly bv_rsynclogfolder="rsynclog"
-# used for general rsync commands
-#readonly bv_rsynclogfile="${bv_rsynclogfolder}/rsync.log"
+readonly bv_folderlist="\
+$bv_conffolder \
+$bv_intervaldonefolder \
+$bv_retainscountfolder \
+$bv_backup_messages_testfolder \
+$bv_donefolder \
+$bv_excludefolder \
+$bv_oldlogsfolder \
+$bv_preconditionsfolder"
+
+
 
 # EOF

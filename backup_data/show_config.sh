@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # file: show_config.sh
-# bk_version 25.03.1
+# bk_version  26.01.1
 
 
-# Copyright (C) 2017-2025 Richard Albrecht
+# Copyright (C) 2017-2026 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -258,22 +258,25 @@ IFS='
 
 done
 
-
+echo "================="
 
 
 echo ""
 echo "all disks"
-cat cfg.projects | grep -v '#' | grep bv_disklist
+echo "$bv_disklist"
 echo ""
+
 echo "all Projects"
 cat cfg.projects | grep -v declare | grep -v '#' | grep a_projects
 echo ""
+
 echo "all intervals"
 cat cfg.projects | grep -v declare | grep -v '#'| grep -v pdiff | grep a_interval
 echo ""
+
 echo "all wait times"
 cat cfg.projects | grep -v declare | grep -v '#' | grep -v pdiff | grep a_waittime
-	
+
 
 # EOF
 

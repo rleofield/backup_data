@@ -1,12 +1,10 @@
 #!/bin/bash
 
-
 # file: show_times_disk.sh
+# bk_version  26.01.1
 
-# bk_version 24.08.1
 
-
-# Copyright (C) 2017-2024 Richard Albrecht
+# Copyright (C) 2017-2026 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -23,6 +21,8 @@
 
 
 
+# set -u, which will exit your script if you try to use an uninitialised variable
+set -u
 
 . ./cfg.working_folder
 . ./cfg.projects
@@ -33,7 +33,7 @@
 
 
 TODAY=`date +%Y-%m-%dT%H:%M`
-use_retains=$2
+readonly use_retains="$2"
 
 readonly _disk=$1
 readonly lv_cc_logname=""
@@ -46,17 +46,119 @@ then
 fi
 
 
+function log {
+   local msg=$1
+#   echo -e "$msg" >> "show_times.log"
+#   echo -e "$msg" 
+}
+
+
+
+function stdatelog {
+        local _TODAY=$( date +%Y%m%d-%H%M )
+        log "$_TODAY ==>  $1"
+        #echo "$_TODAY ==>  $1"
+}
+
+function dateecho {
+        local _TODAY=$( date +%Y%m%d-%H%M )
+        echo "$_TODAY ==>  $1"
+}
+
 # copy from src_log.sh
+
+function is_associative_array {
+	local  testarray=$1
+	#arraytestdlog "testarray: $testarray"
+	local retv=$BK_ASSOCIATIVE_ARRAY_NOT_EXISTS
+	local associative_array_pattern="declare -A"
+
+	dc=$( declare -p $testarray )
+	#echo "dc: $dc"
+
+	if [[ "$(declare -p $testarray 2>/dev/null)" == ${associative_array_pattern}* ]]
+	then
+		empty_array_pattern="${associative_array_pattern} $testarray=()"
+		#wc=$(declare -p $name) | wc -l
+		# 1 bei arr
+		if [[ "$(declare -p $testarray 2>/dev/null)" == ${empty_array_pattern}* ]]
+		then
+			retv=$BK_ASSOCIATIVE_ARRAY_IS_EMPTY
+		fi
+		if test $retv -ne 0
+		then
+			# declare -A a_waittim=([cdisk_dserver]="10-10" )
+			not_empty_array_pattern="${associative_array_pattern} $testarray=(["
+			if [[ "$(declare -p $testarray 2>/dev/null)" == ${not_empty_array_pattern}* ]]
+			then
+				retv=$BK_ASSOCIATIVE_ARRAY_IS_NOT_EMPTY
+			fi
+		fi
+	fi
+	return $retv
+}
+
+function is_associative_array_ok {
+	local nn=$1
+	#	dlog "is_associative_array_ok: '$nn'"
+	is_associative_array "$nn"
+	ret=$?
+	if [ $ret -eq $BK_ASSOCIATIVE_ARRAY_IS_EMPTY ] || [ $ret -eq $BK_ASSOCIATIVE_ARRAY_IS_NOT_EMPTY ]
+	then
+		return $BK_ASSOCIATIVE_ARRAY_IS_OK
+	fi
+	return $ret
+}
+
+
+function associative_array_has_value {
+	local -n name=$1
+	#declare -p name 2>/dev/null
+	local key=$2
+	#arraytestdlog "has value array check start '$key'"
+	local keys=(${!name[@]})
+	#arraytestdlog "has value array  check inside key '$key'"
+	#local kis=1
+	for k in ${keys[@]}
+	do
+		if [ $k = $key ]
+		then
+			return 0
+		fi
+	done
+	return 1
+}
+
 
 function targetdisk {
 
 	local _disk_label=$1
+	declare -i RET
 	#${a_targetdisk[${_disk_label}]}
 	# test for a variable that does contain a value 
 #set -x
 	local _targetdrive="empty"
 	if [[ $_disk_label ]]
 	then
+		local _array="a_targetdisk"
+		is_associative_array_ok "a_targetdisk"
+		RET=$?
+		if test $RET -gt 0
+		then
+			retval=$_disk_label
+			echo $retval
+			return 0
+		fi
+
+		associative_array_has_value "a_targetdisk" "$_disk_label"
+		RET=$?
+		if test $RET -gt 0
+		then
+			retval=$_disk_label
+			echo $retval
+			return 0
+		fi
+
 		_targetdrive=${a_targetdisk[${_disk_label}]}
 		if [[ $_targetdrive ]]
 		then
@@ -70,23 +172,6 @@ function targetdisk {
 #set -x	
 }
 
-
-function log {
-   local msg=$1
-#   echo -e "$msg" >> "show_times.log"
-}
-
-
-
-function stdatelog {
-        local _TODAY=$( date +%Y%m%d-%H%M )
-        log "$_TODAY ==>  $1"
-}
-
-function dateecho {
-        local _TODAY=$( date +%Y%m%d-%H%M )
-        echo "$_TODAY ==>  $1"
-}
 
 _targetdisk=$( targetdisk $_disk )
 
@@ -313,10 +398,10 @@ function check_disk_done {
 
 function check_pre_host {
 
-	local _LABEL=$1
-	local _p=$2
+	local _lpkey=${1}
+	#echo "PPPPP: $_p"
 
-        local _precondition=${bv_preconditionsfolder}/${_LABEL}_${_p}.${bv_preconditionsfolder}.sh
+        local _precondition=${bv_preconditionsfolder}/${_lpkey}.${bv_preconditionsfolder}.sh
 
         if [[  -f $_precondition ]]
         then
@@ -433,7 +518,7 @@ do
         if test $DISKDONE -eq $DONE_REACHED
         then
                 diskdonetext="ok"
-                check_pre_host $_disk $p 
+                check_pre_host $lpkey 
 		ispre=$?
                 if test $ispre -eq 0
                 then
@@ -452,58 +537,59 @@ do
                 diskdonetext="not"
                 dateecho "$txt   $fn0 last, next in $fndelta,  programmed  $pdiff_minutes_print,  do nothing"
         fi
-if test $use_retains -gt 0
-then
-	# check, if config file ends with 'conf', then we do a backup with 'rsnapshot'
-	lv_rsnapshot_config=${lpkey}.conf
-	log "#  '${lv_rsnapshot_config}' "
-	lv_rsnapshot_cfg_file=${bv_conffolder}/${lv_rsnapshot_config}
+	if test $use_retains -gt 0
+	then
+		# check, if config file ends with 'conf', then we do a backup with 'rsnapshot'
+		lv_rsnapshot_config=${lpkey}.conf
+		log "#  '${lv_rsnapshot_config}' "
+		#dateecho "iCCCCC #  '${lv_rsnapshot_config}' "
+		lv_rsnapshot_cfg_file=${bv_conffolder}/${lv_rsnapshot_config}
 
-	# look up for lines with word 'retain'
-	retainslist=$( cat ./${lv_rsnapshot_cfg_file} | grep ^retain )
-	OIFS=$IFS
+		# look up for lines with word 'retain'
+		retainslist=$( cat ./${lv_rsnapshot_cfg_file} | grep ^retain )
+		OIFS=$IFS
 IFS='
 '
-	# convert to array of 'retain' lines
-	# 0 = 'retain', 1 = level, 2 = count
-	lines=($retainslist)
-	#dateecho "# current number of retain entries  './${lv_rsnapshot_cfg_file}' : ${#lines[@]}"
+		# convert to array of 'retain' lines
+		# 0 = 'retain', 1 = level, 2 = count
+		lines=($retainslist)
+		#dateecho "# current number of retain entries  './${lv_rsnapshot_cfg_file}' : ${#lines[@]}"
 
-	IFS=$OIFS
+		IFS=$OIFS
 
 
-	declare -A retainscount
-	declare -A retains_count_file_names
-	declare -A retains
-	n=0
-	for i in "${lines[@]}"
-	do
-		# split to array with ()
-		_line=($i)
+		declare -A retainscount
+		declare -A retains_count_file_names
+		declare -A retains
+		n=0
+		for i in "${lines[@]}"
+		do
+			# split to array with ()
+			_line=($i)
 
-		# 0 = keyword 'retain', 1 = level= e.g. eins,zwei,drei, 2 = count
-		rlevel=${_line[1]}
-		retains[$n]=$rlevel
-		rcount=${_line[2]}
-		if [[ $rcount -lt 2 ]]
-		then
-			dateecho "retain count is < 2 in retain '$rlevel', this is not allowed in 'rsnapshot' and this backup"
-			exit $BK_ERRORINCOUNTERS
-		fi
+			# 0 = keyword 'retain', 1 = level= e.g. eins,zwei,drei, 2 = count
+			rlevel=${_line[1]}
+			retains[$n]=$rlevel
+			rcount=${_line[2]}
+			if [[ $rcount -lt 2 ]]
+			then
+				dateecho "retain count is < 2 in retain '$rlevel', this is not allowed in 'rsnapshot' and this backup"
+				exit $BK_ERRORINCOUNTERS
+			fi
 
-		retainscount[$n]=$rcount
-		retains_count_file_names[$n]=$bv_retainscountfolder/${lv_lpkey}_${rlevel}
+			retainscount[$n]=$rcount
+			retains_count_file_names[$n]=$bv_retainscountfolder/${lv_lpkey}_${rlevel}
 
-		ek=$(entries_keeped $n )
-		#dateecho "keeped $ek"
-		#dateecho "line $n"
-		_t0=$(  printf "%8s %4s (%2s)" ${retains[$n]} ${retainscount[$n]} $( entries_keeped $n )   )
-		dateecho "retain $n: $_t0"
+			ek=$(entries_keeped $n )
+			#dateecho "keeped $ek"
+			#dateecho "line $n"
+			_t0=$(  printf "%8s %4s (%2s)" ${retains[$n]} ${retainscount[$n]} $( entries_keeped $n )   )
+			dateecho "retain $n: $_t0"
 
-		(( n++ ))
-	done
-	dateecho ""
-fi
+			(( n++ ))
+		done
+		dateecho ""
+	fi
 done
 
 

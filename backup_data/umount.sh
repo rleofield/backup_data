@@ -2,9 +2,9 @@
 
 
 # file: umount.sh
-# bk_version 25.04.1
+# bk_version  26.01.1
 
-# Copyright (C) 2017-2025 Richard Albrecht
+# Copyright (C) 2017-2026 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -18,6 +18,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
+
+
+# which will exit your script if you try to use an uninitialised variable.
+set -u
+  
 
 # exit 0, if ok
 # exit 1, if umount or cryptsetup fails
@@ -34,47 +39,108 @@ fi
 . ./src_log.sh
 
 
-readonly targetdisk=$1
-
-disklabel=$1
-lv_cc_logname="$disklabel:umount"
-
-# check, if is luks device, has 'luks' at end of label
-if [[ "$disklabel" == *luks ]]
-then
-	dlog "umount luks device"
-	dlog "LUKS: 'umount /mnt/$disklabel'"
-	umount /mnt/$disklabel
-	RET=$?
-	if test $RET -eq 0
+function umount_normal {
+	local _label=$1
+	local _mountdir=/mnt/$_label
+	umount $_mountdir 2> /dev/null
+	local _RET=$?
+	if test $_RET -ne 0
 	then
-		dlog "LUKS: 'cryptsetup luksClose $disklabel'"
-		cryptsetup luksClose $disklabel
-		RET=$?
-		if test $RET -ne 0
+		dlog "'umount /mnt/$_label' fails"
+		return 1
+	fi
+	mountpoint -q $_mountdir 
+	_RET=$?
+	if [[  $_RET -eq 0 ]]
+	then
+		dlog "disk '$_label' '$_mountdir' is already present'"
+		test_normal_file $_mountdir/marker 
+		# ret > 0, if ok
+		if [ $? -gt 0  ]
 		then
-			dlog "LUKS: 'cryptsetup luksClose $disklabel' fails"
-			exit 1
+			dlog "${_mountdir}/marker exists"
+			return 1
 		fi
-	else
-		dlog "LUKS: 'umount /mnt/$disklabel' fails"
-		exit 1
 	fi
-else
-	# not a luks device
-	dlog "umount normal, no luks device"
-	dlog "'umount /mnt/$disklabel'"
-	umount /mnt/$disklabel
-	RET=$?
-	if test $RET -ne 0
+	dlog "umount  successful: '$_mountdir'"
+	return 0
+}
+
+
+function umount_luks {
+	local _label=$1
+	umount_normal $_label
+	local _RET=$?
+	if [[  $_RET -eq 0 ]]
 	then
-		dlog "'umount /mnt/$disklabel' fails"
-		exit 1
+		mapperlink="/dev/mapper/$_label"
+		if [ -L "$mapperlink" ]
+		then
+			dlog "LUKS: 'cryptsetup luksClose $_label'"
+			cryptsetup luksClose $_label
+			_RET=$?
+			if test $_RET -ne 0
+			then
+				dlog "LUKS: 'cryptsetup luksClose $_label' fails"
+				return 1
+			fi
+		fi
+		dlog "LUKS done"
+		return 0
 	fi
+	dlog "LUKS umount fails"
+	return 1
+}
+
+
+readonly label=$1
+readonly lv_cc_logname="$label:umount"
+mountdir=/mnt/$label
+mountpoint -q $mountdir 
+_RET=$?
+if [[  ! $_RET -eq 0 ]]
+then
+	dlog "disk '$label' '$mountdir' is not mounted'"
+	exit 0
 fi
 
 
-exit 0
+dlog "$mountdir"
+
+# check, if no 'umount' line is present
+_dev=$(blkid | grep crypt | grep "$label" | awk -F ':' '{print $1}')
+
+if [[ -n $_dev ]]
+then
+	# maybe, this is LUKS?
+	# check
+	_RET=$(cryptsetup isLuks $_dev ) 
+	if [[ $_RET -eq 0  ]]
+	then
+		mountdir=/mnt/$label
+		dlog "is LUKS device"
+		umount_luks $label
+		_RET=$?
+		if [[  $_RET -eq 0 ]]
+		then
+			exit 0
+		fi
+	fi
+else
+	_dev=$(blkid | grep "$label" | awk -F ':' '{print $1}')
+	if [[ -n $_dev ]]
+	then
+		mountdir=/mnt/$label
+		dlog "no LUKS device: 'umount  $mountdir'"
+		umount_normal $label
+		_RET=$?
+		if [[  $_RET -eq 0 ]]
+		then
+			exit 0
+		fi
+	fi
+fi
+exit 1
 
 # EOF
 

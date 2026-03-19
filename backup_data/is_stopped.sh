@@ -1,10 +1,9 @@
 #!/bin/bash
 
 # file: is_stopped.sh
+# bk_version 26.01.1
 
-# bk_version 24.08.1
-
-# Copyright (C) 2017-2024 Richard Albrecht
+# Copyright (C) 2017-2026 Richard Albrecht
 # www.rleofield.de
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,17 +16,6 @@
 # You should have received a copy of the GNU General Public License 
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------       
-
-
-# bei hs
-# BK_WAITING=100
-# STOPPED=101
-# BK_WAITINTERVAL=102
-# BK_RUNNING=105  
-# BK_FATAL=255
-
-# if [ ! $RET -eq $BK_RUNNING  ] is ok
-
 
 
 
@@ -45,17 +33,15 @@ then
 fi
 
 
-# BK_WAITING=100  
-# STOPPED=101
+# BK_WAITING=70  
+# BK_STOPPED=71
 
-# BK_WAITING=100
-# STOPPED=101
-# BK_EXECONCESTOPPED=102
-# BK_WAITINTERVAL=103
+# BK_EXECONCESTOPPED=72
+# BK_WAITINTERVAL=73
 
 
 # only used if rsync is running
-# BK_RUNNING=105
+# BK_RUNNING=75
 
 
 

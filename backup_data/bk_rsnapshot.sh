@@ -2,10 +2,10 @@
 
 # file: bk_rsnapshot.sh
 
-# bk_version 25.01.1
+# bk_version  26.01.1
 
 
-# Copyright (C) 2017-2024 Richard Albrecht
+# Copyright (C) 2017-2026 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -33,10 +33,15 @@
 # prefixes of variables in backup:
 # bv_*  - global vars, alle files
 # lv_*  - local vars, global in file
+# lc_*  - local constants, global in file
 # _*    - local in functions or loops
 # BK_*  - exitcodes, upper case, BK_
 
 
+# set -u, which will exit your script if you try to use an uninitialised variable.
+set -u
+
+. ./cfg.projects
 . ./cfg.working_folder
 
 . ./src_exitcodes.sh
@@ -46,16 +51,11 @@
 
 
 
-set -u
-
-
 # exit values
 # exit $BK_NORSNAPSHOTROOT - no backupfolder set at backup disk
 # exit $BK_NOINTERVALSET    - no correct interval set in call
 # exit $rs_exitcode  - 0, all is ok
 # exit $BK_RSYNCFAILS - set in exit_code
-
-
 
 
 # par1 = currentretain
@@ -85,7 +85,7 @@ tlog "start: $lv_lpkey"
 
 lv_logdate=$( currentdate_for_log )
 
-dlog "== start bk_rsnapshot.sh, '$lv_retain' =="
+#dlog "== start bk_rsnapshot.sh, '$lv_retain' =="
 #dlog "-- retain value: '$lv_retain' --"
 
 
@@ -101,12 +101,6 @@ then
 fi
 
 
-#function write_rsynclog {
-#	dlog "$1"
-#}
-
-
-
 # check, if  only one retain line with current retaininterval exists 
 readonly lv_count_current_retain=$(cat ${lv_rsnapshot_config} | grep ^retain | grep $lv_retain | wc -l)
 
@@ -120,7 +114,7 @@ then
 	exit $BK_NOINTERVALSET
 fi
 
-dlog "--- execute -->: '/usr/bin/rsnapshot -c ${lv_rsnapshot_config} ${lv_retain}'"
+dlog "-- execute: '/usr/bin/rsnapshot -c ${lv_rsnapshot_config} ${lv_retain}'"
 
 # get first interval line, 
 #  second entry in line is name of interval, eins, zwei or first, second ...
@@ -189,6 +183,7 @@ then
 			TODAY_LOG2=$( currentdateT )
 
 			readonly lv_created_at_filename="$lv_ro_rsnapshot_root.sync/${bv_createdatfileprefix}${TODAY_LOG2}_number_$runningnumber.txt"
+			# created_at_date_number_nnnnn.txt
 			dlog "'created at' info file: '$lv_created_at_filename'"
 			readonly lv_created_at_line="created at: ${TODAY_LOG2}, loop: $runningnumber"
 			dlog "write line to info file: '$lv_created_at_line'"
@@ -217,7 +212,8 @@ then
 	tlog "rotate: ${lv_retain}"
 	##########################################################################################
 	########### rsnapshot call, rotate ######################
-	/usr/bin/rsnapshot -c ${lv_rsnapshot_config} ${lv_retain} # >> ${RSYNCLOGFILE}
+	/usr/bin/rsnapshot -c ${lv_rsnapshot_config} ${lv_retain} 
+	#/usr/bin/rsnapshot -c ${lv_rsnapshot_config} ${lv_retain} # >> ${RSYNCLOGFILE}
 	##########################################################################################
 	lv_rotate_return=$?
 	lv_rotate_end_logdate=$( currentdate_for_log )
@@ -246,15 +242,18 @@ then
 		rs_exitcode_txt="rotate fails"
 	else
 		zero_interval_folder=$( echo "${lv_ro_rsnapshot_root}${lv_retain}.0" )
-		dlog "interval.0 folder: ${zero_interval_folder} check, after rotate"
+		aamsg=""
+		aamsg="interval.0 folder: ${zero_interval_folder} check, after rotate"
 		if test -d ${zero_interval_folder} 
 		then
-			dlog "interval.0 folder: ${zero_interval_folder} exists"
+			#dlog "interval.0 folder: ${zero_interval_folder} exists"
+			aamsg="$aamsg, folder exists"
 			runningnumber=$( printf "%05d"  $( get_loopcounter ) )
 			TODAY_LOG1=$( currentdateT )
 			lv_created_in_filename=${zero_interval_folder}/created_in_${lv_retain}_at_${TODAY_LOG1}_number_${runningnumber}.txt
 			echo "created in ${lv_retain}, at ${TODAY_LOG1}. loop: $runningnumber" > ${lv_created_in_filename}
 		fi
+		dlog "$aamsg"
 	fi
 else
 	dlog "==> return in sync first wasn't ok, check logfile or config in  '${lv_rsnapshot_config}' "
@@ -263,7 +262,7 @@ fi
 dlog "sync to disk, after rotate"
 sync
 
-dlog "== end bk_rsnapshot.sh: $rs_exitcode_txt ($rs_exitcode) =="
+dlog "--- end rsnapshot: $rs_exitcode_txt ($rs_exitcode) =="
 tlog "end, code: $rs_exitcode"
 
 exit $rs_exitcode

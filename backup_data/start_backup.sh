@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # file: start_backup.sh
-# bk_version 25.04.1
+# bk_version  26.02.1
 
 
-# Copyright (C) 2017-2025 Richard Albrecht
+# Copyright (C) 2017-2026 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -30,7 +30,7 @@
 
 readonly callfilename=$(basename "$0")
 
-readonly bv_version="25.04.1"
+readonly bv_version="26.02.1"
 
 
 readonly lv_lockfilename="main_lock"
@@ -63,7 +63,7 @@ then
 	exit 1
 fi
 
-# ok, source rlf_backup_data.rc
+# ok, source $rlf_backup_data_rc
 
 . /etc/$rlf_backup_data_rc
 
@@ -71,9 +71,9 @@ STARTFOLDER=$WORKINGFOLDER
 _size=${#STARTFOLDER}
 if [ $_size -eq 0 ]
 then
-	echo "'WORKINGFOLDER'  Variable not found in '/etc/rlf_backup_data.rc'"	
+	echo "'WORKINGFOLDER'  Variable not found in '/etc/$rlf_backup_data_rc'"	
 	echo ""	
-	echo "content of file '/etc/rlf_backup_data.rc':"	
+	echo "content of file '/etc/$rlf_backup_data_rc':"	
 	echo ""	
 	echo "cat '/etc/$rlf_backup_data_rc'"
 	cat /etc/$rlf_backup_data_rc
@@ -83,7 +83,7 @@ fi
 
 if [ ! -d $STARTFOLDER ]
 then
-	echo "'WORKINGFOLDER' set in '/etc/rlf_backup_data.rc' not found: '$STARTFOLDER', exit 1"	
+	echo "'WORKINGFOLDER' set in '/etc/$rlf_backup_data_rc' not found: '$STARTFOLDER', exit 1"	
 	exit 1
 fi
 
@@ -96,9 +96,30 @@ echo ""
 
 cd $STARTFOLDER 
 
-#  start 'bk_main.sh' in background and returns
-#   if 'bk_main.sh' is running, display a message and exit
-# check, if already running, look for process 'bk_main.sh'
+
+# normal file test
+# -e     True if exists.
+# -f     True, if exists and is a regular file.
+# -r     True, if exists and is readable.
+# -s     True, if exists and has size bigger than 0 (not empty).
+# -n    string is not null 
+function test_normal_file {
+	local name=$1
+#	   exists            not null          size > 0           is file           readable
+	[ -e "$name" ] &&  [ -n "$name" ] && [ -s "$name" ] && [ -f "$name" ] && [ -r "$name" ] 
+}
+
+# normal file test
+# -e     True if exists.
+# -f     True, if exists and is a regular file.
+# -r     True, if exists and is readable.
+# -n    string is not null 
+function test_file {
+	local name=$1
+#	   exists            not null          is file          readable
+	[ -e "$name" ] &&  [ -n "$name" ] && [ -f "$name" ] && [ -r "$name" ]
+} 
+
 echo "check, if 'backup' is running"
 #echo "check, if 'bk_main.sh' is running"
 echo "ps aux | grep bk_main.sh | grep -v grep | grep -v vim | wc -l "
@@ -106,7 +127,6 @@ wc=$( ps aux | grep bk_main.sh | grep -v grep | grep -v vim | wc -l )
 #echo "nr of lines with 'bk_main': $wc"
 if [ $wc -gt 0  ]
 then
-	echo "====  Backup is running, exit"
 	echo "====  Backup is running, exit"
 	exit 1
 fi
@@ -134,26 +154,25 @@ echo "backup is not running, start in workingfolder '$STARTFOLDER'"
 echo "write 'WORKINGFOLDER' to file 'cfg.working_folder'" 
 
 # create file 'cfg.working_folder'
-#echo "write new file 'cfg.working_folder'"
 echo "# BK_WORKINGFOLDER from /etc/$rlf_backup_data_rc" > cfg.working_folder
 echo "# bk version $bv_version" >> cfg.working_folder
 echo "bv_workingfolder=\"$STARTFOLDER\"" >> cfg.working_folder
 echo "# EOF" >> cfg.working_folder
 chmod 755 cfg.working_folder
-#echo "export WORKINGFOLDER" >> cfg.working_folder
+
+
+
 
 echo ""
 echo "current working folder is: '$(pwd)'"
-#echo " ----- start command: nohup ./bk_main.sh 'manual' > out_bk_main"
+#  start 'bk_main.sh' in background and returns
 nohup ./bk_main.sh "manual" > out_bk_main &
 
 
-# wait for sync
+# sync and wait 0.5 sec and exit
 sync
 sleep 0.5
-#echo " ----- "
 echo "backup is started in background, terminal can now be closed"
-#echo " ----- "
 
 
 exit 0

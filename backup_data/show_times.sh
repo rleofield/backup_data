@@ -1,11 +1,10 @@
 #!/bin/bash
 
 # file: show_times.sh
+# bk_version  26.01.1
 
-# bk_version 24.08.1
 
-
-# Copyright (C) 2017-2024 Richard Albrecht
+# Copyright (C) 2017-2026 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -21,6 +20,11 @@
 #------------------------------------------------------------------------------
 
 
+
+# set -u, which will exit your script if you try to use an uninitialised variable
+set -u
+
+
 . ./cfg.working_folder
 . ./cfg.projects
 
@@ -32,11 +36,15 @@
 
 readonly bv_errorlog="cc_show_times_error.log"
 
+set +u
 use_retains=$1
+set -u
+
 if [ -z $use_retains ]
 then
 	use_retains=0
 fi
+
 
 readonly bv_disklist=$DISKLIST
 

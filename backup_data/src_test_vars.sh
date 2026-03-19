@@ -1,8 +1,8 @@
 # file: src_test_vars.sh
-# bk_version 24.08.2
+# bk_version 26.0.1
 # included with 'source'
 
-# Copyright (C) 2017-2024 Richard Albrecht
+# Copyright (C) 2017-2026 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -33,6 +33,16 @@ readonly bv_maxfillbackupdiskpercent=70
 
 
 # ==
+# == use 15 minutes waiting for next backup ==
+# == not used
+
+# default = 0
+
+# checked in
+#   bk_disks.sh:   if [ $bv_use_15min_interval -eq 1 ]
+readonly bv_use_15min_interval=0
+
+
 # == no_check_disk_done ==
 
 # no check of done files in folder ./done

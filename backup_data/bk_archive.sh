@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # file: bk_archive.sh
-# bk_version 24.08.1
+# bk_version 26.01.1
 
 
-# Copyright (C) 2017-2024 Richard Albrecht
+# Copyright (C) 2017-2026 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -33,8 +33,10 @@
 # prefixes of variables in backup:
 # bv_*  - global vars, alle files
 # lv_*  - local vars, global in file
+# lc_*  - local constants, global in file
 # _*    - local in functions or loops
 # BK_*  - exitcodes, upper case, BK_
+
 
 
 . ./cfg.working_folder
@@ -56,7 +58,7 @@ set -u
 #    lv_temp=$(cat ./${lv_archiveconfigname} | grep ^rsync_command_log | grep -v '#' | awk '{print $2}')
 #lv_rsync_command_logfilename="${bv_workingfolder}/rsync_archive.log"
 
-function write_rsync_command_log() {
+function write_rsync_command_log {
 	local _msg="$1"
 	if test  -z "${lv_rsync_command_logfilename}"
 	then

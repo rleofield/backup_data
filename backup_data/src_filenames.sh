@@ -1,10 +1,11 @@
 # file: scr_filenames.sh
-# bk_version 24.08.1
+
+# bk_version 26.01.1
 # included with 'source'
 
 
 
-# Copyright (C) 2017-2024 Richard Albrecht
+# Copyright (C) 2017-2026 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -19,11 +20,22 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
 
+# prefixes of variables in backup:
+# bv_*   - global vars, alle files
+# lv_*   - local vars, global in file
+# lc_*  - local constants, global in file
+# _*     - local in functions or loops
+# BK_*   - exitcodes, upper case, BK_
+# cfg_*  - set in cfg.* file_
+
+
 
 # text file for success and unsuccess
 readonly bv_successarray_tempfile="tempfile_successarray.txt"
 readonly bv_unsuccessarray_tempfile="tempfile_unsuccessarray.txt"
 readonly bv_internalerrors="errors.txt"
+
+readonly bv_stopfile="stop"
 
 # in bk_disks.sh
 # readonly successloglinestxt="successloglines.txt"
@@ -37,18 +49,15 @@ readonly bv_createdatfileprefix="created_at_"
 # now in bk_disks.sh
 readonly bv_executedprojectsfile="tempfile_executedprojects.txt"
 
-# in cron_start_backup.sh
 # in bk_main
 
-# arrays in cfg.projects
-readonly bk_arr_properties="a_properties"
-readonly bk_arr_projects="a_projects"
-readonly bk_arr_interval="a_interval"
-readonly bk_arr_targetdisk="a_targetdisk"
-readonly bk_arr_waittime="a_waittime"
-#readonly bk_arr_test="a_test"
-#readonly bk_arr_cfglist="$bk_arr_properties $bk_arr_projects $bk_arr_interval $bk_arr_targetdisk $bk_arr_waittime $bk_arr_test"
-readonly bk_arr_cfglist="$bk_arr_properties $bk_arr_projects $bk_arr_interval $bk_arr_targetdisk $bk_arr_waittime"
+# 5 arrays in cfg.projects
+#readonly bk_arr_properties="a_properties"
+#readonly bk_arr_projects="a_projects"
+#readonly bk_arr_interval="a_interval"
+#readonly bk_arr_targetdisk="a_targetdisk"
+#readonly bk_arr_waittime="a_waittime"
+#readonly bk_arr_cfglist="$bk_arr_properties $bk_arr_projects $bk_arr_interval $bk_arr_targetdisk $bk_arr_waittime"
 
 
 

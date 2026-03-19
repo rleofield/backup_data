@@ -1,8 +1,9 @@
 # file: cfg.ssh_login
-# bk_version 24.08.1
+
+# bk_version 26.01.1
 # included with 'source'
 
-# Copyright (C) 2017-2023 Richard Albrecht
+# Copyright (C) 2017-2026 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -28,16 +29,15 @@
 
 
 # 'sshhost' shouldn't be empty
-#readonly sshhost="tux2"
-#readonly sshhost2=""
-# or
 readonly sshhost="localhost"
-#readonly sshhost2="localhost"
-#readonly sshhost="127.0.0.1"
+readonly sshhost2=""
+# or
+# readonly sshhost2="localhost"
+# readonly sshhost="127.0.0.1"
 
 
 # sshlogin = "name" (not empty)
-#    if sshhost = localhost od 127.0.0.1
+#    if sshhost = localhost or 127.0.0.1
 #        message is copied to local folder
 #        chown to "name" after writing the file do local desktop
 #        uses 'sshtargetfolder'  as local target folder
@@ -50,19 +50,19 @@ readonly sshhost="localhost"
 # in all cases, message is copied to local folder 'backup_messages_test'
 
 # if sshlogin is empty, nothing is copied to remote PC or local Desktop
-
+# both vars must be present
 readonly sshlogin="rleo"
 readonly sshlogin2=""
 
 # port must be open at remote host
 readonly sshport="22"
-readonly sshport2=""
+readonly sshport2="22"
 
 
 # target folder for local/remote copy, slash at end!
 
-readonly sshtargetfolder="/home/rleo/Desktop/backup_messages/"
-#readonly sshtargetfolder2="/home/rleo/Desktop/backup_messages_2/"
+readonly sshtargetfolder="/home/$sshlogin/Desktop/backup_messages/"
+readonly sshtargetfolder2=""
 ####### personal part #######
 
 # EOF

@@ -1,10 +1,9 @@
 #!/bin/bash
 
 # file: stop.sh
+# bk_version 26.01.1
 
-# bk_version  25.01.1
-
-# Copyright (C) 2017-2024 Richard Albrecht
+# Copyright (C) 2017-2026 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify

@@ -1,9 +1,10 @@
 
 # file exitcodes.sh 
-# bk_version 25.04.1
+
+# bk_version  26.01.1
 # included with 'source'
 
-# Copyright (C) 2017-2024 Richard Albrecht
+# Copyright (C) 2017-2026 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -31,37 +32,20 @@
 
 # used in bk_disks.sh
 
-# BK_SUCCESS=0
-##### BK_ARRAYSNOK=1  # exit, but checked in 'bk_disks.sh'
-# BK_DISKLABELNOTGIVEN=2
-# BK_DISKLABELNOTFOUND=3
-# BK_DISKNOTUNMOUNTED=4
-# BK_MOUNTDIRTNOTEXIST=5
-# BK_TIMELIMITNOTREACHED=6
-# BK_DISKNOTMOUNTED=7
-# BK_RSYNCFAILS=8
-# BK_NOINTERVALSET=9
-# BK_NORSNAPSHOTROOT=12
-# BK_DISKFULL=13
-# BK_ROTATE_FAILS=14
-# BK_FREEDISKSPACETOOSMALL=15
-# BK_CONNECTION_UNEXPECTEDLY_CLOSED=16
-# BK_DLOG_CC_LOGNAME_NOT_SET=17
-# BK_LOOP_TEST_RETURN=18
-
-
-# BK_NORMALDISKLOOPEND=99
-
 # BK_FATAL=255
 
 
 readonly BK_SUCCESS=0
+readonly BK_ARRAYSOK=0
+# bash macx return code
+# 126-255 is reserved
+# https://flokoe.github.io/bash-hackers-wiki/scripting/basics/#exit-codes
+readonly BK_FATAL=125
 
 # used in bk_projects.sh, line 91 
 #   after check of existence of 'a_properties', 'a_projects', 'a_interval' in cfg.projects
 #   reason: one of the arrays is wrong
 
-# readonly BK_ARRAYSNOK=1  # exit, but checked in 'bk_disks.sh'
 
 # disklabel was not given in call of script
 readonly BK_DISKLABELNOTGIVEN=2
@@ -73,23 +57,23 @@ readonly BK_DISKLABELNOTGIVEN=2
 #     after if [[ $goodlink -eq 0 ]]
 readonly BK_DISKLABELNOTFOUND=3
 
-# evaluated in main_loop.sh,but not set 
-# set in bk_loop.sh
+# evaluated in main_loop.sh, but not set 
+# used in bk_loop.sh
 readonly BK_DISKNOTUNMOUNTED=4
 readonly BK_MOUNTDIRTNOTEXIST=5
 readonly BK_TIMELIMITNOTREACHED=6
 readonly BK_DISKNOTMOUNTED=7
 
 
-# set in bk_rsnapshot.sh
+# used in bk_rsnapshot.sh
 # evaluated in bk_project.sh and set again in bk_project.sh
-readonly BK_RSYNCFAILS=8
+readonly BK_RSYNCFAILS=10
 
 # used in bk_project.sh
-readonly BK_NOINTERVALSET=9
+readonly BK_NOINTERVALSET=11
 
 # no rsnapshotroot 
-# evaluated in bk_rsnapshot.sh, set again in bk_project.sh
+# used in bk_rsnapshot.sh, set again in bk_project.sh
 readonly BK_NORSNAPSHOTROOT=12
 
 # set, when rsync finds disk is full, 'No space left on device' in log
@@ -98,61 +82,85 @@ readonly BK_DISKFULL=13
 # rsnapshot rotate fails
 readonly BK_ROTATE_FAILS=14
 
-# set, when disk has't enough space
+# used, when disk hasn't enough space
 readonly BK_FREEDISKSPACETOOSMALL=15
 
-# set, when remote source vanished
+# used, when remote source vanished
 readonly BK_CONNECTION_UNEXPECTEDLY_CLOSED=16
 
 
-# set, when $lv_cc_logname is empty
+# used, when $lv_cc_logname is empty
 # $lv_cc_logname must be set at start of each bk_ file
 readonly BK_DLOG_CC_LOGNAME_NOT_SET=17
 
 
+readonly BK_DISK_IS_NOT_SET_IN_CONF=18
+
 # do not execute bk_loop. with snapshot.
 # return with 0 and logentry
-readonly BK_LOOP_TEST_RETURN=18
+readonly BK_LOOP_TEST_RETURN=20
+readonly BK_DISK_TEST_RETURN=21
+
+# if project_begin.sh or project_end.sh fails
+# BK_PROJECT_BEGIN_FAILED=19
+# BK_PROJECT_END_FAILED=20
+readonly BK_PROJECT_BEGIN_FAILED=30
+readonly BK_PROJECT_END_FAILED=31
+readonly BK_DISK_BEGIN_FAILED=32
+readonly BK_DISK_END_FAILED=33
+readonly BK_MAIN_BEGIN_FAILED=34
+readonly BK_MAIN_END_FAILED=35
+readonly BK_PROJECT_DONE_REACHED=36
+readonly BK_PROJECT_DONE_NOT_REACHED=37
+readonly BK_PROJECT_DONE_WAITINTERVAL_REACHED=38
 
 
 
 # associative arrays, values from 50 and more
 #            associative
-readonly BK_ASSOCIATIVE_ARRAY_EXISTS=50
-readonly BK_ASSOCIATIVE_ARRAY_NOT_EXISTS=51
-readonly BK_ASSOCIATIVE_ARRAY_IS_EMPTY=52
-readonly BK_ASSOCIATIVE_ARRAY_IS_NOT_EMPTY=53
+readonly BK_ASSOCIATIVE_ARRAY_EXISTS=40
+readonly BK_ASSOCIATIVE_ARRAY_NOT_EXISTS=41
+readonly BK_ASSOCIATIVE_ARRAY_IS_EMPTY=42
+readonly BK_ASSOCIATIVE_ARRAY_IS_NOT_EMPTY=43
 readonly BK_ASSOCIATIVE_ARRAY_IS_OK=$BK_SUCCESS
 
 # indexed arrays, values from 60 and more
 #           indexed
-readonly BK_INDEXED_ARRAY_EXISTS=60
-readonly BK_INDEXED_ARRAY_NOT_EXISTS=61
-readonly BK_INDEXED_ARRAY_IS_EMPTY=62
-readonly BK_INDEXED_ARRAY_IS_NOT_EMPTY=63
+readonly BK_INDEXED_ARRAY_EXISTS=50
+readonly BK_INDEXED_ARRAY_NOT_EXISTS=51
+readonly BK_INDEXED_ARRAY_IS_EMPTY=52
+readonly BK_INDEXED_ARRAY_IS_NOT_EMPTY=53
 readonly BK_INDEXED_ARRAY_IS_OK=$BK_SUCCESS
 
 
 
-readonly BK_FATAL=255
-
+# in bk_main.sh check_arrays
+# script is stopped. if arrays wre wrong
+# 'BK_ARRAYSNOK' is not needed
+readonly BK_ARRAYSNOK=55
 
 # normal loop, end disks loop
-readonly BK_NORMALDISKLOOPEND=99
+readonly BK_NORMALDISKLOOPEND=60
 
 # in is_stopped.sh only
 # values from 100 and more
-readonly BK_WAITING=100
-readonly BK_STOPPED=101
-readonly BK_EXECONCESTOPPED=102
-readonly BK_WAITINTERVAL=103
-readonly BK_WAITEND=104
-readonly BK_RUNNING=105
+readonly BK_WAITING=70
+readonly BK_STOPPED=71
+readonly BK_EXECONCESTOPPED=72
+readonly BK_WAITINTERVAL=73
+readonly BK_WAITEND=74
+readonly BK_RUNNING=75
 
 # 
-readonly BK_ERRORINCOUNTERS=106
+readonly BK_ERRORINCOUNTERS=80
 
 
+readonly text_project_begin_failed="project begin failed"
+readonly text_project_end_failed="project end failed"
+readonly text_disk_begin_failed="tx disk begin failed"
+readonly text_disk_end_failed="disk end failed"
+readonly text_main_begin_failed="main begin failed"
+readonly text_main_end_failed="main end failed"
 
 readonly text_marker="--- marker ---"
 
@@ -193,15 +201,79 @@ readonly text_marker_end="--- marker end ---" # not used
 
 
 # all in is_stopped.sh
-# BK_NORMALDISKLOOPEND=99
-# BK_WAITING=100
-# STOPPED=101
-# BK_EXECONCESTOPPED=102
-# BK_WAITINTERVAL=103
-# BK_WAITEND=104
-# BK_RUNNING=105
-# BK_ERRORINCOUNTERS=106
-# BK_FATAL=255
+# BK_NORMALDISKLOOPEND=
+# BK_WAITING
+# BK_STOPPED
+# BK_EXECONCESTOPPED
+# BK_WAITINTERVAL
+# BK_WAITEND
+# BK_RUNNING
+# BK_ERRORINCOUNTERS
+# BK_FATAL
+
+
+
+
+# all
+: <<exit_code_comment
+BK_SUCCESS=0
+BK_ARRAYSOK=0
+BK_FATAL=125
+
+BK_DISKLABELNOTGIVEN=2
+BK_DISKLABELNOTFOUND=3
+BK_DISKNOTUNMOUNTED=4
+BK_MOUNTDIRTNOTEXIST=5
+BK_TIMELIMITNOTREACHED=6
+BK_DISKNOTMOUNTED=7
+
+BK_RSYNCFAILS=10
+BK_NOINTERVALSET=11
+BK_NORSNAPSHOTROOT=12
+BK_DISKFULL=13
+BK_ROTATE_FAILS=14
+BK_FREEDISKSPACETOOSMALL=15
+BK_CONNECTION_UNEXPECTEDLY_CLOSED=16
+BK_DLOG_CC_LOGNAME_NOT_SET=17
+BK_DISK_IS_NOT_SET_IN_CONF=18
+
+BK_LOOP_TEST_RETURN=20
+BK_DISK_TEST_RETURN=21
+
+BK_PROJECT_BEGIN_FAILED=30
+BK_PROJECT_END_FAILED=31
+BK_DISK_BEGIN_FAILED=32
+BK_DISK_END_FAILED=33
+BK_MAIN_BEGIN_FAILED=34
+BK_MAIN_END_FAILED=35
+BK_PROJECT_DONE_REACHED=36
+BK_PROJECT_DONE_NOT_REACHED=37
+BK_PROJECT_DONE_WAITINTERVAL_REACHED=38
+
+BK_ASSOCIATIVE_ARRAY_EXISTS=40
+BK_ASSOCIATIVE_ARRAY_NOT_EXISTS=41
+BK_ASSOCIATIVE_ARRAY_IS_EMPTY=42
+BK_ASSOCIATIVE_ARRAY_IS_NOT_EMPTY=43
+BK_ASSOCIATIVE_ARRAY_IS_OK=$BK_SUCCESS
+
+BK_INDEXED_ARRAY_EXISTS=50
+BK_INDEXED_ARRAY_NOT_EXISTS=51
+BK_INDEXED_ARRAY_IS_EMPTY=52
+BK_INDEXED_ARRAY_IS_NOT_EMPTY=53
+BK_INDEXED_ARRAY_IS_OK=$BK_SUCCESS
+BK_ARRAYSNOK=55
+
+BK_NORMALDISKLOOPEND=60
+
+BK_WAITING=70
+BK_STOPPED=71
+BK_EXECONCESTOPPED=72
+BK_WAITINTERVAL=73
+BK_WAITEND=74
+BK_RUNNING=75
+
+BK_ERRORINCOUNTERS=80
+exit_code_comment
 
 
 # EOF

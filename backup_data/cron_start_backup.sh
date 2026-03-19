@@ -2,9 +2,9 @@
 
 # file: cron_start_backup.sh
 
-# bk_version 25.04.1
+# bk_version  26.01.1
 
-# Copyright (C) 2017-2025 Richard Albrecht
+# Copyright (C) 2017-2026 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -43,7 +43,7 @@ then
 fi
 
 
-readonly bv_version="25.04.1"
+readonly bv_version="26.01.1"
 
 
 readonly callfilename=$(basename "$0")
@@ -94,7 +94,7 @@ then
 	exit 1
 fi
 
-# ok, source rlf_backup_data.rc
+# ok, source $rlf_backup_data_rc
 
 . /etc/$rlf_backup_data_rc
 
@@ -102,9 +102,9 @@ STARTFOLDER=$WORKINGFOLDER
 _size=${#STARTFOLDER}
 if [ $_size -eq 0 ]
 then
-	cron_dlog "'WORKINGFOLDER'  Variable not found in '/etc/rlf_backup_data.rc'"	
+	cron_dlog "'WORKINGFOLDER'  Variable not found in '/etc/$rlf_backup_data_rc'"	
 	cron_dlog ""	
-	cron_dlog "content of file '/etc/rlf_backup_data.rc':"	
+	cron_dlog "content of file '/etc/$rlf_backup_data_rc':"	
 	cron_dlog ""	
 	cron_dlog "cat '/etc/$rlf_backup_data_rc'"
 	cat /etc/$rlf_backup_data_rc >> ${LLFILE}
@@ -114,7 +114,7 @@ fi
 
 if [ ! -d $STARTFOLDER ]
 then
-	cron_dlog "'WORKINGFOLDER' entry in '/etc/rlf_backup_data.rc' not found '$STARTFOLDER', exit 1"	
+	cron_dlog "'WORKINGFOLDER' entry in '/etc/$rlf_backup_data_rc' not found '$STARTFOLDER', exit 1"
 	exit 1
 fi
 
@@ -122,19 +122,16 @@ cron_dlog "'$STARTFOLDER' exists, change, and write new file .cfg"
 
 
 cd "$STARTFOLDER" || exit 1
-cron_dlog "write WORKINGFOLDER from '/etc/rlf_backup_data_rc' to file 'cfg.working_folder'" 
+cron_dlog "write WORKINGFOLDER from '/etc/$rlf_backup_data_rc' to file 'cfg.working_folder'" 
 
 # create file 'cfg.working_folder'
-echo "# BK_WORKINGFOLDER from /etc/rlf_backup_data_rc" > cfg.working_folder
+echo "# BK_WORKINGFOLDER from /etc/$rlf_backup_data_rc" > cfg.working_folder
 echo "# bk version $bv_version" >> cfg.working_folder
 echo "bv_workingfolder=\"$STARTFOLDER\"" >> cfg.working_folder
 echo "# EOF" >> cfg.working_folder
 chmod 755 cfg.working_folder
-#echo "export bv_workingfolder " >> cfg.working_folder
 
 
-#  start 'bk_main.sh' in background and returns
-#   if 'bk_main.sh' is running, display a message and exit
 
 
 # check, if already running, look for process 'bk_main.sh'
@@ -158,7 +155,7 @@ cron_dlog "in cron_start_backup.sh"
 cron_dlog "Backup is not running, start in '$STARTFOLDER'"
 
 cron_dlog ""
-cron_dlog "sleep 2.5m"
+cron_dlog "loop 2.5m"
 count=0
 while test "$count" -lt "15" 
 do
@@ -170,11 +167,12 @@ done
 
 cron_dlog "start main with: nohup ./bk_main.sh 'cron' > out_bk_main"
 
-# start in crontab at boot, no check, if is running
+# start in crontab at boot, no check if running
+# start 'bk_main.sh' in background and returns
 nohup ./bk_main.sh "cron" > out_bk_main &
 
 
-# wait a little bit
+# sync and wait 0.5 sec and exit
 sync
 sleep 0.5
 

@@ -1,8 +1,8 @@
 # file: cfg.projects
-# bk_version 25.03.1
+# bk_version 26.01.1
 # included with 'source'
 
-# Copyright (C) 2017-2025 Richard Albrecht
+# Copyright (C) 2017-2026 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -20,10 +20,10 @@
 
 ####### general part  #######
 
-readonly bv_version="25.04.1"
+readonly bv_version="26.01.1"
 
 # default old backup date: used, if no value in folder 'done' ist set
-readonly max_last_date="2025-03-01T00:00"
+readonly max_last_date="2026-01-20T00:00"
 
 
 # backup waits in this intervall, nothing ist done
@@ -35,6 +35,10 @@ readonly max_last_date="2025-03-01T00:00"
 # individual waittimes for each project are set below
 readonly bv_globalwaittimeinterval=09-10
 
+
+# global cfg constants
+
+
 ####### general part  #######
 
 
@@ -45,6 +49,11 @@ readonly bv_globalwaittimeinterval=09-10
 
 # list of all targetdisks, listed by label
 readonly DISKLIST="bbackup"
+
+### #a_targetdisk['kluks']="edisk"
+### a_targetdisk['hluks']="fluks"
+### #a_targetdisk['fdisk']="aluks"
+
 
 # associative arrays for projects
 # "a_properties"  - properties for disks
@@ -59,13 +68,20 @@ readonly DISKLIST="bbackup"
 
 declare -A a_properties
 a_properties=()
-a_properties['bbackup']="xumount"
+a_properties['bbackup']="umount"
+
+
+# not used
+# if disk in snapshot root is 1= disklabel, then exit with error
+#   in bk_loop
+#   msg="  disk set in snapshot root '$snapshotroot' in 'conf/${lpkey}' is not equal to targetdisk: '$lv     _targetdisk' !!!"
 
 # use snapshot_root direct, don't use disk label for snapshot_root
-# in bk_loop.sh, in inner loop
-#a_properties['huh12_pserver']="ignore_snapshot_root"
-#a_properties['huh12_cube']="ignore_snapshot_root"
-#a_properties['huh12_eserver']="ignore_snapshot_root"
+# disk label from DISKLIST is ignored
+# used to move a single project to another disk
+# here edisk is used, not kluks
+# edisk ist in conf/kluks_lserver.conf, label is kluks
+# a_properties['kluks_lserver']=$cfg_marker_ignore_snapshot_root
 
 
 
@@ -89,14 +105,12 @@ a_interval['bbackup_testData']=03:00
 #  see text at file end for details
 declare -A a_targetdisk
 a_targetdisk=()
-# key is new projectlabel
-# value is old backup disk label
-# example: a_targetdisk['bbackup']="dbackup"
+# value is new backup disk label
+# key   is old backup disk label
+a_targetdisk['hluks']="fluks"
 
 
 # backup for this project waits in this interval, nothing ist done
-# values  > 23 or < 1 didn't work
-# first value must be smaller than the second
 declare -A a_waittime
 a_waittime=()
 a_waittime['bbackup_testData']=09-10
@@ -106,58 +120,61 @@ a_waittime['bbackup_testData']=09-10
 
 # 
 #  'targetdisk()' is used, if label of backup-disk is changed
-# targetdisk is the label the backup-disk and also mountpoint in '/mnt'
-# disklabel is the new projectlabel
+#  targetdisk is the new label of the the backup-disk 
+#     and also mountpoint in '/mnt'
+
+#     normally targetdisk is not used, but the array 'targetdisk()' must be declared
+#     and is empty by default
 
 
-#   with 'targetdisk()' the history in folder with old label can be used
-#     normally this is not used, but the array must be declared
-#     and is empty by default 
+# move complete disk with all backup folders
 
-
-# move backup target
-
-# 1. nur ein Verzeichnis, ohne weitere Prüfungen
-#   a_properties['huh12_pserver']="ignore_snapshot_root"
-#   prüft nicht, ob 'snapshot_root' in rsnapshot 
-#    auf der durch den Label der HD vorgegebenen HD ist
-#   kann verwendet werden, um einen Backupfolder an anderer Stelle unterzubringen
-#   alle Prüfungen der HD, Existenz bei USB, freier Platz usw.,  
-#   werden mit der bisherigen HD ausgeführt
-#   Vorsicht: die durch 'snapshot_root' angegebene  Disk wird 
-#      nicht geprüft, 
-#      nicht eingebunden 
-#      und auch nicht ausgehängt
-
-
-# 2. complete disk with all backup folders
+#    targetdisk replaces the label of the harddisk 
+#     in the configuration with another disk
+#    all checks of the HD, existence at USB, free space etc.,
+#     are executed with the target disk,
+#     also the check for 'snapshot_root'
+#     logs in folder 'interval_done' use old label, not targetdisk
+#     logs in folder 'done'          use old label, not targetdisk
 
 #  setup
+#  0. stop backup
 #  1. set a_targetdisk['kluks']="edisk"
-#    targetdisk replaces the label of the harddisk from the configuration
-#         with another disk
-#    all checks of the HD, existence at USB, free space etc.,
-#          are executed with the target disk,
-#          also the check for 'snapshot_root', if "ignore_snapshot_root" is not set
-#     log in folder 'interval_done' uses old label, not targetdisk
-#     log in folder 'done' uses old label, not targetdisk
-#  2. set 'snapshot_root' in all 'conf/disk_label.conf' to targetdisk
-#  3. copy all folder in backup from disk with label to targetdisk
+#  2. change 'snapshot_root' in all 'conf/disk_label.conf' to targetdisk
+#       name of the conf file doesn't change
+#  3. copy all folders in backup from disk with label to targetdisk
+#       with 'rsync -avSAXH  /mnt/oldlabel/rs/ /mnt/targetdisk/rs/'
+#		getested, ok
 #  test
 #  start backup
-
+#     uses
 #     function targetdisk {
 #           returns targetdisk 
 
 #  reverse
 #  0. stop backup
 #  1. remove a_targetdisk['kluks']="edisk"
-#  2. adapt 'snapshot_root' in 'conf/disk_label.conf' 
+#  2. change 'snapshot_root' in 'conf/disk_label.conf' 
 #  3. copy all in backup from targetdisk to disk with label
 #  test
 #  start backup
 
 
+# move only backup target to a fixed disk or fixed subvolume
+
+#   set a_properties['huh12_pserver']="ignore_snapshot_root"
+
+#   does not check ‘snapshot_root’ in rsnapshot·against lebel
+#     is on the hard drive specified by the HD label
+
+#   can be used to store a backup folder in a different location
+
+#   all checks of the HD, existence on USB, free space, etc.,··
+#   are performed with the previous HD
+
+#   Caution: the disk specified by ‘snapshot_root’ 
+#      is
+#      not checked, not mounted and not unmounted
 
 
 

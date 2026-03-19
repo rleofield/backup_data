@@ -4,11 +4,11 @@
 # disable: Declare and assign separately to avoid masking return
 
 # file: bk_project.sh
-# bk_version 25.04.1
+# bk_version  26.01.1
 
 
 
-# Copyright (C) 2017-2025 Richard Albrecht
+# Copyright (C) 2017-2026 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -37,6 +37,7 @@
 # prefixes of variables in backup:
 # bv_*  - global vars, alle files
 # lv_*  - local vars, global in file
+# lc_*  - local constants, global in file
 # _*    - local in functions or loops
 # BK_*  - exitcodes, upper case, BK_
 
@@ -44,6 +45,9 @@
 # parameter:
 #   $1 = disklabel, label of backup-disk
 #   $2 = projectname,  name of project at this disk
+
+# set -u, which will exit your script if you try to use an uninitialised variable.
+set -u
 
 . ./cfg.working_folder
 . ./cfg.projects
@@ -55,13 +59,11 @@
 . ./src_log.sh
 
 
-# set -u, which will exit your script if you try to use an uninitialised variable.
-set -u
 
 # exit values, in bk_loop.sh
 # exit $BK_DISKLABELNOTGIVEN 	- disk label from caller is empty
 # exit $BK_ARRAYSNOK         	- property arrays have errors
-# exit $BK_DISKLABELNOTFOUND	- disk with uuid nit found in /dev/disk/by-uuid, disk ist not in system 
+# exit $BK_DISKLABELNOTFOUND	- disk with uuid not found in /dev/disk/by-uuid, disk ist not in system 
 # exit $BK_NOINTERVALSET	- no backup time inteval configured in 'cfg.projects'
 # exit $BK_TIMELIMITNOTREACHED	- for none project at this disk time limit is not reached
 # exit $BK_DISKNOTUNMOUNTED	- disk could not be unmounted
@@ -85,20 +87,20 @@ readonly lv_lpkey=${lv_disklabel}_${lv_project}
 if [ ! $lv_disklabel ] || [ ! $lv_project ]
 then
 	dlog "disklabel '$lv_disklabel' or project '$lv_project' not set in call of 'bk_projekt.sh'"
-	exit 1
+	exit $BK_DISKLABELNOTGIVEN
 fi
 
 readonly lv_targetdisk=$( targetdisk "$lv_disklabel" )
-lv_label_name="$lv_disklabel"
+lv_label_displayname="$lv_disklabel"
 if [ "$lv_disklabel" != "$lv_targetdisk" ]
 then
-	lv_label_name="$lv_disklabel ($lv_targetdisk)"
+	lv_label_displayname="$lv_disklabel ($lv_targetdisk)"
 fi
 
 tlog "start:  '$lv_lpkey'"
 
 dlog ""
-dlog "== start project '$lv_project' at disk '$lv_label_name'  =="
+dlog "start project '$lv_project' at disk '$lv_label_displayname'"
 
 #DONE=${bv_donefolder}
 
@@ -222,7 +224,7 @@ retain          drei    4
 retain          vier    4
 
 retain must be > 1
-if < 1 then, rsnapshot complains with:
+if < 2 then, rsnapshot complains with:
 # [2020-04-04T10:23:11] /usr/bin/rsnapshot -c ./conf/wdg_dserver.conf sync: 
 # ERROR: Can not have first backup level's retention count set to 1, and have a second backup level
 --COMMENT--
@@ -259,8 +261,6 @@ firstretain=${retains[0]}
 # retain from conf splitted
 
 
-
-
 # remove index 0 counter, set count to 0, = interval eins
 # par = oldindex
 function remove_counter_file {
@@ -273,6 +273,7 @@ function remove_counter_file {
 	#touch ${_oldfile}
 }
 
+
 # parameter
 # $1 = index in retainslists
 # increment index counter, indirect via number of lines in file
@@ -284,24 +285,16 @@ function update_counter {
 	local _currentretain=${retains[$_index]}
 	local _counter_=$( entries_keeped $_index )
 	local retains_count_file_name=${retains_count_file_names[$_index]}
-	#dlog " --- increment retains count:  '${retains_count_file_name}', value: '${_counter_}'"
-	dlog " --- increment retains count: value: '${_counter_},  file:  '${retains_count_file_name}'"
-	#dlog " --- by one line, file '${retains_count_file_name}', retain level:  '$_currentretain'"
+	dlog " -- increment retains count: value: '${_counter_}',  file:  '${retains_count_file_name}'"
+	local _zero_interval_folder=$( echo "${lv_ro_rsnapshot_root}${_currentretain}.0" )
 
-
-	zero_interval_folder=$( echo "${lv_ro_rsnapshot_root}${_currentretain}.0" )
-#	dlog "interval.0 folder: ${zero_interval_folder} check"
-	# test RET	
-	# dlog "interval.0 folder: ${zero_interval_folder} check fails"
-	# exit $BK_ROTATE_FAILS
-
-	if test -d ${zero_interval_folder}
+	if test -d ${_zero_interval_folder}
 	then
 		# increment by one line
 		echo "runs at: $_currenttime" >> ${retains_count_file_name}
 
-		local _counter=$( entries_keeped $_index )
-		dlog " --- new value:                      '${_counter}'"
+		local _counternext=$( entries_keeped $_index )
+		dlog " -- new value:                      '${_counternext}'"
 		local _max_count=${retainscount[$_index]}
 
 		# get loop number from previous 'created at' at current retain
@@ -310,23 +303,18 @@ function update_counter {
 		#set -x
 		# created in bk_rsnapshot.sh:191
 		local cr_file=$( ls -1 ${lv_ro_rsnapshot_root}${_currentretain}.0/${bv_createdatfileprefix}*  )
+		# created_at_date__number_nnnnn
 		dlog "check created info file: '$cr_file'"
 		local _created_time=""
 		if [ ! -z $cr_file ]
 		then
-			# get last line, is only one line in file
 			local last_line_in_cr_file=$( cat ${cr_file}  )
-			#dlog "last_line_cr_file: $last_line_in_cr_file"
-			# prefix_created_at="created at: "
 			local pat="created at: "
-			# line is: created at: 2019-06-13T13:25, loop: 02618
-			# remove prefix 'created at: ', in 'cr', remainder is '2019-06-13T13:25, loop: 02618'
-			local _created_time=${last_line_in_cr_file#$pat}
-			#dlog "line in file: $_created_time"
-			# check, if created time is not empty
+			_created_time=${last_line_in_cr_file#$pat}
+			#dlog "check created info file: '$_created_time'"
 		fi
 	else
-		dlog "interval.0 folder: '${zero_interval_folder}' check fails"
+		dlog "interval.0 folder: '${_zero_interval_folder}' check fails"
 		exit $BK_ROTATE_FAILS
 	fi
 
@@ -349,9 +337,9 @@ function update_counter {
 	local msg=""
 	if [ $_max_count -lt 10 ]
 	then
-		msg=$( printf "%1d of %1d"  $_counter $_max_count )
+		msg=$( printf "%1d of %1d"  $_counter_ $_max_count )
 	else
-		msg=$( printf "%2d of %2d"  $_counter $_max_count )
+		msg=$( printf "%2d of %2d"  $_counter_ $_max_count )
 	fi
 	local intervaldonefile="${lv_lpkey}_done.txt"
 	dlog "write reportline to '$bv_intervaldonefolder/$intervaldonefile'"
@@ -375,7 +363,7 @@ function do_rs {
 	# ############ calls ./bk_rsnapshot.sh $_currentretain $lv_disklabel $lv_project #########
 	./bk_rsnapshot.sh $_currentretain $lv_disklabel $lv_project 
 	# #############################################################################
-	RET=$?
+	local RET=$?
 	dlog "return of 'bk_rsnapshot.sh': $RET"
 	#    'rsnapshot_root'  doesn't exist 
 	#	exit $BK_NORSNAPSHOTROOT = 12
@@ -446,7 +434,7 @@ function do_rs_123 {
 	##########  do rs #############################################################    
 	do_rs $_index
 	# #############################################################################
-        RET=$?
+        local RET=$?
 	#    exit $BK_NORSNAPSHOTROOT
 	#     interval from caller is invalid
 	#    exit $rs_exitcode = 0
@@ -471,9 +459,7 @@ function do_rs_123 {
 	dlog "'${retains[$_index]}'    : $_counter"
 	dlog "'${retains[$_index]}' max: $_max_count"
 	return $RET
-
 }
-
 
 
 function do_rs_first {
@@ -506,8 +492,8 @@ function do_rs_first {
 	dlog "'${retains[$_index]}'    :   $_counter"
 	dlog "'${retains[$_index]}' max:   $_max_count"
 	return $RET
-
 }
+
 
 function previous_index {
 	local _index=$1
@@ -623,9 +609,9 @@ fi
 
 tlog "end"
 
-# lv_label_name="$lv_disklabel ($lv_targetdisk)"
+# lv_label_displayname="$lv_disklabel ($lv_targetdisk)"
 
-dlog "==  end project '$lv_project' at disk '$lv_label_name' and sync =="
+dlog "==  end project '$lv_project' at disk '$lv_label_displayname' and sync =="
 sync
 dlog ""
 
