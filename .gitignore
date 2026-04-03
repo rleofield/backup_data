@@ -2,6 +2,11 @@
 20240825_backup_data_github_send
 20250420_backup_data_github_send
 wrk
+send_20260319
 test/replace_random.sh
+backup_data/interval_done/bbackup_testData_done.txt
+backup_data/retains_count/bbackup_testData_first
+backup_data/retains_count/bbackup_testData_third
+
 
 

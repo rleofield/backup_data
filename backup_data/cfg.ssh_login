@@ -1,6 +1,6 @@
 # file: cfg.ssh_login
 
-# bk_version 26.01.1
+# bk_version 26.04.1
 # included with 'source'
 
 # Copyright (C) 2017-2026 Richard Albrecht
@@ -19,6 +19,13 @@
 #------------------------------------------------------------------------------
 
 
+# prefixes of variables in backup:
+# bv_*   - global vars, all files
+# lv_*   - local vars, local in file
+# lc_*   - local constants, local in file
+# _*     - local in functions 
+# BK_*   - exitcodes, upper case, BK_*
+# cfg_*  - set in cfg.* file_
 
 # ssh login for notify message
 

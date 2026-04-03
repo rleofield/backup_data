@@ -1,9 +1,6 @@
 #!/bin/bash
 
 
-#!/bin/bash
-
-
 . ./cfg.working_folder
 . ./src_log.sh
 . ./src_exitcodes.sh

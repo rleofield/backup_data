@@ -45,6 +45,8 @@
 # lc_*  - local constants, global in file
 # _*    - local in functions or loops
 # BK_*  - exitcodes, upper case, BK_
+# cfg_*  - set in cfg.* file_
+
 
 
 : <<block_comment
@@ -139,13 +141,8 @@ function check_ssh_configuration2(){
 }
 
 
-# standard date time format
-# https://www.w3schools.com/XML/schema_dtypes_date.asp
-# DateTime Data Type = YYYY-MM-DDThh:mm:ss
-# Time Data Type = hh:mm:ss
-# Date Data Type = YYYY-MM-DD
 
-
+# shows all retain values in log
 # cat cc_log.log | grep -e  "retain" | grep -w retain| grep -e eins -e zwei -e drei -e vier
 
 #readonly bv_errorlog="cc_error.log"
@@ -160,8 +157,12 @@ readonly bv_daily_rotate=1
 
 
 
-# all time, dates with minute accuracy, not seconds
-
+# standard date time format
+# https://www.w3schools.com/XML/schema_dtypes_date.asp
+# DateTime Data Type = YYYY-MM-DDThh:mm:ss
+# Time Data Type = hh:mm:ss
+# Date Data Type = YYYY-MM-DD
+# dates used here are with minute accuracy, not seconds
 
 function currentdateT() {
 	# YYYY-MM-DDThh:mm
@@ -227,6 +228,7 @@ function tlog {
 arraytestmarker="xxx"
 #arraytestmarkerlog=""
 function arraytestdlog {
+	# is empty
 	if [[ -z $arraytestmarker ]]
 	then
 		dlog "array test log $1"
@@ -237,6 +239,7 @@ function arraytestdlog {
 startendtestmarker="xxx"
 #startendtestmarkerlog=""
 function startendtestlog {
+	# is empty
 	if [[ -z $startendtestmarker ]]
 	then
 		dlog "start end log ====== $1"
@@ -246,6 +249,7 @@ function startendtestlog {
 temptestmarker="xxx"
 #temptestmarkerlog=""
 function temptestlog {
+	# is empty
 	if [[ -z $temptestmarker ]]
 	then
 		dlog "temp log ====== $1"
@@ -259,6 +263,7 @@ function dlog {
 
 	local msg=$1
 	local cc_logname=$lv_cc_logname
+	# is empty
 	if test  -z "$cc_logname"
 	then 
 		cc_logname="log"
@@ -295,23 +300,6 @@ function get_runningnumber {
 	# > 5 digits, doesn't occur
 	local _runningnumber=$( printf ${fmt}  ${number} )
 	echo $_runningnumber
-}
-
-# increment counter, if all disk are executed 
-function increment_loop_counter {
-	# increment counter after main_loop.sh and before exit
-	local _counter=$( get_loopcounter )
-	_counter=$(( _counter + 1 ))
-
-	# wraps at 99.999 = 100.000 loops
-	# normally not more than 10.000 loops are used in rsnapshot
-	# see './show_config.sh | g -e total -e Project'
-	if (( _counter > 99999 ))
-	then
-		_counter=0
-	fi
-	# write back to 'loop_counter.log'
-	echo "loop counter: $_counter" > loop_counter.log
 }
 
 
@@ -465,14 +453,15 @@ function get_label_of_mountpoint {
 
 # return 0, if is  in wait time
 # return 1, if not in wait time
-function is_in_waittime {
+function is_in_waittime10 {
 
-	local first=$1
-	local second=$2
+	local first10=$1
+	local second10=$2
 	local hour=$(date +%H)
 
-	local first10=$(( 10#"${first}" ))
-	local second10=$(( 10#"${second}" ))
+	# convert to base 10
+#	local first10=$(( 10#"${first}" ))
+#	local second10=$(( 10#"${second}" ))
 	local hour10=$(( 10#"${hour}" ))
 
 #	dlog "waittime, first: $first10, second: $second10, current hour: $hour10"
@@ -534,6 +523,8 @@ function get_decimal_waittimestart {
 	IFS=_oldifs
 	#set +x
 	IFS=_oldifs
+
+	# convert to base 10
 	local start10=$(( 10#"${_start}" ))
 
 	echo $start10
@@ -555,6 +546,8 @@ function get_decimal_waittimeend {
 		_end=${waittimearray[1]}
 	fi
 	IFS=_oldifs
+
+	# convert to base 10
 	local end10=$(( 10#"${_end}" ))
 	echo $end10
 }
@@ -666,6 +659,35 @@ function test_normal_file {
 #	   exists            not null          size > 0           is file           readable
 	[ -e "$name" ] &&  [ -n "$name" ] && [ -s "$name" ] && [ -f "$name" ] && [ -r "$name" ] 
 }
+
+: <<list_of_functions
+8:function variable_is_set {
+90:function check_ssh_configuration(){
+116:function check_ssh_configuration2(){
+165:function currentdateT() {
+170:function currentdate_for_log {
+176:function tlog {
+228:function arraytestdlog {
+239:function startendtestlog {
+249:function temptestlog {
+260:function dlog {
+277:function get_loopcounter {
+293:function get_runningnumber {
+304:function is_associative_array {
+341:function is_associative_array_ok {
+355:function associative_array_has_value {
+376:function is_indexed_array {
+406:function targetdisk {
+444:function get_label_of_mountpoint {
+454:function is_in_waittime10 {
+503:function get_decimal_waittimestart {
+531:function get_decimal_waittimeend {
+554:function encode_diff_to_string {
+598:function encode_diff_unit {
+635:function test_script_file {
+640:function test_is_executable {
+655:function test_normal_file {
+list_of_functions
 
 
 

@@ -1,6 +1,6 @@
 # file: src_folders.sh
 
-# bk_version 26.01.1
+# bk_version 26.04.1
 # included with 'source'
 
 # Copyright (C) 2017-2026 Richard Albrecht
@@ -17,6 +17,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
+
+
+# prefixes of variables in backup:
+# bv_*   - global vars, alle files
+# lv_*   - local vars, global in file
+# lc_*  - local constants, global in file
+# _*     - local in functions or loops
+# BK_*   - exitcodes, upper case, BK_
+# cfg_*  - set in cfg.* file_
 
 
 # 8 folder

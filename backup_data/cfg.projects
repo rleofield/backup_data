@@ -1,5 +1,5 @@
 # file: cfg.projects
-# bk_version 26.01.1
+# bk_version 26.04.1
 # included with 'source'
 
 # Copyright (C) 2017-2026 Richard Albrecht
@@ -20,10 +20,15 @@
 
 ####### general part  #######
 
-readonly bv_version="26.01.1"
+readonly bv_version="26.04.1"
+
+# 'bv_version' is also in startbackup.sh
+# 'bv_version' is also in cron_startbackup.sh
+
+
 
 # default old backup date: used, if no value in folder 'done' ist set
-readonly max_last_date="2026-01-20T00:00"
+readonly max_last_date="2026-03-10T00:00"
 
 
 # backup waits in this intervall, nothing ist done
@@ -37,6 +42,14 @@ readonly bv_globalwaittimeinterval=09-10
 
 
 # global cfg constants
+
+# prefixes of variables in backup:
+# bv_*   - global vars, all files
+# lv_*   - local vars, local in file
+# lc_*   - local constants, local in file
+# _*     - local in functions 
+# BK_*   - exitcodes, upper case, BK_*
+# cfg_*  - set in cfg.* file_
 
 
 ####### general part  #######
@@ -53,6 +66,7 @@ readonly DISKLIST="bbackup"
 ### #a_targetdisk['kluks']="edisk"
 ### a_targetdisk['hluks']="fluks"
 ### #a_targetdisk['fdisk']="aluks"
+
 
 
 # associative arrays for projects
@@ -158,23 +172,6 @@ a_waittime['bbackup_testData']=09-10
 #  3. copy all in backup from targetdisk to disk with label
 #  test
 #  start backup
-
-
-# move only backup target to a fixed disk or fixed subvolume
-
-#   set a_properties['huh12_pserver']="ignore_snapshot_root"
-
-#   does not check ‘snapshot_root’ in rsnapshot·against lebel
-#     is on the hard drive specified by the HD label
-
-#   can be used to store a backup folder in a different location
-
-#   all checks of the HD, existence on USB, free space, etc.,··
-#   are performed with the previous HD
-
-#   Caution: the disk specified by ‘snapshot_root’ 
-#      is
-#      not checked, not mounted and not unmounted
 
 
 

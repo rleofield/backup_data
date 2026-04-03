@@ -2,7 +2,7 @@
 
 # file: cron_start_backup.sh
 
-# bk_version  26.01.1
+# bk_version  26.04.1
 
 # Copyright (C) 2017-2026 Richard Albrecht
 # www.rleofield.de
@@ -43,7 +43,7 @@ then
 fi
 
 
-readonly bv_version="26.01.1"
+readonly bv_version="26.04.1"
 
 
 readonly callfilename=$(basename "$0")

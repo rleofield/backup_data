@@ -58,7 +58,9 @@ then
 	fi
 
 	# stopped run one, backup stopped by hand './stop.sh', 
-        vtest="$text_marker_stop, end, bv_test_do_once_count loops reached"
+	# text_marker_stop="--- stopped ---"
+	# text_do_once_count_reached="$text_marker_stop, end, bv_test_do_once_count loops reached"
+        vtest="$text_do_once_count_reached"
         if [[ $lastlogline == *"$vtest"* ]]
         then
 		echo "log contains '$vtest' at end, exit 'stopped do once count loops end': $BK_EXECONCESTOPPED"
@@ -66,7 +68,7 @@ then
 	fi
 
 	# stopped run one, backup stopped by hand './stop.sh', 
-        vtest="$text_marker_stop, end reached, 'bv_test_execute_once', RET: '102'"
+	vtest="$text_marker_stop, end reached, test_execute_once"
         if [[ $lastlogline == *"$vtest"* ]]
         then
 		echo "log contains '$vtest' at end, exit 'stopped run once': $BK_EXECONCESTOPPED"

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_disk.sh
-# bk_version  26.02.1
+# bk_version  26.04.1
 
 # Copyright (C) 2017-2026 Richard Albrecht
 # www.rleofield.de
@@ -29,12 +29,14 @@
 
 
 # prefixes of variables in backup:
-# bv_*   - global vars, alle files
-# lv_*   - local vars, global in file
-# lc_*  - local constants, global in file
-# _*     - local in functions or loops
-# BK_*   - exitcodes, upper case, BK_
+# bv_*   - global vars, all files
+# lv_*   - local vars, local in file
+# lc_*   - local constants, local in file
+# _*     - local in functions 
+# BK_*   - exitcodes, upper case, BK_*
 # cfg_*  - set in cfg.* file_
+
+# execution starts at line 1048
 
 
 # set -u, which will exit your script if you try to use an uninitialised variable.
@@ -53,8 +55,6 @@ set -u
 . ./src_log.sh
 if ! typeset -f  execute_main_begin > /dev/null 
 then 
-	# used in
-	# execute_main_end
 	. ./src_begin_end.sh
 fi
 
@@ -134,6 +134,7 @@ function init_cfg_variables {
 	readonly cfg_sshtargetfolder2="$_temp"
 
 	# backup waits after end of loop
+	# convert to base 10
 	readonly cfg_waittimestart10=$(  get_decimal_waittimestart $bv_globalwaittimeinterval )
 	readonly cfg_waittimeend10=$(  get_decimal_waittimeend $bv_globalwaittimeinterval )
 
@@ -143,12 +144,17 @@ function init_cfg_variables {
 	# is_waittimeinterval_empty
 	if test $cfg_waittimeend10 -eq $cfg_waittimestart10
 	then
-		dlog "global waittime interval is not set or empty, set in 'cfg.projects', var 'bv_globalwaittimeinterval'"
+		dlog "global waittime interval is not set or empty, set in 'cfg.projects', used var 'cfg_globalwaittimeinterval'"
 	fi
 
-	# array of headers 
+	# list of headers
 	# SUCCESSLINE is defined in 'cfg.successloglineheader'
-	cfg_successlineheader=( $SUCCESSLINE )
+	# converted to an array
+	cfg_successline_header=( $SUCCESSLINE )
+
+	# SUCCESSLINEWIDTH is defined in 'cfg.successloglineheader'
+	cfg_successline_width=$SUCCESSLINEWIDTH
+	cfg_successlines_file=$file_successloglines
 }
 
 
@@ -174,7 +180,7 @@ function init_local_variables {
 	lv_disks_successlist=()
 	lv_disks_unsuccesslist=()
 
-	# list of all excuted projects at end
+	# list of all executed projects at end
 	# list is filled in bk_loop.sh
 	lv_executedprojects=""
 	lv_disklist=""
@@ -209,7 +215,7 @@ function check_stop {
 	local _name=$1
 	if test -f $lv_stopfile
 	then
-		local msg=$( printf "%05d"  "$( get_loopcounter  )" )
+		local msg=$(  get_runningnumber )
 		dlog "$text_backup_stopped in '$_name', counter: $msg  "
 		dlog "remove stop file"
 		rm $lv_stopfile
@@ -314,27 +320,29 @@ function loop_until_minute  {
 
 function do_ping_host {
 
-        local _USER=$1
-        local _HOST=$2
-        local _FOLDER=$3
-        local _PORT=$4
+	local _user=$1
+	local _host=$2
+	local _folder=$3
+	local _port=$4
 
-        #dlog "in ping, host: $_HOST"
-        ping -c1 $_HOST &> /dev/null
-	local ping_RET=$?
-        if test $ping_RET -eq 0
+	#dlog "in ping, host: $_host"
+        ping -c1 $_host &> /dev/null
+	local _ping_RET=$?
+        if test $_ping_RET -eq 0
         then
-#                 dlog "ping ok  ping -c1 $_HOST "
-                ssh_test_str="x=99; y=88; if test  -d $_FOLDER; then  exit 99; else exit 88; fi" 
-                ssh_test_login="ssh -p $_PORT $_USER@$_HOST '${ssh_test_str}'"
-                eval "${ssh_test_login}"  &> /dev/null
-                local ping1_RET=$?
-                if test  $ping1_RET -eq 99; then
-                        # host exists
-                        return 0
-                fi
-        fi
-        return 1
+		#dlog "ping ok  ping -c1 $_host "
+		ssh_test_str="x=99; y=88; if test  -d $_folder; then  exit 99; else exit 88; fi" 
+		ssh_test_login="ssh -p $_port $_user@$_host '${ssh_test_str}'"
+		#dlog "$ssh_test_login"
+		eval "${ssh_test_login}"  &> /dev/null
+		local _ping1_RET=$?
+		if test  $_ping1_RET -eq 99 
+		then
+			# host exists
+			return 0
+		fi
+	fi
+	return 1
 }
 
 
@@ -344,44 +352,44 @@ function do_ping_host {
 # lv_disks_successlist[@] 
 # lv_disks_unsuccesslist[@] 
 function successlog {
-	
-	local line="" 
-	for _s in "${cfg_successlineheader[@]}"
+
+	local _line="" 
+	for _s in "${cfg_successline_header[@]}"
 	do
-		value="-"
+		local _value="-"
 		for item in "${lv_disks_successlist[@]}" 
 		do
 			if test "$_s" = "$item" 
 			then
-				value="ok"
+				_value="ok"
 			fi
 		done
 		for item in "${lv_disks_unsuccesslist[@]}" 
 		do
 			if test "$_s" = "$item" 
 			then
-				value="nok"
+				_value="nok"
 			fi
 		done
-		local txt=$( printf "%${SUCCESSLINEWIDTH}s" $value )
-		line=$line$txt
+		local _txt=$( printf "%${cfg_successline_width}s" $_value )
+		_line=${_line}${_txt}
 	done
 
 	local _TODAY=$( currentdate_for_log )
 
 	# add line to lv_successloglinestxt
-	echo "$_TODAY: $line" >> $lv_successloglinestxt
+	echo "$_TODAY: $_line" >> $lv_successloglinestxt
 
 	# copy lv_successloglinestxt to local folder, in any case, also if sshlogin is empty
 	# sshtargetfolder
-	dlog "cp $lv_successloglinestxt  ${bv_backup_messages_testfolder}/${file_successloglines}"
-	cp $lv_successloglinestxt  ${bv_backup_messages_testfolder}/${file_successloglines}
+	dlog "cp $lv_successloglinestxt  ${bv_backup_messages_testfolder}/${cfg_successlines_file}"
+	cp $lv_successloglinestxt  ${bv_backup_messages_testfolder}/${cfg_successlines_file}
 
 }
 
 # parameter
 # $1 login: '${cfg_sshlogin}', $2 target: '${cfg_sshtargetfolder}', $3 host: '${cfg_sshhost}', $4 port: '${cfg_sshport}' "
-# successlog_notifymessages_send ${cfg_sshlogin} ${cfg_sshtargetfolder} ${cfg_sshhost} ${cfg_sshport}
+# successlog_notifymessages_send_host ${cfg_sshlogin} ${cfg_sshtargetfolder} ${cfg_sshhost} ${cfg_sshport}
 function successlog_notifymessages_send_host {
 	
 	local _sshlogin=$1
@@ -408,8 +416,8 @@ function successlog_notifymessages_send_host {
 		COMMAND="rsync -a  -e '$rsync_remote_shell' ${bv_backup_messages_testfolder}/* ${_sshlogin}@${_sshhost}:${_sshtargetfolder} "
 		dlog "   remote rsync command:  '$COMMAND'"
 		eval "$COMMAND"
-		local eval_RET=$?
-		if [ $eval_RET -gt 0 ]
+		local _eval_RET=$?
+		if [ $_eval_RET -gt 0 ]
 		then
 			dlog "   remote rsync failed"
 			dlog ""
@@ -423,18 +431,18 @@ function successlog_notifymessages_send_host {
 
 
 function successlog_notifymessages_send_localhost {
-	
-	local _sshlogin=$1
-	local _sshtargetfolder=$2
+	# no host, no port, is local copy
+	local _user=$1
+	local _targetfolder=$2
 	#local _sshhost=$3
 	#local _sshport=$4
 
 	# remove all files in targetfolder*
 	# add *, sshtargetfolder has slash at end, in cfg.ssh_login
-	local local_ssh_targetfolder_wildcard="rm ${_sshtargetfolder}*"
+	local local_ssh_targetfolder_wildcard="rm ${_targetfolder}*"
 	dlog "   targetfolder is at 'localhost', local remove: '$local_ssh_targetfolder_wildcard'"
 	eval "$local_ssh_targetfolder_wildcard"
-	COMMAND="rsync -a ${bv_backup_messages_testfolder}/* ${_sshtargetfolder}"
+	local COMMAND="rsync -a ${bv_backup_messages_testfolder}/* ${_targetfolder}"
 	dlog "   rsync command: '$COMMAND'"
 	eval "$COMMAND"
 	local eval_RET=$?
@@ -445,33 +453,36 @@ function successlog_notifymessages_send_localhost {
 	else
 		dlog "rsync was ok"
 	fi
-	targetuser="${_sshlogin}"
-	dlog "   set ownership: 'chown -R ${targetuser}:${targetuser} ${_sshtargetfolder}'"
+	dlog "   set ownership: 'chown -R ${_user}:${_user} ${_targetfolder}'"
 }
 
 # parameter
-# $1 login: '${cfg_sshlogin}', $2 target: '${cfg_sshtargetfolder}', $3 host: '${cfg_sshhost}', $4 port: '${cfg_sshport}' "
+# $1 login: '${cfg_sshlogin}',
+# $2 target: '${cfg_sshtargetfolder}'
+# $3 host: '${cfg_sshhost}'
+# $4 port: '${cfg_sshport}' 
+
 # successlog_notifymessages_send ${cfg_sshlogin} ${cfg_sshtargetfolder} ${cfg_sshhost} ${cfg_sshport}
 function successlog_notifymessages_send {
 
-	local _sshlogin=$1
-	local _sshtargetfolder=$2
-	local _sshhost=$3
-	local _sshport=$4
+	local _login=$1
+	local _targetfolder=$2
+	local _host=$3
+	local _port=$4
 
-	dlog "   check target folder: '${_sshtargetfolder}'"
-#	dlog "login: '${_sshlogin}', target: '${_sshtargetfolder}'"
+	dlog "   check target folder: '${_targetfolder}'"
+#	dlog "login: '${_login}', target: '${_targetfolder}'"
 	# if targetfolder string exists
-	if [  -n  "${_sshtargetfolder}" ] 
+	if [  -n  "${_targetfolder}" ] 
 	then
-		if [ "${_sshhost}" = "localhost" ] || [ "${_sshhost}" = "127.0.0.1" ]
+		if [ "${_host}" = "localhost" ] || [ "${_host}" = "127.0.0.1" ]
 		then
-			successlog_notifymessages_send_localhost $_sshlogin $_sshtargetfolder 
+			successlog_notifymessages_send_localhost $_login $_targetfolder 
 		else
-			successlog_notifymessages_send_host $_sshlogin $_sshtargetfolder $_sshhost $_sshport
+			successlog_notifymessages_send_host $_login $_targetfolder $_host $_port
 		fi
 	else
-		dlog "'sshtargetfolder' is empty"
+		dlog "'targetfolder' is empty"
 	fi
 
 }
@@ -489,7 +500,7 @@ function check_loginname {
 function successlog_notifymessages {
 	dlog ""
 	dlog "copy messages to target folder"
-	check_loginname "${sshlogin}"
+	check_loginname "${cfg_sshlogin}"
 	local _ret=$?
 	if [[ $_ret -eq 0 ]]
 	then
@@ -500,7 +511,7 @@ function successlog_notifymessages {
 	fi
 
 	# login2
-	check_loginname "${sshlogin2}"
+	check_loginname "${cfg_sshlogin2}"
 	_ret=$?
 	if [[ $_ret -eq 0 ]]
 	then
@@ -516,7 +527,7 @@ function successlog_notifymessages {
 function write_header {
 
 	# use first entry in header array for grep 
-	local _firstheader=${cfg_successlineheader[0]}
+	local _firstheader=${cfg_successline_header[0]}
 
 	# get count of lines without header
 	local _line_count=$( cat $lv_successloglinestxt | grep -v $_firstheader | wc -l )
@@ -533,7 +544,7 @@ function write_header {
 		for _s in ${cfg_successlineheader[@]}
 		do
 			# write line in field
-			local  _formatted_header=$( printf "%${SUCCESSLINEWIDTH}s" $_s )
+			local  _formatted_header=$( printf "%${cfg_successline_width}s" $_s )
 			# append formatted header to line
 			_formatted_header_line=${_formatted_header_line}${_formatted_header}
 		done
@@ -591,11 +602,10 @@ function list_connected_disks_by_uuid {
 			local _line_=$(grep  ${_uuid}  uuid.txt | grep -v '#' ) 
 			for _l in $_line_
 			do
-				
 
-			#   delete the longest match of $substring from front of $string
-			#   ${string##substring}
-			#   if not swap or boot, show diskname 
+				#   delete the longest match of $substring from front of $string
+				#   ${string##substring}
+				#   if not swap or boot, show diskname 
 
 				if ! [ -z "${_l##*swap*}" ] && ! [ -z "${_l##*boot*}" ] 
 				then
@@ -665,14 +675,14 @@ function replace_disknames_with_targetdisks {
 
 function call_bk_loop {
 	local _disk=$1
-	local lv_label_displayname="$_disk"
-	local lv_targetdisk=$( targetdisk "$_disk" )
-	if [ "$_disk" != "$lv_targetdisk" ]
+	local _label_displayname="$_disk"
+	local _targetdisk=$( targetdisk "$_disk" )
+	if [ "$_disk" != "$_targetdisk" ]
 	then
-		lv_label_displayname="$_disk ($lv_targetdisk)"
+		_label_displayname="$_disk ($_targetdisk)"
 	fi
-	local lv_targetdisk=$lv_label_displayname
-	dlog "= next disk: '$lv_targetdisk' ="
+	local _targetdisk=$_label_displayname
+	dlog "= next disk: '$_targetdisk' ="
 	local _old_cc_logname=$lv_cc_logname
 	lv_cc_logname="$_disk"
 	local _oldifs=$IFS
@@ -682,7 +692,7 @@ function call_bk_loop {
 	# call loop.sh to loop over all projects for disk ############################################
 	./bk_loop.sh "$_disk"
 	############################################################################
-        local loop_RET=$?
+        local _bk_loop_RET=$?
 	
 	# exit values from 'bk_loop.sh'
 	# exit BK_DISKLABELNOTGIVEN 	- disk label from caller is empty
@@ -703,28 +713,28 @@ function call_bk_loop {
 	# exit BK_DISK_IS_NOT_SET_IN_CONF	disk is not set in conf
 
 	dlog ""
-	if test $loop_RET -eq $BK_TIMELIMITNOTREACHED
+	if test $_bk_loop_RET -eq $BK_TIMELIMITNOTREACHED
 	then
-		dlog "'$lv_targetdisk' no project has timelimit reached, wait for next loop"
 		#dlog "ready, time limit of a project is not reached"
+		dlog "'$_targetdisk' no project has timelimit reached, wait for next loop"
 	else
-		if test $loop_RET -eq $BK_DISKLABELNOTFOUND
+		if test $_bk_loop_RET -eq $BK_DISKLABELNOTFOUND
 		then
 			# no error, normal use of disks, disk is not present, maybe present at next main loop
-			dlog "HD with label: '$lv_targetdisk' not found ..." 
+			dlog "HD with label: '$_targetdisk' not found ..." 
 		else
-			if test $loop_RET -eq $BK_DISKNOTMOUNTED
+			if test $_bk_loop_RET -eq $BK_DISKNOTMOUNTED
 			then
 				dlog "warning: disk '$_disk' not mounted"
 			else
-				if test $loop_RET -eq $BK_DISK_IS_NOT_SET_IN_CONF
+				if test $_bk_loop_RET -eq $BK_DISK_IS_NOT_SET_IN_CONF
 				then
 					dlog "disk '$_disk' not set in snapshot root"
 				else
 					
-					if test $loop_RET -ne 0 
+					if test $_bk_loop_RET -ne 0 
 					then
-						dlog "unknown error: RET nach loop: $loop_RET"
+						dlog "unknown error: RET nach loop: $_bk_loop_RET"
 					fi
 				fi
 			fi
@@ -743,18 +753,18 @@ function call_bk_loop {
 	# exit BK_NOINTERVALSET	    	- no backup time inteval configured in 'cfg.projects'
 	# exit BK_MOUNTDIRTNOTEXIST   	- mount folder for backup disk is not present in '/mnt'
 	# exit BK_DISKNOTUNMOUNTED    	- ddisk could not be unmounted
-	if test  $loop_RET -eq $BK_NOINTERVALSET 
+	if test  $_bk_loop_RET -eq $BK_NOINTERVALSET 
 	then
-		_msg="for one project in '$lv_targetdisk' time interval is not set"
+		_msg="for one project in '$_targetdisk' time interval is not set"
 	fi
-	if test $loop_RET -eq $BK_MOUNTDIRTNOTEXIST
+	if test $_bk_loop_RET -eq $BK_MOUNTDIRTNOTEXIST
 	then
 		local mount_targetdisk=$( targetdisk $_disk )
-		_msg="mountpoint for HD with label: '$lv_targetdisk' not found: '/mnt/$mount_targetdisk' "
+		_msg="mountpoint for HD with label: '$_targetdisk' not found: '/mnt/$mount_targetdisk' "
 	fi
-	if test ${loop_RET} -eq $BK_DISKNOTUNMOUNTED 
+	if test ${_bk_loop_RET} -eq $BK_DISKNOTUNMOUNTED 
 	then
-		_msg="HD with label: '$lv_targetdisk' could not be unmounted" 
+		_msg="HD with label: '$_targetdisk' could not be unmounted" 
 	fi
 
 
@@ -763,24 +773,24 @@ function call_bk_loop {
 	# exit BK_RSYNCFAILS		- rsync error
 	# exit BK_DISK_IS_NOT_SET_IN_CONF	disk is not set in conf
 	# exit BK_ROTATE_FAILS		- rotate error
-	if test  ${loop_RET} -eq $BK_RSYNCFAILS 
+	if test  ${_bk_loop_RET} -eq $BK_RSYNCFAILS 
 	then
-		_msg="rsync error in disk: '$lv_targetdisk'"
+		_msg="rsync error in disk: '$_targetdisk'"
 		_PROJECTERROR="true"
-		loop_RET=$BK_SUCCESS
+		_bk_loop_RET=$BK_SUCCESS
 	fi
-	if test  ${loop_RET} -eq $BK_DISK_IS_NOT_SET_IN_CONF  
+	if test  ${_bk_loop_RET} -eq $BK_DISK_IS_NOT_SET_IN_CONF  
 	then
-		_msg="disk '$lv_targetdisk' is not set in snapshot root"
+		_msg="disk '$_targetdisk' is not set in snapshot root"
 		dlog "msg: $_msg"
 		_PROJECTERROR="true"
-		loop_RET=$BK_SUCCESS
+		_bk_loop_RET=$BK_SUCCESS
 	fi
-	if test  ${loop_RET} -eq $BK_ROTATE_FAILS 
+	if test  ${_bk_loop_RET} -eq $BK_ROTATE_FAILS 
 	then
-		_msg="file rotate error in history, check backup disk for errors: '$lv_targetdisk'"
+		_msg="file rotate error in history, check backup disk for errors: '$_targetdisk'"
 		_PROJECTERROR="true"
-		loop_RET=$BK_SUCCESS
+		_bk_loop_RET=$BK_SUCCESS
 	fi
 
 	# test msg: msg="test abc"
@@ -791,13 +801,13 @@ function call_bk_loop {
   		rsyncerrorlog "$_msg"
 	fi
 
-	if test ${loop_RET} -eq $BK_SUCCESS
+	if test ${_bk_loop_RET} -eq $BK_SUCCESS
 	then
 		if test  "$_PROJECTERROR" = "true" 
 		then
-			dlog "'$lv_targetdisk' done, min. one project has rsync errors, see log"
+			dlog "'$_targetdisk' done, min. one project has rsync errors, see log"
 		else
-			dlog "'$lv_targetdisk' successfully done"
+			dlog "'$_targetdisk' successfully done"
 		fi
 
 		# defined in  scr_filenames.sh
@@ -823,24 +833,24 @@ function call_bk_loop {
 			rm $bv_unsuccessarray_tempfile
 		fi
 	else
-		if test ${loop_RET} -ne $BK_TIMELIMITNOTREACHED
+		if test ${_bk_loop_RET} -ne $BK_TIMELIMITNOTREACHED
 		then
-			if test ${loop_RET} -eq $BK_DISKLABELNOTFOUND 
+			if test ${_bk_loop_RET} -eq $BK_DISKLABELNOTFOUND 
 			then
-				dlog "'$lv_targetdisk' is not connected with the server"
+				dlog "'$_targetdisk' is not connected with the server"
 			else
-				if test ${loop_RET} -eq $BK_FATAL
+				if test ${_bk_loop_RET} -eq $BK_FATAL
 				then 
-					dlog  "'$lv_targetdisk' returns with fatal error: '$loop_RET', see log"
+					dlog  "'$_targetdisk' returns with fatal error: '$_bk_loop_RET', see log"
 				else
 					# none of exit values are checked
-					dlog  "'$lv_targetdisk' returns with error: '$loop_RET', see log"
+					dlog  "'$_targetdisk' returns with error: '$_bk_loop_RET', see log"
 				fi
 			fi
 		fi
 	fi
 
-	dlog "= disk: '$lv_targetdisk' done ="
+	dlog "= disk: '$_targetdisk' done ="
 }
 
 
@@ -860,7 +870,6 @@ function loop_to_full_next_hour {
 	local _minute=$(date +%M)
 
 	# if minute is '00', then count to 1 minute and then to next full hour  
-
 	# 00
 	if [ $_minute = "00" ]
 	then
@@ -885,11 +894,11 @@ function wait_until_full_hour {
 	#local _hour=$(date +%H:%M)
 	#dlog "time '$_hour' not in waittime interval: '$_wstart - $_wend'"
 
-	loopcounter=$( printf "%05d"  $( get_loopcounter ) )
+	local _loopcounter=$(  get_runningnumber )
 
 	# "--- marker ---"	
 	# "waiting, backup ready"
-	local nextcheck="$(date +%H --date='-1 hours ago' ):00"
+	local _nextcheck="$(date +%H --date='-1 hours ago' ):00"
 
 	# first show errors
 	if [ -s $bv_internalerrors ]
@@ -898,9 +907,9 @@ function wait_until_full_hour {
 		dlog "show errors:"
 		dlog "$( cat $bv_internalerrors )"
 		dlog ""
-		dlog "${text_marker_error_in_waiting}, next check at ${nextcheck}, loop: $loopcounter,  stop backup with './stop.sh'"
+		dlog "${text_marker_error_in_waiting}, next check at ${_nextcheck}, loop: $_loopcounter,  stop backup with './stop.sh'"
 	else
-		dlog "${text_marker_waiting}, next check at ${nextcheck}, loop: $loopcounter,  stop backup with './stop.sh'"
+		dlog "${text_marker_waiting}, next check at ${_nextcheck}, loop: $_loopcounter,  stop backup with './stop.sh'"
 	fi
 	# display message and wait
 	# lastlogline, this is last line of log, if in wait state
@@ -911,7 +920,7 @@ function wait_until_full_hour {
 		tlog "wait minutes: $bv_test_minute_loop_duration"
 		dlog "wait minutes: $bv_test_minute_loop_duration"
 		# default=2
-		mlooptime=$bv_test_minute_loop_duration
+		local mlooptime=$bv_test_minute_loop_duration
 
 		if [ -z $mlooptime  ]
 		then
@@ -925,7 +934,7 @@ function wait_until_full_hour {
 		 
 		if [ $bv_test_short_minute_loop_seconds_10 -eq 1 ]
 		then
-			_seconds=$((  mlooptime * 10 ))
+			local _seconds=$((  mlooptime * 10 ))
 			dlog "'test_short_minute_loop_seconds_10' is set, one minute ist shortened to 10 seconds, '$_seconds' seconds "
 		fi
 
@@ -945,46 +954,55 @@ function wait_until_full_hour {
 }
 
 
+# uses $cfg_waittimestart10
+# uses $cfg_waittimeend10
 function is_in_global_waitinterval {
-	local _wstart=$cfg_waittimestart10
-	local _wend=$cfg_waittimeend10
-	is_in_waittime $_wstart $_wend
-	local waittime_RET=$?
+	local _wstart10=$cfg_waittimestart10
+	local _wend10=$cfg_waittimeend10
+	is_in_waittime10 $_wstart10 $_wend10
+	local _waittime_RET=$?
 	# 0, if is in wait time
 	# 1, if is not
-	#dlog "is_in_global_waitinterval  ZZZZZ  '$_RET', start: '$_wstart', end '$_wend'"
-	return $waittime_RET
+	#dlog "is_in_global_waitinterval  '$_waittime_RET', start: '$_wstart', end '$_wend'"
+	return $_waittime_RET
 }
 
 function wait_until_end_of_global_waittime {
 
-	local _wstart=$cfg_waittimestart10
-	local _wend=$cfg_waittimeend10
+	local _wstart10=$cfg_waittimestart10
+	local _wend10=$cfg_waittimeend10
 	local _hour=$(date +%H)
-	local hour10=$(( 10#"${_hour}" ))
+
+	# convert to base 10
+	local _hour10=$(( 10#"${_hour}" ))
+
 	# readonly text_wait_interval_reached="wait interval reached"  
-	dlog "$text_marker $text_wait_interval_reached, currenti time: $hour10, begin: $_wstart, end: $_wend"
+	dlog "$text_marker $text_wait_interval_reached, current time: $_hour10, begin: $_wstart10, end: $_wend10"
 
 	local _count=0
 
+	# uses $cfg_waittimestart10
+	# uses $cfg_waittimeend10
 	is_in_global_waitinterval 
-	local _globalRET=$?
+	local _global_waitinterval_RET=$?
 	# 0, if is in wait time
 	# 1, if is not
-	while [[  $_globalRET -eq 0  ]] 
+	while [[  $_global_waitinterval_RET -eq 0  ]] 
 	do
 		#dlog "time $(date +%H:%M:%S), wait until $cfg_waittimeend"
 		_hour=$(date +%H)
-		hour10=$(( 10#"${_hour}" ))
-	#		dlog "XXXX $text_marker ${text_wait_interval_reached}, time $(date +%H:%M:%S), wait until $_wend"
-		# every 30 min display a status message
-		# 30 min = 1800 sec 
-		# 180 counts = 30 min
+		# convert to base 10
+		_hour10=$(( 10#"${_hour}" ))
+
+		# dlog "$text_marker ${text_wait_interval_reached}, time $(date +%H:%M:%S), wait until $_wend"
+		# every 15 min display a status message
+		# 150 min = 900 sec 
+		# 90 counts = 15 min
 
 		if [ $_count -eq 90 ]
 		then
 			_count=0
-			dlog "$text_marker ${text_wait_interval_reached}, time $(date +%H:%M:%S), wait until $_wend"
+			dlog "$text_marker ${text_wait_interval_reached}, time $(date +%H:%M:%S), wait until $_wend10"
 			#dlog "$text_marker ${text_wait_interval_reached}, time $(date +%H:%M:%S), wait until $_wend"
 		fi
 		_count=$(( _count+1 ))
@@ -993,9 +1011,11 @@ function wait_until_end_of_global_waittime {
 		sleep "10s"
 		# check for stop in wait interval
 		check_stop "wait interval loop"
-		#	dlog "STOP danach , until $_wend"
+
+		# uses $cfg_waittimestart10
+		# uses $cfg_waittimeend10
 		is_in_global_waitinterval 
-		_globalRET=$?
+		_global_waitinterval_RET=$?
 	done
 	# text_waittime_end="waittime end"
 	dlog "$text_marker ${text_waittime_end}, next check at $(date +%H):00"
@@ -1003,20 +1023,22 @@ function wait_until_end_of_global_waittime {
 
 
 
-# uses $bv_globalwaittimeinterval
-# uses is_in_waittime $_wstart $_wend
+# uses $cfg_globalwaittimeinterval
+# uses is_in_waittime10 $_wstart $_wend
 function wait_until_end {
+	# uses $cfg_waittimestart10
+	# uses $cfg_waittimeend10
 	is_in_global_waitinterval 
-	local RET=$?
+	local _wait_until_end_RET=$?
 	# 0, if is in wait time
 	# 1, if is not
-	#dlog "GLGLGL  RET: '$RET'"
-	if [ "$RET" -eq 0 ] 
+	#dlog "  RET: '$RET'"
+	if [ "$_wait_until_end_RET" -eq 0 ] 
 	then
-	#	dlog "in global wait GLGLGL  RET: '$RET'"
+	#	dlog "in global wait RET: '$_wait_until_end_RET'"
 		wait_until_end_of_global_waittime 
 	else
-	#	dlog "in hour wait HWHWHW RET: '$RET'"
+	#	dlog "in hour wait RET: '$_wait_until_end_RET'"
 		wait_until_full_hour 
 	fi
 }
@@ -1065,10 +1087,11 @@ show_used_seconds
 
 copy_executedprojects_from_loop_to_disks
 
-loopcountertemp=$( get_loopcounter )
-loopcounter=$( printf  "%5d" $loopcountertemp )
-loopmsg="loop: $loopcounter, disk and projects: $lv_executedprojects" 
-dlog "$loopmsg "
+
+
+readonly lv_loopcounter=$(  get_runningnumber )
+readonly lv_loopmsg="loop: $lv_loopcounter, disk and projects: $lv_executedprojects" 
+dlog "$lv_loopmsg "
 
 
 # end full backup loop
@@ -1086,10 +1109,10 @@ fi
 # shell script, executed at start of disk
 
 execute_main_end
-exec_end_RET=$?
-if [ $exec_end_RET -gt 0 ]
+lv_exec_end_RET=$?
+if [ $lv_exec_end_RET -gt 0 ]
 then
-	dlog "execute_main_end: RET: $exec_end_RET"
+	dlog "execute_main_end: RET: $lv_exec_end_RET"
 	exit $BK_MAIN_END_FAILED
 fi
 
@@ -1106,35 +1129,73 @@ exit $BK_NORMALDISKLOOPEND
 
 # not reached
 # test messages after call of loop
+
+
+: << test_messages
 	./bk_loop.sh "$_disk"
 
-		msg="for one project in '$lv_targetdisk' time interval is not set"
+		msg="for one project in '$_targetdisk' time interval is not set"
 echo "$msg"
-		msg="HD with label: '$lv_targetdisk' not found ..." 
+		msg="HD with label: '$_targetdisk' not found ..." 
 echo "$msg"
-		msg="HD with label: '$lv_targetdisk' not found ..." 
+		msg="HD with label: '$_targetdisk' not found ..." 
 echo "$msg"
 
-		msg="mountpoint for HD with label: '$lv_targetdisk' not found: '/mnt/$mount_targetdisk' "
+		msg="mountpoint for HD with label: '$_targetdisk' not found: '/mnt/$mount_targetdisk' "
 echo "$msg"
-		msg="HD with label: '$lv_targetdisk' could not be mounted" 
+		msg="HD with label: '$_targetdisk' could not be mounted" 
 echo "$msg"
-		msg="HD with label: '$lv_targetdisk' could not be unmounted" 
+		msg="HD with label: '$_targetdisk' could not be unmounted" 
 echo "$msg"
-		msg="rsync error in disk: '$lv_targetdisk'"
+		msg="rsync error in disk: '$_targetdisk'"
 echo "$msg"
-		msg="file rotate error in history, check backup disk for errors: '$lv_targetdisk'"
+		msg="file rotate error in history, check backup disk for errors: '$_targetdisk'"
 echo "$msg"
-			msg="'$lv_targetdisk' done, min. one project has rsync errors, see log"
+			msg="'$_targetdisk' done, min. one project has rsync errors, see log"
 echo "$msg"
-			msg="'$lv_targetdisk' successfully done"
+			msg="'$_targetdisk' successfully done"
 echo "$msg"
-			msg="'$lv_targetdisk' no project has timelimit reached, wait for next loop"
+			msg="'$_targetdisk' no project has timelimit reached, wait for next loop"
 echo "$msg"
-				msg="'$lv_targetdisk' is not connected with the server"
+				msg="'$_targetdisk' is not connected with the server"
 echo "$msg"
-				msg="'$lv_targetdisk' returns with error: '$_RET', see log"
+				msg="'$_targetdisk' returns with error: '$_RET', see log"
 echo "$msg"
+test_messages
+
+
+: << list_of_functions
+77:function init_cfg_variables {
+162:function init_local_variables {
+194:function rsyncerrorlog {
+204:function stop_exit {
+214:function check_stop {
+232:function is_number {
+257:function loop_minutes {
+290:function loop_until_minute  {
+321:function do_ping_host {
+354:function successlog {
+393:function successlog_notifymessages_send_host {
+433:function successlog_notifymessages_send_localhost {
+466:function successlog_notifymessages_send {
+490:function check_loginname {
+500:function successlog_notifymessages {
+527:function write_header {
+559:function successlog_send {
+576:function show_used_seconds {
+582:function copy_executedprojects_from_loop_to_disks {
+592:function list_connected_disks_by_uuid {
+625:function trim_disknames {
+660:function replace_disknames_with_targetdisks {
+676:function call_bk_loop {
+859:function call_bk_loops {
+869:function loop_to_full_next_hour {
+886:function wait_until_full_hour {
+959:function is_in_global_waitinterval {
+970:function wait_until_end_of_global_waittime {
+1028:function wait_until_end {
+list_of_functions
+
 # EOF
 
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_archive.sh
-# bk_version 26.01.1
+# bk_version 26.04.1
 
 
 # Copyright (C) 2017-2026 Richard Albrecht
@@ -36,6 +36,8 @@
 # lc_*  - local constants, global in file
 # _*    - local in functions or loops
 # BK_*  - exitcodes, upper case, BK_
+# cfg_*  - set in cfg.* file_
+
 
 
 
@@ -52,11 +54,6 @@ set -u
 # exitvalues
 # exit $BK_RSYNCFAILS  - one of the the backup lines fails
 
-
-
-# set later with  ''rsync_command_log from config file
-#    lv_temp=$(cat ./${lv_archiveconfigname} | grep ^rsync_command_log | grep -v '#' | awk '{print $2}')
-#lv_rsync_command_logfilename="${bv_workingfolder}/rsync_archive.log"
 
 function write_rsync_command_log {
 	local _msg="$1"

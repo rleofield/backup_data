@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # file: bk_main.sh
-# bk_version  26.01.1
+# bk_version  26.04.1
 
-# Copyright (C) 2017-2025 Richard Albrecht
+# Copyright (C) 2017-2026 Richard Albrecht
 # www.rleofield.de
 
 # This program is free software: you can redistribute it and/or modify
@@ -35,7 +35,10 @@
 # lc_*  - local constants, global in file
 # _*    - local in functions or loops
 # BK_*  - exitcodes, upper case, BK_
+# cfg_*  - set in cfg.* file_
 
+# exit $BK_ARRAYSNOK
+# exit 1
 
 # set -u, which will exit your script if you try to use an uninitialised variable.
 # = set -o unset 
@@ -61,7 +64,6 @@ fi
 # values: "cron"   = backup was started via cronjob
 #         "manual" = backup was started via commandline
 readonly lv_call_source=$1
-
 readonly lv_lockfilename="main_lock"
 
 # output goes to 'out_bk_main'
@@ -70,8 +72,12 @@ echo "start main, working folder: $PWD"
 echo "start main, time is:        $( currentdate_for_log )"
 # 
 
-readonly lv_tracelogname="main"
+# used in dlog() in 'src_log.sh'
 readonly lv_cc_logname="main"
+
+
+# used in tlog() in 'src_log.sh'
+readonly lv_tracelogname="main"
 
 tlog "start"
 
@@ -79,8 +85,8 @@ tlog "start"
 # gawk is used instead of awk
 function check_if_gawk_exists {
 	which gawk > /dev/null
-	local RET=$?
-	if [ $RET -ne 0  ]
+	local _check_if_gawk_exists_RET=$?
+	if [ $_check_if_gawk_exists_RET -ne 0  ]
 	then
 		dlog "'gawk' not found"
 		exit 1
@@ -91,8 +97,8 @@ function check_if_gawk_exists {
 # rsnapshot is used in final backup
 function check_if_rsnapshot_exists {
 	which rsnapshot > /dev/null
-	local RET=$?
-	if [ $RET -ne 0  ]
+	local _check_if_rsnapshot_exists_RET=$?
+	if [ $_check_if_rsnapshot_exists_RET -ne 0  ]
 	then
 		dlog "'rsnapshot' not found"
 		exit 1
@@ -109,6 +115,25 @@ function check_working_folder {
 		exit 1
 	fi
 }
+
+# increment counter, if all disk are executed 
+function increment_loop_counter {
+	# increment counter after main_loop.sh and before exit
+	local _counter=$( get_loopcounter )
+	_counter=$(( _counter + 1 ))
+
+	# max is MAX_INT = 9223372036854775807
+	# wraps at 99.999 = 100.000 loops
+	# normally not more than 100.000 loops are used in rsnapshot
+	# see './show_config.sh | g -e total -e Project'
+	if (( _counter > 99999 ))
+	then
+		_counter=0
+	fi
+	# write back to 'loop_counter.log'
+	echo "loop counter: $_counter" > loop_counter.log
+}
+
 
 
 function start_message {
@@ -214,7 +239,7 @@ function shatestfile(){
 
 function shatestfiles(){
 	local _testfile=$1
-	local exitval=0
+	local _shatestfiles_RET=0
 	local oldifs=$IFS
 	IFS=' '
 	# read 2 positions in line
@@ -229,14 +254,15 @@ function shatestfiles(){
 			then
 				dlog "  '$_file' is ok"
 			else
-				exitval=1
+				_shatestfiles_RET=1
 			fi
 		fi
+
 	#done < <(cat $_testfile )
 	done <  $_testfile 
 
 	IFS=$oldifs
-	return $exitval
+	return $_shatestfiles_RET
 }
 
 
@@ -245,8 +271,8 @@ function shatest(){
 	then
 		dlog " ==  test sha256sums"
 		shatestfiles sha256sum.txt
-		RETSHA256=$?
-		if [ ${RETSHA256} -gt 0  ]
+		_shatestfiles_RET=$?
+		if [ ${_shatestfiles_RET} -gt 0  ]
 		then
 			dlog "sha256sum check fails"
 			dlog "create new 'sha256sum.txt' by call of './get_sha256.sh'"
@@ -259,6 +285,7 @@ function shatest(){
 		dlog "sha256sum check fails, file 'sha256sum.txt' is missing"
 		dlog "create new file 'sha256sum.txt' by call of './get_sha256.sh'"
 		dlog "start again with './start_backup.sh'"
+		exit 0
 	fi
 }
 
@@ -317,42 +344,42 @@ function check_configuration_folders(){
 function check_arrays {
 	dlog " ==  check arrays in 'cfg.projects'"
 
-	local arrays_ok=$BK_ARRAYSOK
+	local _arrays_ok=$BK_ARRAYSOK
 
 	# find arrays in cfg.projects
 	arrays="$( cat cfg.projects |  grep '()' | grep -v '#' | gawk -F= '{print $1}' )"
 	for _arr in ${arrays[@]}
 	do
 		is_associative_array $_arr
-		local arrayRET=$?
-		if [ $arrayRET -ne 0 ]
+		local _arrayRET=$?
+		if [ $_arrayRET -ne 0 ]
 		then
-			if [ $arrayRET -eq $BK_ASSOCIATIVE_ARRAY_NOT_EXISTS ]
+			if [ $_arrayRET -eq $BK_ASSOCIATIVE_ARRAY_NOT_EXISTS ]
 			then
 				dlog "   array '$_arr' doesn't exist"
 				dlog "   -- add array entry with"
 				dlog "      'declare -A $_arr'"
 				dlog "      '$_arr=()'"
 				dlog "      ------"
-				arrays_ok=$BK_ARRAYSNOK
+				_arrays_ok=$BK_ARRAYSNOK
 			fi
-			if [ $arrayRET -eq $BK_ASSOCIATIVE_ARRAY_IS_EMPTY ]
+			if [ $_arrayRET -eq $BK_ASSOCIATIVE_ARRAY_IS_EMPTY ]
 			then
 				dlog "   array '$_arr' is empty"
 			fi
-			if [ $arrayRET -eq $BK_ASSOCIATIVE_ARRAY_IS_NOT_EMPTY ]
+			if [ $_arrayRET -eq $BK_ASSOCIATIVE_ARRAY_IS_NOT_EMPTY ]
 			then
 				dlog "   array '$_arr' is not empty"
 			fi
 		fi
 	done
 
-	if test $arrays_ok -ne $BK_ARRAYSOK 
+	if test $_arrays_ok -ne $BK_ARRAYSOK 
 	then
 		dlog "!! arrays in 'cfg.projects' are defined incorrectly !!"
-		exit $arrays_ok
+		exit $_arrays_ok
 	fi
-	return $arrays_ok
+	return $_arrays_ok
 }
 
 
@@ -414,7 +441,7 @@ function rotate_logs(){
 
 
 function set_lock(){
-	local _runningnumber=$( printf "%05d"  $( get_loopcounter ) )
+	local _runningnumber=$( get_runningnumber )
 	local _lock_date=`date +%Y%m%d-%H%M%S`
 	dlog "${_lock_date}: create file '$lv_lockfilename'"
 	touch $lv_lockfilename
@@ -498,6 +525,7 @@ do
 	# execute_main_end is in bk_disks.sh line 1036
 	
 	execute_main_begin
+
 	eRET=$?
 	if [ $eRET -gt 0 ]
 	then
@@ -515,7 +543,7 @@ do
 	##########################################################################################
 	./bk_disks.sh 
 	dRET=$?
-	# RdET can't be 'readonly'
+	# dRET can't be 'readonly'
 	##########################################################################################
 
 	# exit values from 'bk_disks.sh'
@@ -523,7 +551,8 @@ do
 	# exit $BK_NORMALDISKLOOPEND  - 99, normal end
 	# exit $BK_STOPPED -   normal stop, file 'stop' detected
 	
-
+	# "--- stopped ---, end, bv_test_do_once_count loops reached"
+	
 	# release lock
 	release_lock
 
@@ -647,14 +676,14 @@ do
 				# goto end of loop
 			else
 				# 'test_do_once_count' is reached, exit
-				dlog "$text_marker_stop, end, 'test_do_once_count' loops reached, '$do_once_counter -eq $bv_test_do_once_count' "
+				dlog "$text_do_once_count_reached, '$do_once_counter -eq $bv_test_do_once_count' "
 				# sync vor exit 1, 'test_do_once_count'
 				sync
 				exit 1
 			fi
 		else
 			# 'test_execute_once' is set, exit
-			dlog "$text_marker_stop, end reached, 'test_execute_once', RET: '$dRET', exit 1 "
+			dlog "$text_marker_stop, end reached, test_execute_once, RET: '$dRET', exit 1 "
 			tlog "end, 'test_execute_once', return from bk_disks.sh: $dRET"
 			# sync vor exit 1, 'test_execute_once'
 			sync
@@ -686,6 +715,27 @@ done
 
 dlog "execute loop: shouldn't be reached"
 exit 0
+
+: <<list_of_functions
+85:function check_if_gawk_exists {
+97:function check_if_rsnapshot_exists {
+108:function check_working_folder {
+119:function increment_loop_counter {
+138:function start_message {
+160:function check_main_lock {
+204:function check_and_remove_rsnapshot_pid_lock {
+216:function clear_internalerrors_list {
+224:function shatestfile(){
+239:function shatestfiles(){
+268:function shatest(){
+292:function list_test_flags(){
+319:function check_configuration_folders(){
+343:function check_arrays {
+386:function check_ssh_config(){
+398:function rotate_logs(){
+442:function set_lock(){
+451:function release_lock(){
+list_of_functions
 
 # EOF
 

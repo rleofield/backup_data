@@ -1,7 +1,7 @@
 
 # file exitcodes.sh 
 
-# bk_version  26.01.1
+# bk_version  26.04.1
 # included with 'source'
 
 # Copyright (C) 2017-2026 Richard Albrecht
@@ -29,22 +29,24 @@
 #                               ./bk_rsnapshot.sh,  do rsnapshot
 #                               ./bk_archive.sh,    no history, rsync only
 
+# prefixes of variables in backup:
+# bv_*   - global vars, alle files
+# lv_*   - local vars, global in file
+# lc_*  - local constants, global in file
+# _*     - local in functions or loops
+# BK_*   - exitcodes, upper case, BK_
+# cfg_*  - set in cfg.* file_
 
-# used in bk_disks.sh
-
-# BK_FATAL=255
 
 
 readonly BK_SUCCESS=0
 readonly BK_ARRAYSOK=0
-# bash macx return code
+
+
+# bash max return code is 125
 # 126-255 is reserved
 # https://flokoe.github.io/bash-hackers-wiki/scripting/basics/#exit-codes
 readonly BK_FATAL=125
-
-# used in bk_projects.sh, line 91 
-#   after check of existence of 'a_properties', 'a_projects', 'a_interval' in cfg.projects
-#   reason: one of the arrays is wrong
 
 
 # disklabel was not given in call of script
@@ -102,8 +104,6 @@ readonly BK_LOOP_TEST_RETURN=20
 readonly BK_DISK_TEST_RETURN=21
 
 # if project_begin.sh or project_end.sh fails
-# BK_PROJECT_BEGIN_FAILED=19
-# BK_PROJECT_END_FAILED=20
 readonly BK_PROJECT_BEGIN_FAILED=30
 readonly BK_PROJECT_END_FAILED=31
 readonly BK_DISK_BEGIN_FAILED=32
@@ -116,7 +116,7 @@ readonly BK_PROJECT_DONE_WAITINTERVAL_REACHED=38
 
 
 
-# associative arrays, values from 50 and more
+# associative arrays, values from 40 and more
 #            associative
 readonly BK_ASSOCIATIVE_ARRAY_EXISTS=40
 readonly BK_ASSOCIATIVE_ARRAY_NOT_EXISTS=41
@@ -124,7 +124,7 @@ readonly BK_ASSOCIATIVE_ARRAY_IS_EMPTY=42
 readonly BK_ASSOCIATIVE_ARRAY_IS_NOT_EMPTY=43
 readonly BK_ASSOCIATIVE_ARRAY_IS_OK=$BK_SUCCESS
 
-# indexed arrays, values from 60 and more
+# indexed arrays, values from 50 and more
 #           indexed
 readonly BK_INDEXED_ARRAY_EXISTS=50
 readonly BK_INDEXED_ARRAY_NOT_EXISTS=51
@@ -136,14 +136,13 @@ readonly BK_INDEXED_ARRAY_IS_OK=$BK_SUCCESS
 
 # in bk_main.sh check_arrays
 # script is stopped. if arrays wre wrong
-# 'BK_ARRAYSNOK' is not needed
 readonly BK_ARRAYSNOK=55
 
 # normal loop, end disks loop
 readonly BK_NORMALDISKLOOPEND=60
 
 # in is_stopped.sh only
-# values from 100 and more
+# values from 70 and more
 readonly BK_WAITING=70
 readonly BK_STOPPED=71
 readonly BK_EXECONCESTOPPED=72
@@ -154,7 +153,8 @@ readonly BK_RUNNING=75
 # 
 readonly BK_ERRORINCOUNTERS=80
 
-
+#########################
+#  text messages
 readonly text_project_begin_failed="project begin failed"
 readonly text_project_end_failed="project end failed"
 readonly text_disk_begin_failed="tx disk begin failed"
@@ -164,15 +164,19 @@ readonly text_main_end_failed="main end failed"
 
 readonly text_marker="--- marker ---"
 
-readonly text_backup_stopped="backup stopped"  # used in 'check_stop' in 'bk_disks.sh'
-readonly text_stop_exit="backup exits with error"  # used 'stop_exit' in 'bk_disks.sh'
+# used in 'check_stop' in 'bk_disks.sh'
+readonly text_backup_stopped="backup stopped"  
+
+# used 'stop_exit' in 'bk_disks.sh'
+readonly text_stop_exit="backup exits with error"  
 
 # used in 'bk_disks', if loop is in wait interval, calls 'check_stop wait interval loop' if in interval
 # used in is_stopped.sh, exit $BK_WAITINTERVAL=102
 readonly text_wait_interval_reached="wait interval reached"  
 
 # used in 'bk_disks', only short info about end, if interval in log, no stop
-readonly text_waittime_end="waittime end"  # used in 'bk_disks.sh', 550, after wait time loop
+# used in 'bk_disks.sh', 550, after wait time loop
+readonly text_waittime_end="waittime end"  
 
 # used in 'bk_disks.sh', after end of main loop
 # used in 'is_stopped.sh', exit $BK_WAITING=100 
@@ -184,10 +188,12 @@ readonly text_marker_waiting="--- waiting ---"
 # used in bk_main.sh:     test only,  dlog "$text_marker_stop, end reached, bv_test_execute_once "
 # used in is_stopped.sh:  vtest="$text_marker_stop", exit BK_STOPPED=101
 readonly text_marker_stop="--- stopped ---"
+readonly text_do_once_count_reached="$text_marker_stop, end, bv_test_do_once_count loops reached"
 
 
-# used ins bk_main, after $bv_internalerrors length is not 0, shows internal errors (rsync, rsnapshot)
-# used in is_stopped.sh   exit BK_FATAL=255
+# used ins bk_main, after $bv_internalerrors length is not 0, 
+#  shows internal errors (rsync, rsnapshot)
+# used in is_stopped.sh   exit BK_FATAL
 readonly text_marker_error="--- end, error     ---"
 readonly text_marker_error_in_waiting="--- waiting, error ---"
 readonly text_marker_error_in_stop="--- stop, error    ---"
@@ -197,10 +203,11 @@ readonly text_marker_error_in_stop="--- stop, error    ---"
 readonly text_marker_test_counter="--- test with counter is running ---"
 
 
-readonly text_marker_end="--- marker end ---" # not used
+# not used
+readonly text_marker_end="--- marker end ---" 
 
 
-# all in is_stopped.sh
+# all in 'is_stopped.sh'
 # BK_NORMALDISKLOOPEND=
 # BK_WAITING
 # BK_STOPPED
@@ -275,6 +282,28 @@ BK_RUNNING=75
 BK_ERRORINCOUNTERS=80
 exit_code_comment
 
+
+: <<msg_string_comment
+readonly text_project_begin_failed="project begin failed"
+readonly text_project_end_failed="project end failed"
+readonly text_disk_begin_failed="tx disk begin failed"
+readonly text_disk_end_failed="disk end failed"
+readonly text_main_begin_failed="main begin failed"
+readonly text_main_end_failed="main end failed"
+readonly text_marker="--- marker ---"
+readonly text_backup_stopped="backup stopped"  
+readonly text_stop_exit="backup exits with error"  
+readonly text_wait_interval_reached="wait interval reached"  
+readonly text_waittime_end="waittime end"  
+readonly text_marker_waiting="--- waiting ---"
+readonly text_marker_stop="--- stopped ---"
+readonly text_marker_error="--- end, error     ---"
+readonly text_marker_error_in_waiting="--- waiting, error ---"
+readonly text_marker_error_in_stop="--- stop, error    ---"
+readonly text_marker_test_counter="--- test with counter is running ---"
+readonly text_marker_end="--- marker end ---" 
+
+msg_string_comment
 
 # EOF
 

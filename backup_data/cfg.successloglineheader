@@ -1,0 +1,52 @@
+# file: cfg.successlinesheader
+# old: cfg.target_disk_list
+
+# bk_version 26.04.1
+# included with 'source'
+
+# Copyright (C) 2017-2026 Richard Albrecht
+# www.rleofield.de
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+#------------------------------------------------------------------------------
+
+
+# prefixes of variables in backup:
+# bv_*   - global vars, all files
+# lv_*   - local vars, local in file
+# lc_*   - local constants, local in file
+# _*     - local in functions 
+# BK_*   - exitcodes, upper case, BK_*
+# cfg_*  - set in cfg.* file_
+
+####### host part #######
+
+# successarray header
+# used only in bk_disks.sh
+
+# successful projects listed in this order in file 'successlog....txt'
+# disklabel:project  disklabel:project  disklabel:project  disklabel:project ...
+# 'disk' or 'luks' is stripped from disklabel
+# see 'cfg.filenames'
+
+
+SUCCESSLINE="bbackup:testData"
+
+SUCCESSLINEWIDTH=15
+
+# used in bk_disks.sh 343
+file_successloglines="successlist_bbackup.txt"
+
+
+
+####### host part #######
+# EOF

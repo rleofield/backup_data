@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: start_backup.sh
-# bk_version  26.02.1
+# bk_version  26.04.1
 
 
 # Copyright (C) 2017-2026 Richard Albrecht
@@ -30,7 +30,7 @@
 
 readonly callfilename=$(basename "$0")
 
-readonly bv_version="26.02.1"
+readonly bv_version="26.04.1"
 
 
 readonly lv_lockfilename="main_lock"

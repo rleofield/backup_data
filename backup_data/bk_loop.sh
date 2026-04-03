@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_loop.sh
-# bk_version  26.02.1
+# bk_version  26.04.1
 
 # Copyright (C) 2017-2026 Richard Albrecht
 # www.rleofield.de
@@ -34,6 +34,9 @@
 # lc_*  - local constants, global in file
 # _*    - local in functions or loops
 # BK_*  - exitcodes, upper case, BK_
+# cfg_*  - set in cfg.* file_
+
+# execution starts at line 1397
 
 # which will exit your script if you try to use an uninitialised variable.
 set -u
@@ -75,7 +78,6 @@ fi
 # exit $BK_FREEDISKSPACETOOSMALL - free disk space at backup harddisk ist too small
 
 
-#set -u
 
 # Label der Backup-HD = $1
 readonly lv_disklabel=$1
@@ -136,7 +138,6 @@ function init_local_variables() {
 
 	# copy from cfg-projects
 	readonly lv_max_last_date=$max_last_date
-	#readonly lv_marker_ignore_snapshot_root=$cfg_marker_ignore_snapshot_root
 
 }
 
@@ -169,13 +170,16 @@ function get_targetdisk {
 #  for example '08-10'
 # parameter is project identifier, for example 'ddisk_dserver'
 function get_projectwaittimeinterval {
-	local temp_loopwaittimestart="09"
-	local temp_loopwaittimeend="09"
+	local _start="09"
+	local _end="09"
+	local _temp_loopwaittimestart=$(( 10#"${_start}" ))
+	local _temp_loopwaittimeend=$(( 10#"${_end}" )) 
+
 	local _lpkey=$1
 #	check, if array 'a_waittime' is an aasociative array
 	is_associative_array_ok "a_waittime"
-	ret=$?
-	if [ ! $ret ]
+	local _array_RET=$?
+	if [ ! $_array_RET ]
 	then
 		dlog "'a_waittime' array doesn't exist "
 		return $BK_ASSOCIATIVE_ARRAY_NOT_EXISTS
@@ -191,9 +195,9 @@ function get_projectwaittimeinterval {
 
 #		array 'a_waittime' exists and has length > 0, check, if projekt key is inside
 		associative_array_has_value "a_waittime" "$_lpkey"
-		ret=$?
+		local _array_RET1=$?
 #		dlog "associative_array_has_value ret  '$ret'"
-		if [ $ret -eq 0 ]
+		if [ $_array_RET1 -eq 0 ]
 		then
 # 			array 'a_waittime' exists and has length > 0 and has project key is inside
 #			get the value	
@@ -205,13 +209,15 @@ function get_projectwaittimeinterval {
 # 				in src_log.sh: 488 function get_decimal_waittimestart()
 # 				in src_log.sh: 508 function get_decimal_waittimeend()
 #				file global values are overwritten with "09"at start of the functions 
-				temp_loopwaittimestart=$( get_decimal_waittimestart $_waittime )
-				temp_loopwaittimeend=$( get_decimal_waittimeend $_waittime )
+				_temp_loopwaittimestart=$( get_decimal_waittimestart $_waittime )
+				_temp_loopwaittimeend=$( get_decimal_waittimeend $_waittime )
 			fi
 		fi
 	fi
-	lv_temp_loopwaittimestart=$temp_loopwaittimestart
-	lv_temp_loopwaittimeend=$temp_loopwaittimeend
+	lv_temp_loopwaittimestart=$_temp_loopwaittimestart
+	lv_temp_loopwaittimeend=$_temp_loopwaittimeend
+	#dlog "start: $lv_temp_loopwaittimestart"
+	#dlog "end: $lv_temp_loopwaittimeend"
 	return $BK_SUCCESS
 }
 
@@ -257,13 +263,7 @@ function sendlog {
 }
 
 
-# par1 = old   
-# par2 = new
-# diff = new - old,   in minutes
-# minutes for
-#      h = 60, d = 1440, w = 10080, m = 43800, y = 525600
-# parameter: dateold, datenew in unix-date format
-#            dateold is before datenew
+# parameter: date in unix-date format
 function date2seconds {
 	# par = datestring
 	# return date in seconds
@@ -271,6 +271,11 @@ function date2seconds {
 }
 
 
+# par1 = old   
+# par2 = new
+# diff = new - old,   in minutes
+# parameter: dateold, datenew in unix-date format
+#            dateold is before datenew
 function time_diff_minutes {
         local _old=$1
         local _new=$2
@@ -351,6 +356,7 @@ function lookup_disk_by_uuid {
 
 	if [[ $_goodlink -eq 0 ]]
 	then
+		# disk with label and uuid found in device list
 		dlog "-- UUID check: disk '$lv_label_displayname' " 
 		dlog "-- -- UUID '$lv_disk_uuid' found in /dev/disk/by-uuid" 
 		tlog "disk '$lv_label_displayname' with UUID '$lv_disk_uuid' found" 
@@ -358,8 +364,6 @@ function lookup_disk_by_uuid {
 		dlog "-- UUID check: disk '$lv_label_displayname'" 
 		dlog "-- -- UUID '$lv_disk_uuid' not found" 
 	fi
-	# disk with label and uuid found in device list
-	# --
 }
 
 
@@ -424,17 +428,23 @@ function programmed_interval_minutes {
 }
 
 
+# uses 
+#       lv_temp_loopwaittimestart
+#       lv_temp_loopwaittimeend
+# set in get_projectwaittimeinterval
 function is_in_waitinterval {
 	local _lpkey=$1
 	get_projectwaittimeinterval $_lpkey
-	local _wstart=$lv_temp_loopwaittimestart
-	local _wend=$lv_temp_loopwaittimeend
-	is_in_waittime $_wstart $_wend
+	local _wstart10=$lv_temp_loopwaittimestart
+	local _wend10=$lv_temp_loopwaittimeend
+	is_in_waittime10 $_wstart10 $_wend10
 	local _wait_RET=$?
 	return $_wait_RET
 }
 
 
+# last time a project is done
+# YYYY-MM-DDThh:mm
 function last_done_time {
 
 	local _lpkey=$1
@@ -509,17 +519,17 @@ function check_pre_host {
 	local _rsnapshot_cfg_file=${bv_conffolder}/${_rsnapshot_config}
 
 	local _precondition=$bv_preconditionsfolder/${_lpkey}.pre.sh
-	local _RETfunc=1
+	local _RETvalue=1
 	if test  -f $_precondition 
 	then
 		eval $_precondition
 		local _preRET=$?
 		if test $_preRET -eq 0 
 		then
-			_RETfunc=0
+			_RETvalue=0
 		fi
 	fi
-	return $_RETfunc
+	return $_RETvalue
 }
 
 # par 1 = disklabel
@@ -580,7 +590,8 @@ function umount_media_folder {
 #       4 wrong device specified,
 #       5 device already exists or device is busy.
 
-        else # !!! to do, check luks uuid
+	# !!! to do, check luks uuid
+        else 
 		dlog "luks mapper by label doesn't exist: $luksmapper"
 
 		# try with luks-uuid
@@ -644,8 +655,8 @@ function check_media_folder {
 
 	# close cryptsetup,  second try, if done
 	# use targetdisk 
-	local _mmuuid=$( get_disk_uuid )
-	local _luks_uuid_label="luks-$_mmuuid"
+	local _diskuuid=$( get_disk_uuid )
+	local _luks_uuid_label="luks-$_diskuuid"
 	local _luks_uuid_label_mapper="/dev/mapper/$_luks_uuid_label"
 	#dlog " --- look up for luks mapper with uuid: $_luks_uuid_label_mapper"
 	if [  -L "$_luks_uuid_label_mapper" ]
@@ -978,9 +989,9 @@ function lookup_for_dirty_projects_and_show_timelines {
 			# project key = disklabel_project
 			_lpkey=${lv_disklabel}_${_project}
 			get_projectwaittimeinterval $_lpkey
-			local _wstart=$lv_temp_loopwaittimestart
-			local _wend=$lv_temp_loopwaittimeend
-			temp_timeline=$( echo "${timeline} wait from $_wstart to $_wend")
+			local _wstart10=$lv_temp_loopwaittimestart
+			local _wend10=$lv_temp_loopwaittimeend
+			temp_timeline=$( echo "${timeline} wait from $_wstart10 to $_wend10")
 			timeline=$temp_timeline
 			#dlog "yyyy $timeline wait,  from '$_wstart' to '$_wend'"
 		fi
@@ -1386,6 +1397,8 @@ function dont_execute_project  {
 # end of functions	
 # =======================================================
 
+###########################################################################################
+
 # start of code
 init_local_variables
 get_targetdisk
@@ -1411,14 +1424,6 @@ lookup_for_dirty_projects_and_show_timelines
 # _length_nextprojects is > 0
 lv_nr_dirty_projects=${#lv_dirty_projects_array[@]}
 
-# test
-# lv_dirtyprojectcount=
-
-#dlog "vor test, BBBB,  lv_dirtyprojectcount=  '$lv_dirtyprojectcount',  lv_nr_dirty_projects= '$lv_nr_dirty_projects', lv_min_one_project_found= '$lv_min_one_project_found' "
-
-# test: lv_nr_dirty_projects=0
-
-#dlog " BBBB  lv_dirtyprojectcount=  '$lv_dirtyprojectcount',  lv_nr_dirty_projects= '$lv_nr_dirty_projects', lv_min_one_project_found= '$lv_min_one_project_found' "
 
 if [ $lv_nr_dirty_projects -eq 0 ] && [ $lv_min_one_project_found -gt 0 ]
 then
@@ -1761,6 +1766,44 @@ exit $BK_SUCCESS
 
 # end loop over projects for backup disk
 # --
+
+: <<list_of_functions
+103:function init_local_variables() {
+147:function get_targetdisk {
+173:function get_projectwaittimeinterval {
+226:function get_project_properties {
+260:function sendlog {
+274:function date2seconds {
+281:function time_diff_minutes {
+302:function get_disk_uuid {
+328:function check_disk_uuid {
+341:function lookup_disk_by_uuid {
+379:function decode_pdiff_local {
+426:function programmed_interval_minutes {
+434:function is_in_waitinterval {
+445:function last_done_time {
+471:function check_disk_done {
+513:function check_pre_host {
+536:function strip_disk_or_luks_from_disklabel {
+557:function umount_media_folder {
+611:function check_media_folder {
+674:function mount_HD {
+711:function find_next_project_to_do {
+746:function sshnotifysend_bk_loop {
+794:function rsyncerrorlog {
+803:function remove_old_notify_files {
+823:function show_loopstart_message {
+829:function lookup_for_dirty_projects_and_show_timelines {
+1012:function mountpoint_free_space_with_unit {
+1025:function mountpoint_used_space_percent {
+1032:function refresh_used_free_space_percent {
+1043:function check_disk_full {
+1070:function check_snapshot_root {
+1109:function execute_project  {
+1303:function execute_projects  {
+1376:function dont_execute_project  {
+list_of_functions
+
 
 
 # EOF

@@ -4,7 +4,7 @@
 # disable: Declare and assign separately to avoid masking return
 
 # file: bk_project.sh
-# bk_version  26.01.1
+# bk_version  26.04.1
 
 
 
@@ -40,6 +40,8 @@
 # lc_*  - local constants, global in file
 # _*    - local in functions or loops
 # BK_*  - exitcodes, upper case, BK_
+# cfg_*  - set in cfg.* file_
+
 
 
 # parameter:
@@ -72,7 +74,16 @@ set -u
 # exit $BK_DISKNOTMOUNTED	- rsync error, see logs
 # exit $BK_SUCCESS		- all was ok
 
+# exit $BK_ERRORINCOUNTERS
+# exit $BK_ROTATE_FAILS
+# exit $BK_NORSNAPSHOTROOT
+# exit $BK_NOINTERVALSET
+# exit $BK_DISKFULL
+# exit $BK_CONNECTION_UNEXPECTEDLY_CLOSED
 # exit $BK_RSYNCFAILS - exit from bk_archive.sh
+
+
+
 
 
 # par1 = label of backup-disk
@@ -97,12 +108,43 @@ then
 	lv_label_displayname="$lv_disklabel ($lv_targetdisk)"
 fi
 
+function write_last_date {
+	dlog "write last date: ./${bv_donefolder}/${lv_lpkey}_done.log"
+	_currenttime_=$( currentdateT )
+	echo "$_currenttime_" > ./${bv_donefolder}/${lv_lpkey}_done.log
+}
+
+function execute_archive {
+
+	local lv_archive_root=$(cat ./${lv_archive_cfg_file} | grep ^archive_root | grep -v '#' )
+	dlog "archive_root= '$lv_archive_root'"
+	tlog "do archive:  '$lv_lpkey'"
+	# parameter $lv_lpkey
+	# do achive of files, no history, no delete, accumulate files
+	# ###########    calls ./bk_archive.sh ${lv_disklabel} ${lv_project} ############################
+	./bk_archive.sh  ${lv_disklabel} ${lv_project}
+	# ############################################################################################
+	local lv_archive_return=$?
+	if test $lv_archive_return -eq $BK_RSYNCFAILS
+	then
+		dlog "error in 'bk_archive.sh': rsync to archive fails, disk: ${lv_disklabel}, project: '$lv_project'"
+		# in archive call, exit $BK_RSYNCFAILS
+		# BK_RSYNCFAILS=10
+		return $BK_RSYNCFAILS
+	fi
+	if test $lv_archive_return -eq 0 
+	then
+		# write current time to done file
+		# archive: "write last date: ./${bv_donefolder}/${lv_lpkey}_done.log"
+		write_last_date 
+	fi
+	return $lv_archive_return
+}
+
 tlog "start:  '$lv_lpkey'"
 
 dlog ""
 dlog "start project '$lv_project' at disk '$lv_label_displayname'"
-
-#DONE=${bv_donefolder}
 
 # check, if config file ends with 'arch', then we do simple backup with rsync, not with 'rsnapshot'
 readonly lv_archive_cfg_file=${bv_conffolder}/${lv_lpkey}.arch
@@ -118,32 +160,9 @@ then
 	# exact 1 archive_root exists
 	if [ $lv_countarchiverootlines -eq 1 ]
 	then
-		ARCHIVE_ROOT=$(cat ./${lv_archive_cfg_file} | grep ^archive_root | grep -v '#' )
-		dlog "archive_root= '$ARCHIVE_ROOT'"
-		tlog "do archive:  '$lv_lpkey'"
-		# parameter $lv_lpkey
-		# do achive of files, no history, no delete, accumulate files
-		# ###########    calls ./bk_archive.sh ${lv_disklabel} ${lv_project} ############################
-		./bk_archive.sh  ${lv_disklabel} ${lv_project}
-		# ############################################################################################
-		RET=$?
-		# 'BK_RSYNCFAILS=8' was set in bk_archive.sh
-		if test $RET -eq $BK_RSYNCFAILS
-		then
-			dlog "error in 'bk_archive.sh': rsync to archive fails, disk: ${lv_disklabel}, project: '$lv_project'"
-			# in archive call, exit $BK_RSYNCFAILS
-			exit $BK_RSYNCFAILS
-		fi
-		if test $RET -eq 0 
-		then
-			# write current time to done file
-			# archive: "write last date: ./${bv_donefolder}/${lv_lpkey}_done.log"
-			dlog "write last date: ./${bv_donefolder}/${lv_lpkey}_done.log"
-			_currenttime_=$( currentdateT )
-			echo "$_currenttime_" > ./${bv_donefolder}/${lv_lpkey}_done.log
-		fi
-		exit $RET
-	
+		execute_archive
+		archive_return=$?
+		exit $archive_return
 	fi
 	dlog "no archive_root found in '${lv_archive_cfg_file}'"
 	exit  $BK_RSYNCFAILS
@@ -261,7 +280,7 @@ firstretain=${retains[0]}
 # retain from conf splitted
 
 
-# remove index 0 counter, set count to 0, = interval eins
+# remove index 0 counter, means set count to 0, = interval eins
 # par = oldindex
 function remove_counter_file {
 	local _oldindex=$1
@@ -482,9 +501,7 @@ function do_rs_first {
 		# write _done.log
 		# write_done_file
 		# snapshot: "write last date: '$_currenttime' to ./${bv_donefolder}/${lv_lpkey}_done.log"
-		local _currenttime=$( currentdateT )
-		echo "$_currenttime" > ./${bv_donefolder}/${lv_lpkey}_done.log
-		dlog "write last date to 'done' file: '$_currenttime' to ./${bv_donefolder}/${lv_lpkey}_done.log"
+		write_last_date 
 
 	fi
 	local _counter=$( entries_keeped $_index ) 
@@ -616,6 +633,15 @@ sync
 dlog ""
 
 
+: << list_of_functions
+182:function entries_keeped {
+268:function remove_counter_file {
+284:function update_counter {
+357:function do_rs {
+433:function do_rs_123 {
+467:function do_rs_first {
+500:function previous_index {
+list_of_functions
 
 # EOF
 

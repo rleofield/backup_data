@@ -2,7 +2,7 @@
 
 # file: bk_rsnapshot.sh
 
-# bk_version  26.01.1
+# bk_version  26.04.1
 
 
 # Copyright (C) 2017-2026 Richard Albrecht
@@ -36,6 +36,8 @@
 # lc_*  - local constants, global in file
 # _*    - local in functions or loops
 # BK_*  - exitcodes, upper case, BK_
+# cfg_*  - set in cfg.* file_
+
 
 
 # set -u, which will exit your script if you try to use an uninitialised variable.
@@ -248,7 +250,7 @@ then
 		then
 			#dlog "interval.0 folder: ${zero_interval_folder} exists"
 			aamsg="$aamsg, folder exists"
-			runningnumber=$( printf "%05d"  $( get_loopcounter ) )
+			runningnumber=$( get_runningnumber )
 			TODAY_LOG1=$( currentdateT )
 			lv_created_in_filename=${zero_interval_folder}/created_in_${lv_retain}_at_${TODAY_LOG1}_number_${runningnumber}.txt
 			echo "created in ${lv_retain}, at ${TODAY_LOG1}. loop: $runningnumber" > ${lv_created_in_filename}

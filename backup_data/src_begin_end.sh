@@ -1,6 +1,6 @@
 # file: src_begin_end.sh
 
-# bk_version  26.01.1
+# bk_version  26.04.1
 # included with 'source'
 
 
@@ -33,6 +33,8 @@
 # lc_*  - local constants, global in file
 # _*    - local in functions or loops
 # BK_*  - exitcodes, upper case, BK_
+# cfg_*  - set in cfg.* file_
+
 
 
 
@@ -49,35 +51,33 @@
 
 function execute_begin_end {
 
-	# in conf folder
-	# shell script, executed at start  of main loop
-	local script="$1"
-	startendtestlog "script is: '$script'"
-#	exists, not null, size > 0, is file, readable 
-	if  test_normal_file "$script"
+	local _script="$1"
+	startendtestlog "script is: '$_script'"
+	# exists, not null, size > 0, is file, readable 
+	if  test_normal_file "$_script"
 	then
 		#  is file,readable, executable
-		if  test_is_executable "$script"
+		if  test_is_executable "$_script"
 		then
-			dlog "'$script' found"
-			eval ./$script
+			dlog "'$_script' found"
+			eval ./$_script
 			local RET=$?
 			sync
 			#dlog "RET $RET"
 			return $RET
 		fi
-		dlog "ERROR: '$script' is not executable"
+		dlog "ERROR: '$_script' is not executable"
 		return 1
 	fi
-	startendtestlog "'$script' not found"
-	# script is missing, is not an error
+	startendtestlog "'$_script' not found"
+	# missing, no error
 	return 0
 }
 
 # used in bk_disk.sh
 function execute_main_end {
 	# in conf folder
-	# shell script, executed at end of main loop
+	# executed at end of main loop
 	execute_begin_end  "$bv_conffolder/main_end.sh"
 	return $?
 }
@@ -85,35 +85,35 @@ function execute_main_end {
 # used in bk_main.sh
 function execute_main_begin {
 	# in conf folder
-	# shell script, executed at start  of main loop
+	# executed at start of main loop
 	execute_begin_end "$bv_conffolder/main_begin.sh" 
 	return $?
 }
 
 
-# used in bk_loop.sh line 1132
-function execute_project_begin  {
+# used in bk_loop.sh 
+function execute_project_begin {
 	local lpkey=$1
 	execute_begin_end "$bv_conffolder/${lpkey}_begin.sh"
 	return $?
 }
 
-# line 1292
-function execute_project_end  {
+# 
+function execute_project_end {
 	local lpkey=$1
 	execute_begin_end "$bv_conffolder/${lpkey}_end.sh"
 	return $?
 }
 
-# line  1313
-function execute_disk_begin  {
+# 
+function execute_disk_begin {
 	local disklabel=$1
 	execute_begin_end "$bv_conffolder/${disklabel}_begin.sh" 
 	return $?
 }
 
-# line 1361
-function execute_disk_end  {
+# 
+function execute_disk_end {
 	local disklabel=$1
 	execute_begin_end "$bv_conffolder/${disklabel}_end.sh" 
 	return $?

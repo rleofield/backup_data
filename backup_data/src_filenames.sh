@@ -1,6 +1,6 @@
 # file: scr_filenames.sh
 
-# bk_version 26.01.1
+# bk_version 26.04.1
 # included with 'source'
 
 
