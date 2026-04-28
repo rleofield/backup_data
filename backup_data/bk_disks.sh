@@ -67,7 +67,7 @@ fi
 # exit $BK_STOPPED -   normal stop, file 'stop' detected
 
 
-declare -a cfg_successlineheader
+declare -a cfg_successline_header
 declare -a lv_disks_successlist
 declare -a lv_disks_unsuccesslist
 
@@ -541,7 +541,7 @@ function write_header {
 	then
 		# write  formatted headers to one line
 		local _formatted_header_line=""
-		for _s in ${cfg_successlineheader[@]}
+		for _s in ${cfg_successline_header[@]}
 		do
 			# write line in field
 			local  _formatted_header=$( printf "%${cfg_successline_width}s" $_s )
