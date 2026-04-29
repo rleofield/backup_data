@@ -20,7 +20,7 @@
 #------------------------------------------------------------------------------
 
 # show first 2000 lines of log
-
+. ./cfg.projects
 . ./src_log.sh
 
 touch $bv_logfile

@@ -19,6 +19,14 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #------------------------------------------------------------------------------
 
+# prefixes of variables in backup:
+# bv_*  - global vars, all files
+# lv_*  - local vars, global in file
+# lc_*  - local constants, global in file
+# _*    - local in functions or loops
+# BK_*  - exitcodes, upper case, BK_
+# cfg_*  - set in cfg.* file_
+
 
 
 # set -u, which will exit your script if you try to use an uninitialised variable
@@ -32,24 +40,31 @@ set -u
 . ./src_folders.sh
 
 
-TODAY=`date +%Y-%m-%dT%H:%M`
-readonly use_retains="$2"
+################
 
-readonly _disk=$1
+readonly lv_disk=$1
+readonly lv_use_retains="$2"
+
+################
+
 readonly lv_cc_logname=""
+
+# from cfg.projects
 readonly lv_max_last_date="$max_last_date"
 
-if [ -z $_disk  ]
+if [ -z $lv_disk  ]
 then
 	echo 	"Usage: show_times_disk.sh disklabel "
 	exit 1
 fi
 
+readonly lc_DONE_REACHED=0
+readonly lc_DONE_NOT_REACHED=1
+
 
 function log {
    local msg=$1
-#   echo -e "$msg" >> "show_times.log"
-#   echo -e "$msg" 
+   echo -e "$msg" >> "sst.log"
 }
 
 
@@ -57,7 +72,6 @@ function log {
 function stdatelog {
         local _TODAY=$( date +%Y%m%d-%H%M )
         log "$_TODAY ==>  $1"
-        #echo "$_TODAY ==>  $1"
 }
 
 function dateecho {
@@ -67,10 +81,37 @@ function dateecho {
 
 # copy from src_log.sh
 
+function check_arrays {
+	local arrays_ok=0
+
+	if test ${#a_properties[@]} -eq 0 
+	then
+		stdatelog "Array 'a_properties' doesn't exist"
+		arrays_ok=1
+	fi
+	if test ${#a_projects[@]} -eq 0 
+	then
+		stdatelog "Array 'a_projects' doesn't exist"
+		arrays_ok=1
+	fi
+	if test ${#a_interval[@]} -eq 0 
+	then
+		stdatelog "Array 'a_interval' doesn't exist"
+		arrays_ok=1
+	fi
+	if test "$arrays_ok" -eq "1" 
+	then
+		return $BK_ARRAYSNOK
+	fi
+	return $BK_ARRAYSOK
+
+}
+
+
 function is_associative_array {
 	local  testarray=$1
 	#arraytestdlog "testarray: $testarray"
-	local retv=$BK_ASSOCIATIVE_ARRAY_NOT_EXISTS
+	local ret_val=$BK_ASSOCIATIVE_ARRAY_NOT_EXISTS
 	local associative_array_pattern="declare -A"
 
 	dc=$( declare -p $testarray )
@@ -83,25 +124,25 @@ function is_associative_array {
 		# 1 bei arr
 		if [[ "$(declare -p $testarray 2>/dev/null)" == ${empty_array_pattern}* ]]
 		then
-			retv=$BK_ASSOCIATIVE_ARRAY_IS_EMPTY
+			ret_val=$BK_ASSOCIATIVE_ARRAY_IS_EMPTY
 		fi
-		if test $retv -ne 0
+		if [ $ret_val -ne 0 ]
 		then
 			# declare -A a_waittim=([cdisk_dserver]="10-10" )
 			not_empty_array_pattern="${associative_array_pattern} $testarray=(["
 			if [[ "$(declare -p $testarray 2>/dev/null)" == ${not_empty_array_pattern}* ]]
 			then
-				retv=$BK_ASSOCIATIVE_ARRAY_IS_NOT_EMPTY
+				ret_val=$BK_ASSOCIATIVE_ARRAY_IS_NOT_EMPTY
 			fi
 		fi
 	fi
-	return $retv
+	return $ret_val
 }
 
 function is_associative_array_ok {
-	local nn=$1
+	local testarray=$1
 	#	dlog "is_associative_array_ok: '$nn'"
-	is_associative_array "$nn"
+	is_associative_array "$testarray"
 	ret=$?
 	if [ $ret -eq $BK_ASSOCIATIVE_ARRAY_IS_EMPTY ] || [ $ret -eq $BK_ASSOCIATIVE_ARRAY_IS_NOT_EMPTY ]
 	then
@@ -132,126 +173,71 @@ function associative_array_has_value {
 
 function targetdisk {
 
-	local _disk_label=$1
 	declare -i RET
-	#${a_targetdisk[${_disk_label}]}
 	# test for a variable that does contain a value 
-#set -x
-	local _targetdrive="empty"
-	if [[ $_disk_label ]]
+	local _targetdrive="$lv_disk"
+	local _array="a_targetdisk"
+	is_associative_array_ok "a_targetdisk"
+	array_RET=$?
+	if test $array_RET -gt 0
 	then
-		local _array="a_targetdisk"
-		is_associative_array_ok "a_targetdisk"
-		RET=$?
-		if test $RET -gt 0
-		then
-			retval=$_disk_label
-			echo $retval
-			return 0
-		fi
-
-		associative_array_has_value "a_targetdisk" "$_disk_label"
-		RET=$?
-		if test $RET -gt 0
-		then
-			retval=$_disk_label
-			echo $retval
-			return 0
-		fi
-
-		_targetdrive=${a_targetdisk[${_disk_label}]}
-		if [[ $_targetdrive ]]
-		then
-			echo "$_targetdrive"
-		else
-			echo "$_disk_label"
-		fi
-	else
-		echo "empty"
+		echo $_targetdrive
+		return 0
 	fi
-#set -x	
+
+	associative_array_has_value "a_targetdisk" "$lv_disk"
+	array_RET=$?
+	if test $array_RET -gt 0
+	then
+		echo $_targetdrive
+		return 0
+	fi
+
+	_targetdrive=${a_targetdisk[${lv_disk}]}
+	if [[ $_targetdrive ]]
+	then
+		echo "$_targetdrive"
+	fi
+	return 0
 }
 
-
-_targetdisk=$( targetdisk $_disk )
-
-
-if [ $_targetdisk != $_disk ]
-then
-	_targetdisk="${_disk}(${_targetdisk})"
-fi
-
-
-
-# use media mount instead of /mnt
-# 0 = use
-# 1 = don't use, use /mnt
-readonly use_mediamount=0
-
-arrays_ok=0
-
-if test ${#a_properties[@]} -eq 0 
-then
-	stdatelog "Array 'a_properties' doesn't exist"
-	arrays_ok=1
-fi
-if test ${#a_projects[@]} -eq 0 
-then
-	stdatelog "Array 'a_projects' doesn't exist"
-	arrays_ok=1
-fi
-if test ${#a_interval[@]} -eq 0 
-then
-	stdatelog "Array 'a_interval' doesn't exist"
-	arrays_ok=1
-fi
-if test "$arrays_ok" -eq "1" 
-then
-	exit $BK_ARRAYSNOK
-fi
 
 
 # diff = old - new 
 # h = 60, d = 1440, w=10080, m=43800,y=525600
+
+# format `date +%Y-%m-%dT%H:%M`
+# format `YYYY-mm-ddTHH:MM`
+# 2026-03-28T16:01
 function time_diff_minutes() {
         local _old=$1
         local _new=$2
 	
-        # convert the date "1970-01-01 hour:min:00" in seconds from Unix Date Stamp
+        # convert the date "1970-01-01 hour:min:00" to seconds from Unix Date Stamp
         # "1980-01-01 00:00"
-        local sec_old=$(date +%s -d $_old)
-        local sec_new=$(date +%s -d $_new)
-	#stdatelog "diff minutes: old '$_old', new: '$_new' "
-	#stdatelog "diff seconds: old '$sec_old', new: '$sec_new' "
-        echo "$(( (sec_new - sec_old) / 60 ))"
+        local seconds_old=$(date +%s -d $_old)
+        local seconds_new=$(date +%s -d $_new)
+        echo "$(( (seconds_new - seconds_old) / 60 ))"
+
 }
 
 
+function check_disk_by_uuid {
 
-function check_disk_label {
-        local _LABEL=$1
-
-        # 0 = success
-        # 1 = error
-        local goodlink=1
-
-	local _targetdisk=$( targetdisk $_LABEL )
-	local uuid=$( cat "uuid.txt" | grep -v '#' | grep -w $_targetdisk | awk '{print $2}' )
-	#local uuid=$( gawk -v pattern="$_LABEL" '$1 ~ pattern  {print $NF}' $bv_workingfolder/uuid.txt )
-
-        local disklink="/dev/disk/by-uuid/$uuid"
-
+	# 0 = success
+	# 1 = error
+	local _targetdisk=$( targetdisk )
+	local _uuid=$( cat "uuid.txt" | grep -v '#' | grep -w $_targetdisk | gawk '{print $2}' )
+	local _disk_by_uuid_link="/dev/disk/by-uuid/$_uuid"
 	# test, if symbolic link
-        if test -L ${disklink} 
-        then
-                # test, if exists
-                #if [ -e ${disklink} ]
-                #then
-                        goodlink=0
-                #fi
-        fi
-        return $goodlink
+	if test -L ${_disk_by_uuid_link} 
+	then
+		return 0
+	fi
+	return 1
 }
+
+
 # parameter: string with time value, dd:hh:mm  
 # value in array: string with time value, dd:hh:mm  
 #                                      or hh:mm  
@@ -263,13 +249,13 @@ function decode_programmed_diff_local {
         local _oldifs=$IFS
         IFS=':'
 
-        # split into array
+        # split into array at ':'
         local _array=(${_interval})
         local _length=${#_array[@]}
 
         IFS=$_oldifs
 
-        # mm only
+        # minutes only 'mm'
         local _result_minutes=10#${_array[0]}
 	local _hours=0
 	local _days=0
@@ -277,14 +263,14 @@ function decode_programmed_diff_local {
 
         if test $_length -eq "2"
         then
-                # is hh:mm
+                # is hh:mm - length 2
                 _hours=10#${_array[0]}
                 _minutes=10#${_array[1]}
                 _result_minutes=$(( ( ${_hours} * 60 ) + ${_minutes} ))
         fi
         if test $_length -eq "3"
         then
-                # dd:hh:mm  - length 3
+                # is dd:hh:mm - length 3
                 _days=10#${_array[0]}
                 _hours=10#${_array[1]}
                 _minutes=10#${_array[2]}
@@ -299,60 +285,117 @@ function decode_programmed_diff_local {
 
 # parameter is key in a_interval array
 function decode_programmed_diff {
-	local _k=$1
-        local _arr=${a_interval[${_k}]}
-	if test -z $_arr 
+	local _lpkey=$1
+	# value in array: string with time value, dd:hh:mm  
+        local _array=${a_interval[${_lpkey}]}
+	if test -z $_array 
 	then
-		echo "fatal error: a_interval ${_k} is empty"
+		echo "fatal error: a_interval ${_lpkey} is empty"
 		exit 1
 	fi 
-        local _r2=$( decode_programmed_diff_local $_arr )
-        echo $_r2
+        local _result_minutes=$( decode_programmed_diff_local $_array )
+        echo $_result_minutes
+}
+
+# return
+#  0, if number
+#  1, if contains chars
+#  1, if string doesn't exist
+function is_number {
+        local _input=$1
+        if [[ -z $_input ]]
+        then
+                return 1
+        fi
+	_input1=$_input
+	if test $_input -lt "0"
+	then
+		_input1=$(( $_input * (-1) ))
+	fi
+        # remove all numbers from _input
+        #       ${_input//[0-9]/}
+        #
+        # if length is zero, then it was a number
+        local _var=${_input1//[0-9]/}
+
+        # -n = nicht length 
+	# ! -n   length = 0
+        if [[ ! -n ${_var} ]]
+        then
+                # is number
+                return 0
+        fi
+        # not a number
+        return 1
 }
 
 
 
-function encode_diff {
+# format to 
+# value in array: string with time value, dd:hh:mm  
+#                                      or hh:mm  
+#                                      or mm  
+# par: time in minutes
+function encode_minutes {
 
-        local hour=60
-        local day=$(( hour * 24 ))
-        local testday=$1
-	local ret=""
-	local negativ="false"
-	if test $testday -lt "0"
+        local _hour=60
+        local _day=$(( _hour * 24 ))
+        local _minutes=$1
+
+	_minutes_temp=$_minutes 
+	if test $_minutes -lt "0"
 	then
-		testday=$(( $testday * (-1) ))
-		negativ="true"
+		_minutes_temp=$(( $_minutes * (-1) ))
+	fi
+	is_number "$_minutes_temp"
+	is_number_ret=$?
+	if [ $is_number_ret  -gt 0  ]
+	then
+		stdatelog "ret, not a number, minutes: $_minutues,  exit 1"
+		exit 1
 	fi
 
-	local days=$(( testday/day  ))
-        local remainder=$(( testday - days*day   ))
-	local hours=$(( remainder/hour   ))
-        local minutes=$(( remainder - hours*hour  ))
 
-        if test $days -eq 0
+	local _ret=""
+	local _is_negative="false"
+
+	#stdatelog "testday: $_testday"
+	if test $_minutes -lt "0"
 	then
-		if test $hours -eq 0
+		_minutes=$(( $_minutes * (-1) ))
+		_is_negative="true"
+	fi
+        
+	local _days=$(( _minutes/_day  ))
+        local _remainder=$(( _minutes - _days*_day   ))
+	local _hours=$(( _remainder/_hour   ))
+        local _minutes=$(( _remainder - _hours*_hour  ))
+	local pdays=""
+	local phours=""
+	local pminutes=""
+
+        if test $_days -eq 0
+	then
+		if test $_hours -eq 0
         	then
-			ret=$minutes
+			ret=$_minutes
 		else
-			phours=$( printf "%02d\n"  $hours )
-			pminutes=$( printf "%02d\n"  $minutes )
+			phours=$( printf "%02d\n"  $_hours )
+			pminutes=$( printf "%02d\n"  $_minutes )
 			ret="$phours:$pminutes"
 		fi
 	else
-		pdays=$( printf "%02d\n"  $days )
-		phours=$( printf "%02d\n"  $hours )
-		pminutes=$( printf "%02d\n"  $minutes )
+		pdays=$( printf "%02d\n"  $_days )
+		phours=$( printf "%02d\n"  $_hours )
+		pminutes=$( printf "%02d\n"  $_minutes )
 		ret="$pdays:$phours:$pminutes"	
 	fi
 
 	# add minus sign, if negative 
-	if test "$negativ" = "true" 
+	if test "$_is_negative" = "true" 
 	then
 		ret="-$ret"
 	fi	
-
 	echo "$ret"
 }
 
@@ -360,62 +403,57 @@ function encode_diff {
 # parameter
 # $1 = Disklabel
 # $2 = Projekt
-# return 0, 1 
-function check_disk_done {
+# return 0, 1
+# lc_DONE_REACHED=0
+# lc_DONE_NOT_REACHED=1
+function project_time_reached {
 	
-        local _label=$1
-        local _p=$2
-	local _key=${_label}_${_p}
-
-        local _LASTLINE=""
-        local _current=`date +%Y-%m-%dT%H:%M`
+	local _lp_key=$1
 
         # 0 = success
         # 1 = error
-        local _DONEINTERVAL=1
-        local _DONEFILE="./${bv_donefolder}/${_key}_done.log"
-        local _LASTLINE=""
-        #echo "in function check_disk_done "
+        local _return=$lc_DONE_NOT_REACHED
+        local _last_done_file="./${bv_donefolder}/${_lp_key}_done.log"
+        #echo "in function project_done "
+	# from cfg.projectsi, default
         local _last_done_time="$lv_max_last_date"
 
-        if test -f $_DONEFILE
+        if [  -f $_last_done_file ]
         then
-                # last line in done file
-		_last_done_time=$(awk NF  $_DONEFILE | awk  'END {print }' -)
+                # last line from done file, is in T time format
+		_last_done_time=$( gawk NF  $_last_done_file | gawk  'END {print }' -)
+	fi
+	# date T time
+        local _current_time=`date +%Y-%m-%dT%H:%M`
+	local _diff_minutes=$(time_diff_minutes  $_last_done_time  $_current_time  )
+	local _programmed_diff_minutes=$( decode_programmed_diff ${_lp_key} )
 
-        fi
-        local _DIFF=$(time_diff_minutes  $_last_done_time  $_current  )
-        #local _pdiff=${a_interval[${_key}]}
-	local _pdiff=$( decode_programmed_diff ${_key} )
-	if test $_DIFF -ge "$_pdiff"
+	# minutes after last done >=  programmed diff
+	if [  $_diff_minutes -ge "$_programmed_diff_minutes" ]
         then
-                _DONEINTERVAL=0
+		_return=$lc_DONE_REACHED
         fi
-	
-        echo $_DONEINTERVAL
+        return $_return
 }
 
 
 function check_pre_host {
 
-	local _lpkey=${1}
-	#echo "PPPPP: $_p"
-
-        local _precondition=${bv_preconditionsfolder}/${_lpkey}.${bv_preconditionsfolder}.sh
-
-        if [[  -f $_precondition ]]
-        then
-                ($_precondition)
-                _RET=$?
-                if [ $_RET -ne 0 ]
-                then
-                        return 1
-                else
-                        return 0
+	local _p=${1}
+        local _lpkey=${lv_disk}_${_p}
+	local _precondition=${bv_preconditionsfolder}/${_lpkey}.${bv_preconditionsfolder}.sh
+	if [[  -f $_precondition ]]
+	then
+		($_precondition)
+		local pre_RET=$?
+		if [ $pre_RET -eq 0 ]
+		then
+			return 0
                 fi
 	fi
         return 1
 }
+
 
 
 
@@ -426,10 +464,9 @@ function check_pre_host {
 # get number_of_ entries keeped in history  
 function entries_keeped {
 	local _index=$1
-	local _retains_count_file_name=${retains_count_file_names[$_index]}
-#	dateecho "$_retains_count_file_name   = ${retains_count_file_names[$_index]}"
+	local _retains_count_file_name=${a_retains_count_file_names[$_index]}
 	local _counter=0
-	local _retain_value=${retains[$_index]}
+	local _retain_value=${a_retains[$_index]}
 	if [ -f ${_retains_count_file_name} ]
 	then
 		# count the lines
@@ -439,156 +476,180 @@ function entries_keeped {
 	echo $_counter
 }
 
+function do_retain_lines  {
+	local p=${1}
+        local lpkey=${lv_disk}_${p}
+	# check, if config file ends with 'conf', then we do a backup with 'rsnapshot'
+	local _rsnapshot_config=${lpkey}.conf
+	stdatelog "#  '${_rsnapshot_config}' "
+	local _rsnapshot_cfg_file=${bv_conffolder}/${_rsnapshot_config}
+	local lv_archive_cfg_file=${bv_conffolder}/${lpkey}.arch
+	if [ -f ./${lv_archive_cfg_file} ]
+	then
+		dateecho "archive cfg has no retain values"
+		return 0
+	fi
+
+	# look up for lines with word 'retain'
+	retainslist=$( cat ./${_rsnapshot_cfg_file} | grep ^retain )
+
+	OIFS=$IFS
+	IFS=$'\n'
+	# convert to array of 'retain' lines
+	# 0 = 'retain', 1 = level, 2 = count
+	lines=($retainslist)
+#echo "BBBB ${lines[*]}"
+	IFS=$OIFS
 
 
-_targetdisk=$( targetdisk $_disk )
-stdatelog "label: $_disk"
-stdatelog "target: $_targetdisk"
-check_disk_label $_disk
+	declare -A a_retainscount
+	declare -A a_retains_count_file_names
+	declare -A a_retains
+	n=0
+	for i in "${lines[@]}"
+	do
+		# split to array with ()
+		local _line=($i)
+		# 0 = keyword 'retain', 1 = level= e.g. eins,zwei,drei, 2 = count
+
+		local rlevel=${_line[1]}
+		a_retains[$n]=$rlevel
+
+		local rcount=${_line[2]}
+		if [[ $rcount -lt 2 ]]
+		then
+			dateecho "retain count is < 2 in retain '$rlevel', this is not allowed in 'rsnapshot' and this backup"
+			exit $BK_ERRORINCOUNTERS
+		fi
+
+		a_retainscount[$n]=$rcount
+		a_retains_count_file_names[$n]=$bv_retainscountfolder/${lpkey}_${rlevel}
+
+		local _entries_keeped=$(entries_keeped $n )
+		#dateecho "keeped $ek"
+		#dateecho "line $n"
+		local print_result=$(  printf "%8s %4s (%2s)" ${a_retains[$n]} ${a_retainscount[$n]} $_entries_keeped )   
+		dateecho "$lpkey  --> retain $n: $print_result"
+
+		(( n++ ))
+	done
+	dateecho ""
+
+}
+
+function do_info_line  {
+
+	local project=${1}
+        lpkey=${lv_disk}_${project}
+	stdatelog "lpkey: '$lpkey' "
+        current_date=`date +%Y-%m-%dT%H:%M`
+
+	# look up for last, next in    programmed     
+        last_done_file="$bv_workingfolder/${bv_donefolder}/${lpkey}_done.log"
+        last_done_date=$lv_max_last_date
+        if [ -f $last_done_file  ]
+        then
+		# last line in done file
+		last_done_date=$(gawk NF  $last_done_file | gawk  'END {print }' -)
+
+	fi
+
+	# 1- last
+	last_done_minutes=$(   time_diff_minutes  "$last_done_date"  "$current_date"  )
+	# 2. programmed
+	programmed_diff_minutes=$(  decode_programmed_diff ${lpkey} )
+	# 3. last done
+	done_diff_minutes=$(( programmed_diff_minutes - last_done_minutes ))
+
+
+        # ret , 0 = do backup, 1 = interval not reached, 2 = daytime not reached
+        project_time_reached $lpkey 
+        project_is_dirty=$?
+
+        project_print=$( printf "%-14s\n"  $( echo "${project}" ) )
+	
+	# last
+	last_done_formatted=$( encode_minutes  $last_done_minutes )
+	last_done_print=$( printf "%8s"  $last_done_formatted )
+
+	# last done
+        done_diff_formatted=$( encode_minutes $done_diff_minutes )
+	done_diff_print=$( printf "%8s\n"  $done_diff_formatted )
+
+	# programmed
+        programmed_formatted=$( encode_minutes  $programmed_diff_minutes )
+	programmed_print=$( printf "%8s"  $programmed_formatted )
+
+
+        if test $project_is_dirty -eq $lc_DONE_REACHED
+        then
+		check_pre_host $project 
+		ispre=$?
+		line="$lpkey --> $project_print   $last_done_print last, next in $done_diff_print,  programmed  $programmed_print,  reached,"
+		if test $ispre -eq 0
+		then
+			# all is ok,  show line
+                        dateecho "$line source is ok"
+                else
+			# not avail,  show line
+                        dateecho "$line source not available"
+                fi
+	else
+                line="$lpkey --> $project_print   $last_done_print last, next in $done_diff_print,  programmed  $programmed_print,  do nothing"
+                dateecho "$line"
+        fi
+}
+
+
+check_arrays 
+check_arrays_return=$?
+
+if [ "$check_arrays_return" -eq "$BK_ARRAYSNOK" ]
+then
+	exit $BK_ARRAYSNOK
+fi
+
+
+check_disk_by_uuid 
 goodlink=$?
+
+_targetdisk=$( targetdisk  )
+_targetdisk_display_name="$_targetdisk"
+
+if [ $_targetdisk != $lv_disk ]
+then
+	_targetdisk_display_name="${lv_disk}(${_targetdisk})"
+fi
+
 
 dateecho ""
 
-
-
-if [ $_targetdisk != $_disk ]
-then
-	_targetdisk="${_disk}(${_targetdisk})"
-fi
-dateecho "==== next disk: '$_targetdisk' ===="
+dateecho "==== next disk: '$_targetdisk_display_name' ===="
 dateecho ""
 if test $goodlink -ne 0
 then
 	# disk label/uuid not found, or targetdisk/uuid
-	dateecho  "${lv_cc_logname}: disk '$_targetdisk' wasn't found in '/dev/disk/by-uuid'"
+	_uuid=$( cat "uuid.txt" | grep -v '#' | grep -w $_targetdisk_display_name | gawk '{print $2}' )
+	dateecho  "${lv_cc_logname}: disk '$_targetdisk_display_name' (UUID $_uuid) wasn't found in '/dev/disk/by-uuid'"
 	dateecho ""
 fi
 
 
-PROJEKTLABELS=${a_projects[$_disk]}
+array_projects=${a_projects[$lv_disk]}
 
-DONE_REACHED=0
-lv_done_not_reached=1
 ispre=1
 mindiff=100000
 minexpected=10000
-declare -A nextprojects
-nextprojekt=""
-#DONE=$bv_donefolder
-#stdatelog "DONE: '$DONE'"
 
-stdatelog "==== next disk: '$_targetdisk' ===="
+stdatelog "==== next disk: '$_targetdisk_display_name' ===="
 # find projects in time		
 dateecho "                 dd:hh:mm               dd:hh:mm               dd:hh:mm"
-for p in $PROJEKTLABELS
+for p in $array_projects
 do
-        lpkey=${_disk}_${p}
-	stdatelog "lpkey: '$lpkey' "
-	lv_lpkey=$lpkey
-        _current=`date +%Y-%m-%dT%H:%M`
-        DONE_FILE="$bv_workingfolder/${bv_donefolder}/${lpkey}_done.log"
-        LASTLINE=$lv_max_last_date
-        if [ -f $DONE_FILE  ]
-        then
-                # last line in done file
-		LASTLINE=$(awk NF  $DONE_FILE | awk  'END {print }' -)
-
-        fi
-        pdiff=$(  decode_programmed_diff ${lpkey} )
-
-	done_diff_minutes=$(   time_diff_minutes  "$LASTLINE"  "$_current"  )
-	stdatelog "pdiff: '$pdiff', done: '$done_diff_minutes' "
-	deltadiff=$(( pdiff - done_diff_minutes ))
-
-        # ret , 0 = do backup, 1 = interval not reached, 2 = daytime not reached
-        DISKDONE=$(check_disk_done $_disk $p )
-
-        txt=$( printf "%-14s\n"  $( echo "${p}" ) )
-        n0=$( printf "%5s\n"  $done_diff_minutes )
-        pdiff_print=$( printf "%5s\n"  $pdiff )
-        ndelta=$( printf "%6s\n"  $deltadiff )
-
-        fndelta=$( encode_diff $ndelta )
-        fndelta=$( printf "%8s\n"  $fndelta )
-        fn0=$( encode_diff  $n0 )
-        fn0=$( printf "%8s"  $fn0 )
-        pdiff_minutes_print=$( encode_diff  $pdiff_print )
-        pdiff_minutes_print=$( printf "%8s"  $pdiff_minutes_print )
-
-        if test $DISKDONE -eq $DONE_REACHED
-        then
-                diskdonetext="ok"
-                check_pre_host $lpkey 
-		ispre=$?
-                if test $ispre -eq 0
-                then
-                        # all is ok,  do backup
-                        dateecho "$txt   $fn0 last, next in $fndelta,  programmed  $pdiff_minutes_print,  reached, source is ok"
-                        nextprojects["$p"]=$p
-                #       isdone=true
-                else
-                        dateecho "$txt   $fn0 last, next in $fndelta,  programmed  $pdiff_minutes_print,  reached, source not available"
-                fi
-        fi
-
-
-        if test "$DISKDONE" -eq $lv_done_not_reached
-        then
-                diskdonetext="not"
-                dateecho "$txt   $fn0 last, next in $fndelta,  programmed  $pdiff_minutes_print,  do nothing"
-        fi
-	if test $use_retains -gt 0
+	do_info_line   $p
+	if test $lv_use_retains -gt 0
 	then
-		# check, if config file ends with 'conf', then we do a backup with 'rsnapshot'
-		lv_rsnapshot_config=${lpkey}.conf
-		log "#  '${lv_rsnapshot_config}' "
-		#dateecho "iCCCCC #  '${lv_rsnapshot_config}' "
-		lv_rsnapshot_cfg_file=${bv_conffolder}/${lv_rsnapshot_config}
-
-		# look up for lines with word 'retain'
-		retainslist=$( cat ./${lv_rsnapshot_cfg_file} | grep ^retain )
-		OIFS=$IFS
-IFS='
-'
-		# convert to array of 'retain' lines
-		# 0 = 'retain', 1 = level, 2 = count
-		lines=($retainslist)
-		#dateecho "# current number of retain entries  './${lv_rsnapshot_cfg_file}' : ${#lines[@]}"
-
-		IFS=$OIFS
-
-
-		declare -A retainscount
-		declare -A retains_count_file_names
-		declare -A retains
-		n=0
-		for i in "${lines[@]}"
-		do
-			# split to array with ()
-			_line=($i)
-
-			# 0 = keyword 'retain', 1 = level= e.g. eins,zwei,drei, 2 = count
-			rlevel=${_line[1]}
-			retains[$n]=$rlevel
-			rcount=${_line[2]}
-			if [[ $rcount -lt 2 ]]
-			then
-				dateecho "retain count is < 2 in retain '$rlevel', this is not allowed in 'rsnapshot' and this backup"
-				exit $BK_ERRORINCOUNTERS
-			fi
-
-			retainscount[$n]=$rcount
-			retains_count_file_names[$n]=$bv_retainscountfolder/${lv_lpkey}_${rlevel}
-
-			ek=$(entries_keeped $n )
-			#dateecho "keeped $ek"
-			#dateecho "line $n"
-			_t0=$(  printf "%8s %4s (%2s)" ${retains[$n]} ${retainscount[$n]} $( entries_keeped $n )   )
-			dateecho "retain $n: $_t0"
-
-			(( n++ ))
-		done
-		dateecho ""
+		do_retain_lines $p
 	fi
 done
 

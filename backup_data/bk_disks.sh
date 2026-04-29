@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_disk.sh
-# bk_version  26.04.1
+# bk_version  26.05.1
 
 # Copyright (C) 2017-2026 Richard Albrecht
 # www.rleofield.de
@@ -67,11 +67,14 @@ fi
 # exit $BK_STOPPED -   normal stop, file 'stop' detected
 
 
-declare -a cfg_successlineheader
+declare -a cfg_successline_header
 declare -a lv_disks_successlist
 declare -a lv_disks_unsuccesslist
 
+# used in dlog() in 'src_log.sh'
 lv_cc_logname="disks"
+
+# used in tlog() in 'src_log.sh'
 readonly lv_tracelogname="disks"
 
 function init_cfg_variables {
@@ -263,18 +266,19 @@ function loop_minutes {
 		stop_exit "minute '$_minutes' is not a string with numbers"
 	fi
 	local _seconds=$(( _minutes * 60 ))
-	local _sleeptime="10"
 	if [ $bv_test_short_minute_loop_seconds_10 -eq 1 ]
 	then
 		_seconds=$(( _minutes * 10 ))
 	fi
 	local _minute=$(date +%M)
 	local _count=0
+	# default = 0
 	if [ $bv_test_short_minute_loop -eq 0 ]
 	then
 		while [  $_count -lt $_seconds ] 
 		do
 			# sleep 
+			local _sleeptime="10"
 			sleep  $_sleeptime
 			_count=$(( _count + _sleeptime ))
 			dlog "in loop minutes: $_count seconds"
@@ -295,12 +299,12 @@ function loop_until_minute  {
 	then
 		stop_exit "minute '$_endminute' is not a string with number"
 	fi
-	local _sleeptime="2"
 	local _count=0
 	local _minute=$(date +%M)
 	while [  $_minute -ne $_endminute ] 
 	do
 		# sleep 2 sec
+		local _sleeptime="2"
 		sleep  $_sleeptime
 		# every 2 sec check stop
 		check_stop "in loop_until_minute: $_minute "
@@ -454,6 +458,7 @@ function successlog_notifymessages_send_localhost {
 		dlog "rsync was ok"
 	fi
 	dlog "   set ownership: 'chown -R ${_user}:${_user} ${_targetfolder}'"
+	chown -R ${_user}:${_user} ${_targetfolder}
 }
 
 # parameter
@@ -482,7 +487,7 @@ function successlog_notifymessages_send {
 			successlog_notifymessages_send_host $_login $_targetfolder $_host $_port
 		fi
 	else
-		dlog "'targetfolder' is empty"
+		dlog "'targetfolder' in cfg.sshlogin is empty"
 	fi
 
 }
@@ -541,7 +546,7 @@ function write_header {
 	then
 		# write  formatted headers to one line
 		local _formatted_header_line=""
-		for _s in ${cfg_successlineheader[@]}
+		for _s in ${cfg_successline_header[@]}
 		do
 			# write line in field
 			local  _formatted_header=$( printf "%${cfg_successline_width}s" $_s )
@@ -579,6 +584,8 @@ function show_used_seconds {
 	dlog "--- "
 }
 
+
+# gruen: dserver
 function copy_executedprojects_from_loop_to_disks {
 	if [ -f $bv_executedprojectsfile ]
 	then
@@ -675,16 +682,14 @@ function replace_disknames_with_targetdisks {
 
 function call_bk_loop {
 	local _disk=$1
-	local _label_displayname="$_disk"
+	local _disk_displayname="$_disk"
 	local _targetdisk=$( targetdisk "$_disk" )
 	if [ "$_disk" != "$_targetdisk" ]
 	then
-		_label_displayname="$_disk ($_targetdisk)"
+		_disk_displayname="$_disk ($_targetdisk)"
 	fi
-	local _targetdisk=$_label_displayname
-	dlog "= next disk: '$_targetdisk' ="
+	dlog "= next disk: '$_disk_displayname' ="
 	local _old_cc_logname=$lv_cc_logname
-	lv_cc_logname="$_disk"
 	local _oldifs=$IFS
 	IFS=','
 
@@ -716,16 +721,16 @@ function call_bk_loop {
 	if test $_bk_loop_RET -eq $BK_TIMELIMITNOTREACHED
 	then
 		#dlog "ready, time limit of a project is not reached"
-		dlog "'$_targetdisk' no project has timelimit reached, wait for next loop"
+		dlog "'$_disk_displayname' no project has timelimit reached, wait for next loop"
 	else
 		if test $_bk_loop_RET -eq $BK_DISKLABELNOTFOUND
 		then
 			# no error, normal use of disks, disk is not present, maybe present at next main loop
-			dlog "HD with label: '$_targetdisk' not found ..." 
+			dlog "HD with label: '$_disk_displayname' not found ..." 
 		else
 			if test $_bk_loop_RET -eq $BK_DISKNOTMOUNTED
 			then
-				dlog "warning: disk '$_disk' not mounted"
+				dlog "warning: disk '$_disk' not mounted, error: BK_DISKNOTMOUNTED ($BK_DISKNOTMOUNTED)"
 			else
 				if test $_bk_loop_RET -eq $BK_DISK_IS_NOT_SET_IN_CONF
 				then
@@ -734,7 +739,7 @@ function call_bk_loop {
 					
 					if test $_bk_loop_RET -ne 0 
 					then
-						dlog "unknown error: RET nach loop: $_bk_loop_RET"
+						dlog "unknown error: '_bk_loop_RET' nach loop: $_bk_loop_RET"
 					fi
 				fi
 			fi
@@ -755,16 +760,16 @@ function call_bk_loop {
 	# exit BK_DISKNOTUNMOUNTED    	- ddisk could not be unmounted
 	if test  $_bk_loop_RET -eq $BK_NOINTERVALSET 
 	then
-		_msg="for one project in '$_targetdisk' time interval is not set"
+		_msg="for one project in '$_disk_displayname' time interval is not set"
 	fi
 	if test $_bk_loop_RET -eq $BK_MOUNTDIRTNOTEXIST
 	then
 		local mount_targetdisk=$( targetdisk $_disk )
-		_msg="mountpoint for HD with label: '$_targetdisk' not found: '/mnt/$mount_targetdisk' "
+		_msg="mountpoint for HD with label: '$_disk_displayname' not found: '/mnt/$mount_targetdisk' "
 	fi
 	if test ${_bk_loop_RET} -eq $BK_DISKNOTUNMOUNTED 
 	then
-		_msg="HD with label: '$_targetdisk' could not be unmounted" 
+		_msg="HD with label: '$_disk_displayname' could not be unmounted" 
 	fi
 
 
@@ -775,20 +780,20 @@ function call_bk_loop {
 	# exit BK_ROTATE_FAILS		- rotate error
 	if test  ${_bk_loop_RET} -eq $BK_RSYNCFAILS 
 	then
-		_msg="rsync error in disk: '$_targetdisk'"
+		_msg="rsync error in disk: '$_disk_displayname'"
 		_PROJECTERROR="true"
 		_bk_loop_RET=$BK_SUCCESS
 	fi
 	if test  ${_bk_loop_RET} -eq $BK_DISK_IS_NOT_SET_IN_CONF  
 	then
-		_msg="disk '$_targetdisk' is not set in snapshot root"
+		_msg="disk '$_disk_displayname' is not set in snapshot root"
 		dlog "msg: $_msg"
 		_PROJECTERROR="true"
 		_bk_loop_RET=$BK_SUCCESS
 	fi
 	if test  ${_bk_loop_RET} -eq $BK_ROTATE_FAILS 
 	then
-		_msg="file rotate error in history, check backup disk for errors: '$_targetdisk'"
+		_msg="file rotate error in history, check backup disk for errors: '$_disk_displayname'"
 		_PROJECTERROR="true"
 		_bk_loop_RET=$BK_SUCCESS
 	fi
@@ -805,9 +810,9 @@ function call_bk_loop {
 	then
 		if test  "$_PROJECTERROR" = "true" 
 		then
-			dlog "'$_targetdisk' done, min. one project has rsync errors, see log"
+			dlog "'$_disk_displayname' done, min. one project has rsync errors, see log"
 		else
-			dlog "'$_targetdisk' successfully done"
+			dlog "'$_disk_displayname' successfully done"
 		fi
 
 		# defined in  scr_filenames.sh
@@ -837,20 +842,21 @@ function call_bk_loop {
 		then
 			if test ${_bk_loop_RET} -eq $BK_DISKLABELNOTFOUND 
 			then
-				dlog "'$_targetdisk' is not connected with the server"
+				dlog "'$_disk_displayname' is not connected with the server"
 			else
 				if test ${_bk_loop_RET} -eq $BK_FATAL
 				then 
-					dlog  "'$_targetdisk' returns with fatal error: '$_bk_loop_RET', see log"
+					dlog  "'$_disk_displayname' returns with fatal error: '$_bk_loop_RET', see log"
 				else
 					# none of exit values are checked
-					dlog  "'$_targetdisk' returns with error: '$_bk_loop_RET', see log"
+					dlog  "'$_disk_displayname' returns with error: '$_bk_loop_RET', see log"
 				fi
 			fi
 		fi
 	fi
 
-	dlog "= disk: '$_targetdisk' done ="
+	dlog "= disk: '$_disk_displayname' done ="
+	dlog "=="
 }
 
 
@@ -914,6 +920,7 @@ function wait_until_full_hour {
 	# display message and wait
 	# lastlogline, this is last line of log, if in wait state
 	# is not in global waittime interval, check minute loop used
+	# default = 0
 	if [ $bv_test_use_minute_loop -eq 1 ]
 	then
 		# 'test_use_minute'_loop is set
@@ -927,6 +934,7 @@ function wait_until_full_hour {
 			mlooptime=2
 		fi
 		dlog "'test_use_minute_loop' is set, wait '$mlooptime' minutes"
+		# default = 0
 		if [ $bv_test_short_minute_loop -eq 1 ]
 		then
 			dlog "'test_short_minute_loop' set, skip immediately, not waiting '$mlooptime' minutes"
@@ -946,6 +954,7 @@ function wait_until_full_hour {
 		# stop is checked here
 		tlog "wait 1 hour"
 		#dlog "wait 1 hour", # don't uncomment this line, 'is_stopped.sh' uses last line, and fails
+		#  default = 1
 		if [ $bv_test_check_looptimes -eq 1 ]
 		then
 			loop_to_full_next_hour
@@ -1107,6 +1116,7 @@ then
 	exit $BK_EXECONCESTOPPED
 fi
 # shell script, executed at start of disk
+# execute_main_begin is in bk_main.sh, line 527
 
 execute_main_end
 lv_exec_end_RET=$?
@@ -1163,38 +1173,17 @@ echo "$msg"
 echo "$msg"
 test_messages
 
+: << bk_disks_ablauf
 
-: << list_of_functions
-77:function init_cfg_variables {
-162:function init_local_variables {
-194:function rsyncerrorlog {
-204:function stop_exit {
-214:function check_stop {
-232:function is_number {
-257:function loop_minutes {
-290:function loop_until_minute  {
-321:function do_ping_host {
-354:function successlog {
-393:function successlog_notifymessages_send_host {
-433:function successlog_notifymessages_send_localhost {
-466:function successlog_notifymessages_send {
-490:function check_loginname {
-500:function successlog_notifymessages {
-527:function write_header {
-559:function successlog_send {
-576:function show_used_seconds {
-582:function copy_executedprojects_from_loop_to_disks {
-592:function list_connected_disks_by_uuid {
-625:function trim_disknames {
-660:function replace_disknames_with_targetdisks {
-676:function call_bk_loop {
-859:function call_bk_loops {
-869:function loop_to_full_next_hour {
-886:function wait_until_full_hour {
-959:function is_in_global_waitinterval {
-970:function wait_until_end_of_global_waittime {
-1028:function wait_until_end {
-list_of_functions
+     list_connected_disks_by_uuid
+       for each disk: call bk_loops
+     send successlog to admin PC-Desktop
+     execute_main_end
+     wait until full hour, 
+     back to bk:main
+
+: << bk_disks_ablauf
+
 
 # EOF
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: show_times.sh
-# bk_version  26.01.1
+# bk_version  26.04.1
 
 
 # Copyright (C) 2017-2026 Richard Albrecht
@@ -32,50 +32,48 @@ set -u
 . ./src_exitcodes.sh
 . ./src_filenames.sh
 
-
-
-readonly bv_errorlog="cc_show_times_error.log"
-
-set +u
-use_retains=$1
-set -u
-
-if [ -z $use_retains ]
-then
-	use_retains=0
-fi
-
-
-readonly bv_disklist=$DISKLIST
-
-
-
-function log {
-   local _msg=$1
-   echo "$_msg" 
-#   echo -e "$msg" >> $SHOWTIMES_LOGFILE
-}
-
-
-lv_cc_logname=""
-
-function stdatelog {
-	if [  -z ${lv_cc_logname} ]
+# gawk is used instead of awk
+function check_if_gawk_exists {
+	which gawk > /dev/null
+	local _check_if_gawk_exists_RET=$?
+	if [ $_check_if_gawk_exists_RET -ne 0  ]
 	then
-		local _msg="$1"
-		local _TODAY=`date +%Y%m%d-%H%M`
-		log "$_TODAY ==>  $_msg"
-	else
-		local _msg="${lv_cc_logname}: $1"
-		local _TODAY=`date +%Y%m%d-%H%M`
-	log "$_TODAY ==>  $_msg"
+		echo "'gawk' not found"
+		exit 1
 	fi
 }
 
-function errorlog {
+
+check_if_gawk_exists 
+
+
+use_retains=0
+
+#set +u
+#use_retains=0
+#set -u
+
+if [  $# -gt 0 ]
+then
+	use_retains=$1
+fi
+
+# from cfg.projects
+readonly bv_disklist=$DISKLIST
+
+truncate -s 0  "sst.log"
+
+function log {
+	local _msg=$1
+	echo -e "$_msg" >> "sst.log"
+}
+
+
+
+function stdatelog {
+	local _msg="$1"
 	local _TODAY=`date +%Y%m%d-%H%M`
-	local _msg=$( echo "$_TODAY err ==> '$1'" )
-	echo -e "$_msg" >> $bv_errorlog
+	log "$_TODAY ==>  $_msg"
 }
 
 
@@ -96,13 +94,28 @@ stdatelog "show times for all disks and all projects"
 
 for _disk in $bv_disklist
 do
-	stdatelog ""
+	stdatelog "disk: $_disk"
+
 	./disk_show_times.sh "$_disk" "$use_retains"
-        RET=$?
-	if [[ $RET = "$BK_DISKLABELNOTFOUND" ]]
+        times_RET=$?
+	stdatelog "disk_show_times_ret: $times_RET"
+	if [[ $times_RET -eq "$BK_DISKLABELNOTFOUND" ]]
 	then
-		stdatelog "${lv_cc_logname}: HD with label: '$_disk' not found"
+		stdatelog "HD with label: '$_disk' not found"
+		exit 1
 	fi
+	if [[ $times_RET -eq "$BK_ARRAYSNOK" ]]
+	then
+		stdatelog "arrays in cfg.projects are not ok"
+		echo "arrays in cfg.projects are not ok"
+		exit 1
+	fi
+	if [ $times_RET -gt 0  ]
+	then
+		stdatelog "other err"
+		exit 1
+	fi
+
 done
 
 

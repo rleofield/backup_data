@@ -43,16 +43,6 @@ readonly bv_maxfillbackupdiskpercent=70
 
 
 
-# ==
-# == use 15 minutes waiting for next backup ==
-# == not used
-
-# default = 0
-
-# checked in
-#   bk_disks.sh:   if [ $bv_use_15min_interval -eq 1 ]
-readonly bv_use_15min_interval=0
-
 
 # == no_check_disk_done ==
 
@@ -85,11 +75,6 @@ readonly bv_test_check_looptimes=1
 #  bk_disks.sh:   if [ $bv_test_execute_once -eq 1 ]
 readonly bv_test_execute_once=0
 
-
-# ignore rsnapshot in loop
-# default = 0
-#  not used
-#readonly bv_loop_test=0
 
 # ==
 # == do_once_count ==

@@ -24,7 +24,9 @@
 . ./cfg.working_folder
 . ./cfg.projects
 
-. ./src_filenames.sh
+lv_cc_logname="show_disks"
+
+#. ./src_filenames.sh
 . ./src_exitcodes.sh
 . ./src_log.sh
 . ./src_folders.sh
@@ -35,17 +37,22 @@
 set -u
 
 
+cd $bv_workingfolder
+if [ ! -d $bv_workingfolder ] && [ ! $( pwd ) = $bv_workingfolder ]
+then
+	echo "WD '$bv_workingfolder'"
+	echo "WD is wrong"
+	exit 1
+fi
 
 SHOW_DISKS_LOGFILE="list_disks_log.log"
 test_normal_file $SHOW_DISKS_LOGFILE
 RET=$?
-#echo "ret $RET"
-if ! test $RET 
+if test $RET -eq 0
 then
 	rm $SHOW_DISKS_LOGFILE 
 fi
-
-lv_cc_logname="show_disks"
+ 
 
 #bv_disklist is from cfg.projects
 readonly bv_disklist=$DISKLIST
@@ -59,24 +66,12 @@ function log {
 }
 
 
-function dlog {
-        local _TODAY=`date +%Y%m%d-%H%M`
-        log "${_TODAY} -> ${lv_cc_logname}: $1"
-}
-
 function sddatelog {
         local _TODAY=`date +%Y%m%d-%H%M`
         log "${_TODAY} -> ${lv_cc_logname}: $1"
 }
 
 
-cd $bv_workingfolder
-if [ ! -d $bv_workingfolder ] && [ ! $( pwd ) = $bv_workingfolder ]
-then
-	echo "WD '$bv_workingfolder'"
-	echo "WD is wrong"
-	exit 1
-fi
 
 
 
@@ -86,7 +81,7 @@ function check_disk_label {
         # 1 = error
 	local _targetdisk=$( targetdisk $_LABEL )
 
-        local uuid=$( cat "uuid.txt" | awk 'sub(/^ */, "")' | grep -w "^$_targetdisk" | awk '{print $2}' )
+        local uuid=$( cat "uuid.txt" | gawk 'sub(/^ */, "")' | grep -w "^$_targetdisk" | gawk '{print $2}' )
 #	local uuid=$( gawk -v pattern="$_LABEL" '$1 ~ pattern  {print $NF}' uuid.txt )
         local disklink="/dev/disk/by-uuid/$uuid"
         # test, if symbolic link
@@ -115,7 +110,7 @@ do
 		
                 RET="${RET} ist nicht verbunden"
 		#aw="awk '{ print $1 }'"
-		F=$( find $bv_oldlogsfolder -name "cc_log*" | grep -v save | xargs grep $_disk | grep 'is mounted' | sort | awk '{ print $1 }'| cut -d '/' -f 3 | tail -f -n1 )
+		F=$( find $bv_oldlogsfolder -name "cc_log*" | grep -v save | xargs grep $_disk | grep 'is mounted' | sort | gawk '{ print $1 }'| cut -d '/' -f 3 | tail -f -n1 )
         	sddatelog "$RET, letztes Backup war: $F "
         else
                 RET="${RET} ist verbunden"

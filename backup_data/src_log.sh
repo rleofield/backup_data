@@ -31,6 +31,8 @@
 # bk_rsnapshot.sh:39:readonly lv_tracelogname="rsnapshot"
 
 
+# shows all retain values in log
+# cat cc_log.log | grep -e  "retain" | grep -w retain| grep -e eins -e zwei -e drei -e vier
 
 # ./bk_main.sh  
 #	./bk_disks.sh, all disks
@@ -48,39 +50,18 @@
 # cfg_*  - set in cfg.* file_
 
 
-
-: <<block_comment
-
-# here waittime check
-	if  (( first != second )) 
-	then
-		if  (( first < second ))
-		then
-			if (( hour  >= first )) && (( hour <  second ))
-			then
-				return 0
-			fi
-		else
-			if (( hour >= first )) && (( hour < 24 ))
-			then
-				return 0
-			fi
-			if (( 0 <   first )) && (( hour < second ))
-			then
-				return 0
-			fi
-		fi
-	fi
-	return 1
-}
-block_comment
+# must be defined here
+readonly bv_logfile="cc_log.log"
+readonly bv_tracefile="trace.log"
+readonly bv_loopcounter="loop_counter.log"
 
 
 
+# used in bk_disks.sh
 function variable_is_set {
 	typeset -p "$1" &>/dev/null
-	local ret=$?
-	if [ $ret -eq 1 ]
+	local _ret=$?
+	if [ $_ret -eq 1 ]
 	then
 		return 1
 	fi
@@ -140,30 +121,12 @@ function check_ssh_configuration2(){
 	return 0
 }
 
-
-
-# shows all retain values in log
-# cat cc_log.log | grep -e  "retain" | grep -w retain| grep -e eins -e zwei -e drei -e vier
-
-#readonly bv_errorlog="cc_error.log"
-readonly bv_logfile="cc_log.log"
-readonly bv_tracefile="trace.log"
-
-
-# == daily_rotate ==
-# default = 1,  =  rotate logs
-# checked in bk_main.sh:265:    "if [ $bv_daily_rotate -eq 1 ]"
-readonly bv_daily_rotate=1
-
-
-
 # standard date time format
 # https://www.w3schools.com/XML/schema_dtypes_date.asp
 # DateTime Data Type = YYYY-MM-DDThh:mm:ss
 # Time Data Type = hh:mm:ss
 # Date Data Type = YYYY-MM-DD
-# dates used here are with minute accuracy, not seconds
-
+# times used here are with minute accuracy, not seconds
 function currentdateT() {
 	# YYYY-MM-DDThh:mm
 	date +%Y-%m-%dT%H:%M
@@ -174,14 +137,19 @@ function currentdate_for_log {
 	date +%Y%m%d-%H%M
 }
 
-
+# lv_tracelogname is set in:
+#   bk_main.sh:readonly lv_tracelogname="main"
+#   bk_loop.sh:readonly lv_tracelogname="loop"
+#   bk_disks.sh:readonly lv_tracelogname="disks"
+#   bk_project.sh:readonly lv_tracelogname="project"
+#   bk_archive.sh:readonly lv_tracelogname="archive"
+#   bk_rsnapshot.sh:readonly lv_tracelogname="rsnapshot"
 function tlog {
-	local tracelogname=$lv_tracelogname
-	if [  -z "${tracelogname}" ]
+	local _tracelogname=$lv_tracelogname
+	if [  -z "${_tracelogname}" ]
 	then 
-		echo "${tracelogname} is empty in trace"
-		tracelogname="not set"
-		#exit
+		echo "${_tracelogname} is empty in trace"
+		_tracelogname="not set"
 	fi
 
 	if [  -z ${bv_tracefile} ]
@@ -191,126 +159,139 @@ function tlog {
 	fi
 
 	# calulate leading spaces for log of lv_tracelogname
-	space=""
-	if test $tracelogname = "main" 
+	local _space=""
+	if test $_tracelogname = "main" 
 	then
-		space=" "
+		_space=" "
 	fi
-	if test $tracelogname = "disks" 
+	if test $_tracelogname = "disks" 
 	then
-		space="  "
+		_space="  "
 	fi
-	if test $tracelogname = "loop" 
+	if test $_tracelogname = "loop" 
 	then
-		space="    "
+		_space="    "
 	fi
-	if test $tracelogname = "project" 
+	if test $_tracelogname = "project" 
 	then
-		space="      "
+		_space="      "
 	fi
-	if test $tracelogname = "archive" 
+	if test $_tracelogname = "archive" 
 	then
-		space="        "
+		_space="        "
 	fi
-	if test $tracelogname = "rsnapshot" 
+	if test $_tracelogname = "rsnapshot" 
 	then
-		space="        "
+		_space="        "
 	fi
-
 	local _TODAY=$( currentdate_for_log )
-	local _msg="$_TODAY ${space} ${tracelogname}--   $1"
+	local _msg="$_TODAY ${_space} ${_tracelogname}--   $1"
 	echo -e "$_msg" >> $bv_tracefile
 	return 0
 }
 
 
-# if not empty, log is ignored
-arraytestmarker="xxx"
-#arraytestmarkerlog=""
-function arraytestdlog {
-	# is empty
-	if [[ -z $arraytestmarker ]]
-	then
-		dlog "array test log $1"
-	fi
-}
 
-# if not empty, log is ignored
-startendtestmarker="xxx"
-#startendtestmarkerlog=""
-function startendtestlog {
-	# is empty
-	if [[ -z $startendtestmarker ]]
-	then
-		dlog "start end log ====== $1"
-	fi
-}
-# if not empty, log is ignored
-temptestmarker="xxx"
-#temptestmarkerlog=""
-function temptestlog {
-	# is empty
-	if [[ -z $temptestmarker ]]
-	then
-		dlog "temp log ====== $1"
-	fi
-}
+
+
+
+
+
+
 
 # param = message
 # insert lv_cc_logname 
 # lv_cc_logname is set in local file, not here
 function dlog {
-
-	local msg=$1
-	local cc_logname=$lv_cc_logname
+	local _msg=$1
+	local _cc_logname=$lv_cc_logname
 	# is empty
-	if test  -z "$cc_logname"
+	if test  -z "$_cc_logname"
 	then 
-		cc_logname="log"
+		_cc_logname="log"
 	fi
-	local _msg="${cc_logname}: $msg"
+	local _msg1="${_cc_logname}: $_msg"
 	local _TODAY=$( currentdate_for_log )
-	local _msg2="$_TODAY --  $_msg"
+	local _msg2="$_TODAY --  $_msg1"
 	echo -e "$_msg2" >> $bv_workingfolder/$bv_logfile
+}
+
+# test logs, can be enabled by an variable
+
+# if not empty, log is ignored
+readonly arraytestmarker="xxx"
+#readonly arraytestmarker=""
+function arraytestdlog {
+	# is empty
+	if [[ -z $arraytestmarker ]]
+	then
+		local _grep_marker="'array_test_log'"
+		dlog "$_grep_marker ====== $1"
+	fi
+}
+
+# if not empty, log is ignored
+readonly startendtestmarker="xxx"
+#readonly startendtestmarker=""
+function startendtestlog {
+	# is empty
+	if [[ -z $startendtestmarker ]]
+	then
+		local _grep_marker="'start_end_log"
+		dlog "$_grep_marker ====== $1"
+	fi
+}
+# if not empty, log is ignored
+readonly temptestmarker="xxx"
+#readonly temptestmarker=""
+function temptestlog {
+	# is empty
+	if [[ -z $temptestmarker ]]
+	then
+		local _grep_marker="'temp_log'"
+		dlog "$_grep_marker ====== $1"
+	fi
 }
 
 
 # get_loopcounter
 function get_loopcounter {
-	local ret="0"
-	if test -f "loop_counter.log"  
+	local _ret="0"
+	# declared in line 56: bv_loopcounter="loop_counter.log"
+	local _loopcounter="$bv_workingfolder/$bv_loopcounter"
+	if test -f "$_loopcounter"  
 	then
 		#ret=$(cat loop_counter.log |  awk  'END {print}' | cut -d ':' -f 2 |  sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-		wc=$( cat  loop_counter.log | wc -l )
+		wc=$( cat  $_loopcounter | wc -l )
 		if [ $wc -eq 1 ]
 		then
 			#ret=$( gawk -F ":" '{gsub(/ */,"",$2); print $2}' loop_counter.log )
-			ret=$( tail  -n1 loop_counter.log | cut -d' ' -f3 )
+			_ret=$( tail  -n1 $_loopcounter | cut -d' ' -f3 )
 		fi	
 	fi
-	echo $ret
+	echo $_ret
 }
 
 # get formatted loop counter
+# 5 digits
 function get_runningnumber {
-	local number=$( get_loopcounter )
-	# 5 digits
+	local _number=$( get_loopcounter )
+	# format with 5 digits
 	# < 99999
-	local fmt="%05d"
+	local _fmt="%05d"
 	# > 5 digits, doesn't occur
-	local _runningnumber=$( printf ${fmt}  ${number} )
+	local _runningnumber=$( printf ${_fmt}  ${_number} )
 	echo $_runningnumber
 }
 
 
 function is_associative_array {
-	local  testarray=$1
-	#arraytestdlog "testarray: $testarray"
+	local testarray=$1
+	arraytestdlog "testarray: $testarray"
 	local retv=$BK_ASSOCIATIVE_ARRAY_NOT_EXISTS
 	local associative_array_pattern="declare -A"
 
 	dc=$( declare -p $testarray )
-	#echo "dc: $dc"
 	arraytestdlog "declare command: $dc"
 
 	if [[ "$(declare -p $testarray 2>/dev/null)" == ${associative_array_pattern}* ]]
@@ -341,10 +322,10 @@ function is_associative_array {
 }
 
 function is_associative_array_ok {
-	local nn=$1
+	local testarray=$1
 	#	dlog "is_associative_array_ok: '$nn'"
-	is_associative_array "$nn"
-	ret=$?
+	is_associative_array "$testarray"
+	local ret=$?
 	# return values BK_ASSOCIATIVE_ARRAY_NOT_EXISTS, BK_ASSOCIATIVE_ARRAY_IS_EMPTY, BK_ASSOCIATIVE_ARRAY_IS_NOT_EMPTY
 	if [ $ret -eq $BK_ASSOCIATIVE_ARRAY_IS_EMPTY ] || [ $ret -eq $BK_ASSOCIATIVE_ARRAY_IS_NOT_EMPTY ]
 	then
@@ -355,6 +336,7 @@ function is_associative_array_ok {
 
 
 function associative_array_has_value {
+	# -n   Give each name the nameref attribute, making it a name reference to another variable.
 	local -n name=$1
 	#declare -p name 2>/dev/null
 	local key=$2
@@ -443,6 +425,8 @@ function targetdisk {
 	return 0
 }
 
+# par = mountfolder
+# ret = used disklabel
 function get_label_of_mountpoint {
 	local _disk_label=$1
 	local _label=$(findmnt -lo label,target | grep $_disk_label | cut -d' ' -f1)
@@ -450,6 +434,31 @@ function get_label_of_mountpoint {
 }
 
 
+: <<block_comment
+
+# waittime check
+	if  (( first != second )) 
+	then
+		if  (( first < second ))
+		then
+			if (( hour  >= first )) && (( hour <  second ))
+			then
+				return 0
+			fi
+		else
+			if (( hour >= first )) && (( hour < 24 ))
+			then
+				return 0
+			fi
+			if (( 0 <   first )) && (( hour < second ))
+			then
+				return 0
+			fi
+		fi
+	fi
+	return 1
+}
+block_comment
 
 # return 0, if is  in wait time
 # return 1, if not in wait time
@@ -460,17 +469,13 @@ function is_in_waittime10 {
 	local hour=$(date +%H)
 
 	# convert to base 10
-#	local first10=$(( 10#"${first}" ))
-#	local second10=$(( 10#"${second}" ))
 	local hour10=$(( 10#"${hour}" ))
-
-#	dlog "waittime, first: $first10, second: $second10, current hour: $hour10"
-
 
 	# skip, if fast test loop is used
 	if [ $bv_test_use_minute_loop -eq 0 ]
 	then
 		# first value equal second, no wait, ret = 1
+		
 		if  (( first10 != second10 )) 
 		then
 			# first value is lower than the second
@@ -494,138 +499,50 @@ function is_in_waittime10 {
 					return 0
 				fi
 			fi
-		#else	
-			#echo "first value is equal to the the second"
 		fi
 	fi
 	return 1
 }
 
+# waittime=start-end
 
-function get_decimal_waittimestart {
-	local _waittimeinterval=$1
+function get_decimal_waittime {
+	local _index=$1
+	local _waittimeinterval=$2
+	local _value="09"
 	local _oldifs=$IFS
-	local _start="09"
+
 	IFS='-'
 	# split to array with ()
 	local waittimearray=($_waittimeinterval)
-
 	IFS=$_oldifs
+
 	# read configured values from cfg.waittimeinterval
-	# must be 2 values
-	#set -x
+	# must contain 2 values
 	if [ ${#waittimearray[@]} = 2 ]
 	then
-	#	echo "log array 0 : ${waittimearray[0]}"
-		_start=${waittimearray[0]}
+		_value=${waittimearray[$_index]}
 	fi
-	#set +x
-	IFS=_oldifs
-	#set +x
-	IFS=_oldifs
 
 	# convert to base 10
-	local start10=$(( 10#"${_start}" ))
+	local _value10=$(( 10#"${_value}" ))
 
-	echo $start10
+	echo $_value10
+}
+function get_decimal_waittimestart {
+	local _index="0"
+	local _waittimeinterval=$1
+	local _start=$( get_decimal_waittime $_index "$_waittimeinterval" )
+	echo $_start
 }
 
 function get_decimal_waittimeend {
+	local _index="1"
 	local _waittimeinterval=$1
-	local _oldifs=$IFS
-	local _end="09"
-	IFS='-'
-	# split to array with ()
-	local waittimearray=( $_waittimeinterval )
-	IFS=$_oldifs
-	# read configured values from cfg.waittimeinterval
-	# must be 2 values
-	if [ ${#waittimearray[@]} = 2 ]
-	then
-	#	echo "log array 1 : ${waittimearray[1]}"
-		_end=${waittimearray[1]}
-	fi
-	IFS=_oldifs
-
-	# convert to base 10
-	local end10=$(( 10#"${_end}" ))
-	echo $end10
+	local _end=$( get_decimal_waittime $_index "$_waittimeinterval" )
+	echo $_end
 }
 
-
-function encode_diff_to_string {
-
-        # testday is in minutes
-        local testday=$1
-        local ret=""
-        local is_negative=1 # = "false"
-
-        if test $testday -lt "0"
-        then
-                testday=$(( testday * (-1) ))
-                is_negative=0     # = "true"
-        fi
-
-        # all in minutes
-        local hour=60
-        local day=$(( hour * 24 ))
-        local days=$(( testday/day  ))
-
-        local remainder=$(( testday - days*day   ))
-        local hours=$(( remainder/hour   ))
-        local minutes=$(( remainder - hours*hour  ))
-
-        if test $days -eq "0"
-        then
-                if test $hours -eq "0"
-                then
-                        ret=$( printf "%02d"  $minutes )
-                else
-                        ret=$( printf "%02d:%02d"  $hours $minutes )
-                fi
-        else
-                ret=$( printf "%02d:%02d:%02d"  $days $hours $minutes )
-        fi
-
-        # add minus sign, if negative 
-        if test $is_negative -eq "0" # = "true" 
-        then
-                ret="-$ret"
-        fi
-        local _encoded_diff_var="$ret"
-        echo "$_encoded_diff_var"
-
-}
-
-function encode_diff_unit {
-
-        # testday is in minutes
-        local testday=$1
-        local ret=""
-
-        local hour=60
-        local day=$(( hour * 24 ))
-
-        local days=$(( testday/day  ))
-        local remainder=$(( testday - days*day   ))
-        local hours=$(( remainder/hour   ))
-        local minutes=$(( remainder - hours*hour  ))
-
-        if test $days -eq "0"
-        then
-                if test $hours -eq 0
-                then
-                        ret="minutes"
-                else
-                        ret="hours"
-                fi
-        else
-                ret="days"
-        fi
-
-        local _state="$ret"
-        echo "$_state"
-}
 
 # script file test
 # -e  true, if exists.
@@ -646,7 +563,6 @@ function test_is_executable {
 	[ -f "$real" ] && [ -r "$real" ] && [ -x "$real" ]
 }
 
-# normal file test
 
 # normal file test
 # -e     True if exists.
@@ -658,36 +574,10 @@ function test_normal_file {
 	local name=$1
 #	   exists            not null          size > 0           is file           readable
 	[ -e "$name" ] &&  [ -n "$name" ] && [ -s "$name" ] && [ -f "$name" ] && [ -r "$name" ] 
+	local _ret=$?
+	#dlog "test_normal_file: $_ret, file: $name"
+	return $_ret
 }
-
-: <<list_of_functions
-8:function variable_is_set {
-90:function check_ssh_configuration(){
-116:function check_ssh_configuration2(){
-165:function currentdateT() {
-170:function currentdate_for_log {
-176:function tlog {
-228:function arraytestdlog {
-239:function startendtestlog {
-249:function temptestlog {
-260:function dlog {
-277:function get_loopcounter {
-293:function get_runningnumber {
-304:function is_associative_array {
-341:function is_associative_array_ok {
-355:function associative_array_has_value {
-376:function is_indexed_array {
-406:function targetdisk {
-444:function get_label_of_mountpoint {
-454:function is_in_waittime10 {
-503:function get_decimal_waittimestart {
-531:function get_decimal_waittimeend {
-554:function encode_diff_to_string {
-598:function encode_diff_unit {
-635:function test_script_file {
-640:function test_is_executable {
-655:function test_normal_file {
-list_of_functions
 
 
 

@@ -36,7 +36,7 @@ temp=$(mktemp)
 
 for _d in $(ls -1 /dev/disk/by-uuid/)
 do
-	val=$( cat uuid.txt | awk  '{ print $2 }' )	
+	val=$( cat uuid.txt | gawk  '{ print $2 }' )	
 	#echo "_d : $_d "
 	#echo "grep  "$_d"  uuid.txt"
 	g=$(grep  "$_d"  uuid.txt)

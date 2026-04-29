@@ -45,6 +45,7 @@
 
 . ./src_exitcodes.sh
 . ./src_folders.sh
+. ./src_filenames.sh
 . ./src_log.sh
 
 
@@ -74,6 +75,30 @@ readonly lv_disklabel=$1
 # par2 = name of the project  
 readonly lv_project=$2
 
+
+
+function do_execute_archive {
+	dlog "check, if config is an archive"
+	local _countarchiverootlines=$(cat ./${lv_archive_cfg_file} | grep ^archive_root | grep -v '#' | wc -l)
+	# if line with 'archive_root' exists, do 'bk_archive.sh' with project name
+	# exact 1 archive_root exists
+	if [ $_countarchiverootlines -eq 1 ]
+	then
+		local _archiveroot=$(cat ./${lv_archive_cfg_file} | grep ^archive_root | grep -v '#' | cut -d' ' -f2 )
+		if [ -d ${_archiveroot} ]
+		then
+			dlog "is archive, archive root ok "
+			return $BK_SUCCESS
+		fi
+		dlog "archive_root '${_archiveroot}' doesn't exist"
+		return $BK_NO_ARCHIVE_ROOT
+	fi
+	dlog "no archive_root found in '${lv_archive_cfg_file}'"
+	return $BK_RSYNCFAILS
+}
+
+
+
 readonly lv_lpkey=${lv_disklabel}_${lv_project}
 
 
@@ -83,9 +108,11 @@ then
 	exit 1
 fi
 
+# used in dlog() in 'src_log.sh'
+readonly lv_cc_logname="${lv_disklabel}:archive:${lv_project}"
 
+# used in tlog() in 'src_log.sh'
 readonly lv_tracelogname="archive"
-readonly lv_cc_logname="${lv_disklabel}:${lv_project}:archive"
 
 
 tlog "start: $lv_lpkey"
@@ -116,27 +143,37 @@ readonly lv_workingfolder=$bv_workingfolder
 # backup	 		rleo@ls5eth:/media/rleo/ls5ssd/pdf     	.
 # backup	 		rleo@ls5eth:/media/rleo/ls5ssd/videos  	.
 
+
+readonly lv_archive_cfg_file=${bv_conffolder}/${lv_lpkey}.arch
+do_execute_archive
+execute_archive_ret=$?
+dlog "is an archive,  ok ret: $execute_archive_ret "
+if test $execute_archive_ret -ne 0
+then
+	exit $execute_archive_ret
+fi
+
 readonly lv_archiveconfigname="${bv_conffolder}/${lv_cfg_archive}"
 
 # get archive_root 
-readonly lv_archive_root=$(cat ./${lv_archiveconfigname} | grep ^archive_root | grep -v '#' | awk '{print $2}')
+readonly lv_archive_root=$(cat ./${lv_archiveconfigname} | grep ^archive_root | grep -v '#' | gawk '{print $2}')
 
 # get rsync_command 
 # set var 'lv_rsync_command_logfilename' from config file
-readonly lv_temp=$(cat ./${lv_archiveconfigname} | grep ^rsync_command_log | grep -v '#' | awk '{print $2}')
+readonly lv_temp=$(cat ./${lv_archiveconfigname} | grep ^rsync_command_log | grep -v '#' | gawk '{print $2}')
 lv_rsync_command_logfilename=${lv_workingfolder}/${lv_temp}
 
 # get rsync log name 
-readonly lv_temp2=$(cat ./${lv_archiveconfigname} | grep ^rsync_log | grep -v '#' | awk '{print $2}')
+readonly lv_temp2=$(cat ./${lv_archiveconfigname} | grep ^rsync_log | grep -v '#' | gawk '{print $2}')
 readonly lv_rsync_log=${lv_workingfolder}/${lv_temp2}
 
 
 # get rsync args in line 
 # get all entries, except first
-readonly lv_rsync_args=$(cat ./${lv_archiveconfigname} | grep ^rsync_args | grep -v '#' | awk '{ $1=""; print }')
+readonly lv_rsync_args=$(cat ./${lv_archiveconfigname} | grep ^rsync_args | grep -v '#' | gawk '{ $1=""; print }')
 
 # get exclude file name
-readonly lv_temp3=$(cat ./${lv_archiveconfigname} | grep ^exclude_file | grep -v '#' | awk '{ print $2}')
+readonly lv_temp3=$(cat ./${lv_archiveconfigname} | grep ^exclude_file | grep -v '#' | gawk '{ print $2}')
 readonly lv_excludefilename="${bv_excludefolder}/${lv_temp3}"
 
 # no bv_preconditionsfolder file for archive
@@ -160,58 +197,59 @@ IFS='
 # 0 = 'backup', 1 = source, 2 = target, may be .
 readonly backuplinesarray=($list_of_backuplines)
 IFS=$oldifs
-dlog "# number of backup entries  in './${lv_archiveconfigname}' : ${#backuplinesarray[@]}"
+dlog "number of backup entries  in './${lv_archiveconfigname}' : ${#backuplinesarray[@]}"
+dlog ""
 
-lineounter=0
+linenr=1
 RET=0
-_ok=0
+ok=0
 
-
-
-for _line in "${backuplinesarray[@]}"
+for line in "${backuplinesarray[@]}"
 do
 	# split to array with ()
-	_linearray=($_line)
+	linearray=($line)
 
 	# 0 = keyword 'backup', 1 = source, 2 = target
-	_source=${_linearray[1]}
-	_target=${_linearray[2]}
+	source=${linearray[1]}
+	target=${linearray[2]}
 
-	if test -z ${_target}
+	if test -z ${target}
 	then
-		_target="."
+		target="."
 	fi
-	if test $_target = "." 
+	if test $target = "." 
 	then
-		_target=""
+		target=""
 	fi
 
-	tlog "do: $_source"
-	dlog "source : $_source"
+	tlog "do: $source"
+	dlog "$linenr:"
+	dlog "source : $source"
+	dlog "target: ${lv_archive_root}${target}"
 
-	dlog "target: ${lv_archive_root}${_target}"
-
-	rcommand="rsync ${lv_rsync_args}   $_source   ${lv_archive_root}${_target} --log-file=${lv_rsync_log}"
+	rcommand="rsync ${lv_rsync_args}   $source   ${lv_archive_root}${target} --log-file=${lv_rsync_log}"
 	if [ -f "${lv_excludefilename}" ]
 	then
 		#	                          --exclude-from=/usr/local/bin/backup_data/bv_excludefolder/dluks_dserver
-		rcommand="rsync ${lv_rsync_args}  --exclude-from=${lv_excludefilename}  $_source   ${lv_archive_root}${_target} --log-file=${lv_rsync_log}"
+		rcommand="rsync ${lv_rsync_args}  --exclude-from=${lv_excludefilename}  $source   ${lv_archive_root}${target} --log-file=${lv_rsync_log}"
 	fi
 	dlog "rsync command: $rcommand"
+	write_rsync_command_log "$linenr:" 
 	write_rsync_command_log "$rcommand" 
 	eval $rcommand
 	RET=$?
 	if test $RET -ne 0
 	then
-		dlog "rsync fails, source: $_source"
+		dlog "rsync fails, source: $source"
 		dlog ""
-		_ok=1
+		ok=1
 	else
-		dlog "rsync ok, source: $_source"
+		dlog "rsync ok, source: $source"
 		dlog ""
 	fi
 
-	(( lineounter++ ))
+	(( linenr++ ))
+
 done
 
 runningnumber=$( get_runningnumber )
@@ -223,7 +261,7 @@ rm $lv_archive_root/${lv_lpkey}_created_at*
 
 readonly final_created_at_filename_base="$lv_archive_root/${lv_lpkey}_created_at_${lv_logdate}_number_$runningnumber"
 
-if test $_ok -eq 0 
+if test $ok -eq 0 
 then
 	echo "created at: ${lv_logdate}, loop: $runningnumber" > ${final_created_at_filename_base}.txt
 else
@@ -237,6 +275,10 @@ fi
 write_rsync_command_log "-- $lv_logdate, end backup from '${lv_archiveconfigname}' -- " 
 write_rsync_command_log "-- $lv_logdate, end -- " 
 
+# write date to folder "done"
+dlog "- write last date: ./${bv_donefolder}/${lv_lpkey}_done.log"
+_currenttime_=$( currentdateT )
+echo "$_currenttime_" > ./${bv_donefolder}/${lv_lpkey}_done.log
 
 dlog "== end bk_archive.sh =="
 tlog "end" 

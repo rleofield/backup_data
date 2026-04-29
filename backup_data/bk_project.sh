@@ -4,7 +4,7 @@
 # disable: Declare and assign separately to avoid masking return
 
 # file: bk_project.sh
-# bk_version  26.04.1
+# bk_version  26.05.1
 
 
 
@@ -85,252 +85,139 @@ set -u
 
 
 
+if [ ! "$1" ] || [ ! "$2" ]
+then
+	dlog "disklabel '$1' or project '$2' not set in call of 'bk_projekt.sh'"
+	exit $BK_DISKLABELNOTGIVEN
+fi
+
 
 # par1 = label of backup-disk
 readonly lv_disklabel=$1
 # par2 = name of the project 
 readonly lv_project=$2
 
-readonly lv_tracelogname="project"
-readonly lv_cc_logname="${lv_disklabel}:project:${lv_project}"
-readonly lv_lpkey=${lv_disklabel}_${lv_project}
-
-if [ ! $lv_disklabel ] || [ ! $lv_project ]
-then
-	dlog "disklabel '$lv_disklabel' or project '$lv_project' not set in call of 'bk_projekt.sh'"
-	exit $BK_DISKLABELNOTGIVEN
-fi
-
-readonly lv_targetdisk=$( targetdisk "$lv_disklabel" )
-lv_label_displayname="$lv_disklabel"
-if [ "$lv_disklabel" != "$lv_targetdisk" ]
-then
-	lv_label_displayname="$lv_disklabel ($lv_targetdisk)"
-fi
-
-function write_last_date {
-	dlog "write last date: ./${bv_donefolder}/${lv_lpkey}_done.log"
-	_currenttime_=$( currentdateT )
-	echo "$_currenttime_" > ./${bv_donefolder}/${lv_lpkey}_done.log
-}
-
-function execute_archive {
-
-	local lv_archive_root=$(cat ./${lv_archive_cfg_file} | grep ^archive_root | grep -v '#' )
-	dlog "archive_root= '$lv_archive_root'"
-	tlog "do archive:  '$lv_lpkey'"
-	# parameter $lv_lpkey
-	# do achive of files, no history, no delete, accumulate files
-	# ###########    calls ./bk_archive.sh ${lv_disklabel} ${lv_project} ############################
-	./bk_archive.sh  ${lv_disklabel} ${lv_project}
-	# ############################################################################################
-	local lv_archive_return=$?
-	if test $lv_archive_return -eq $BK_RSYNCFAILS
-	then
-		dlog "error in 'bk_archive.sh': rsync to archive fails, disk: ${lv_disklabel}, project: '$lv_project'"
-		# in archive call, exit $BK_RSYNCFAILS
-		# BK_RSYNCFAILS=10
-		return $BK_RSYNCFAILS
-	fi
-	if test $lv_archive_return -eq 0 
-	then
-		# write current time to done file
-		# archive: "write last date: ./${bv_donefolder}/${lv_lpkey}_done.log"
-		write_last_date 
-	fi
-	return $lv_archive_return
-}
-
-tlog "start:  '$lv_lpkey'"
-
-dlog ""
-dlog "start project '$lv_project' at disk '$lv_label_displayname'"
 
 # check, if config file ends with 'arch', then we do simple backup with rsync, not with 'rsnapshot'
-readonly lv_archive_cfg_file=${bv_conffolder}/${lv_lpkey}.arch
+readonly lv_archive_cfg_file=${bv_conffolder}/${lv_disklabel}_${lv_project}.arch
 
-lv_countarchiverootlines=0
-if [ -f ./${lv_archive_cfg_file} ]
+if [ -f ./"${lv_archive_cfg_file}" ]
 then
-	dlog "check, is config is archive cfg: cat ./${lv_archive_cfg_file} | grep ^archive_root | grep -v '#' | wc -l "
-	lv_countarchiverootlines=$(cat ./${lv_archive_cfg_file} | grep ^archive_root | grep -v '#' | wc -l)
-
-
-	# if line with 'archive_root' exists, do 'bk_archive.sh' with project name
-	# exact 1 archive_root exists
-	if [ $lv_countarchiverootlines -eq 1 ]
-	then
-		execute_archive
-		archive_return=$?
-		exit $archive_return
-	fi
-	dlog "no archive_root found in '${lv_archive_cfg_file}'"
-	exit  $BK_RSYNCFAILS
+	lv_cc_logname="${lv_disklabel}:archive:${lv_project}"
+	############ calls ./bk_archive.sh ${lv_disklabel} ${lv_project} ############################
+	dlog "call archive, conf: '${lv_archive_cfg_file}' "
+	./bk_archive.sh  "${lv_disklabel}" "${lv_project}"
+	#############################################################################################
+	archive_ret=$?
+	exit  $archive_ret
 fi
+##########  end archive ##########################
+##################################################
 
 
-# not reached, if simple rsync backup via archive config is used
-# do normal rsnapshot
-
-# check, if config file ends with 'conf', then we do a backup with 'rsnapshot'
-readonly lv_rsnapshot_config=${lv_lpkey}.conf
-readonly lv_rsnapshot_cfg_file=${bv_conffolder}/${lv_rsnapshot_config}
 
 
-if  [ ! -f ./${lv_rsnapshot_cfg_file} ]
-then
-	dlog "'${lv_rsnapshot_cfg_file}' doesn't exist"
-	exit $BK_RSYNCFAILS
-fi
 
-readonly lv_ro_rsnapshot_root=$(cat ./${lv_rsnapshot_cfg_file} | grep ^snapshot_root | grep -v '#' | awk '{print $2}')
 
-dlog "snapshot_root: '$lv_ro_rsnapshot_root'"
+#############################################
+### functions ###############################
+#############################################
 
-# 3 local arrays
-declare -A retainscount
-declare -A retains_count_file_names
-declare -A retains
+# write date to folder "done"
+function write_last_date {
+	dlog "- write project done date: ./${bv_donefolder}/${lv_lpkey}_done.log"
+	_currenttime_=$( currentdateT )
+	echo "$_currenttime_" > ./${bv_donefolder}/"${lv_lpkey}"_done.log
+}
+
+
 
 # parameter
 #  $1 = file with lines = number of lines in this file is retains count = number of current retains done at this retain key
 # filename is 'disk_project_retains'
-# get number_of_ entries keeped in history  
-function entries_keeped {
-	local _index=$1
-	local _retains_count_file_name=${retains_count_file_names[$_index]}
+# get number of entries keeping in history  
+# index is > 0 and < 5
+#i old function entries_keeped {
+function retain_file_lines {
+	local _retains_count_file_name=$1
 	local _counter=0
-	local _retain_value=${retains[$_index]}
-	if [ -f ${_retains_count_file_name} ]
+	# if not exists, counter = 0 
+	if [ -f "${_retains_count_file_name}" ]
 	then
 		# count the lines
-		# count is number of entries_keeped
-		_counter=$(  wc  -l < ${_retains_count_file_name}  )
+		# linecount is number of entries keeped
+		_counter=$(  wc  -l < "${_retains_count_file_name}"  )
 	fi
-	echo $_counter
+	echo "$_counter"
 }
 
+function retain_lines {
+	local _index=$1
+	local _retains_count_file_name=${retainscountfiles[_index]}
+	local _counter=$( retain_file_lines "$_retains_count_file_name" )
+	echo "$_counter"
+}
 
-
-tlog "do project:  '$lv_lpkey'"
-
-# look up for lines with word 'retain'
-readonly retainslist=$( cat ./${lv_rsnapshot_cfg_file} | grep ^retain )
-readonly OIFS=$IFS
-IFS='
-'
-# convert to array of 'retain' lines
-# 0 = 'retain', 1 = level, 2 = count
-readonly lines=($retainslist)
-#dlog "# current number of retain entries  './${lv_rsnapshot_cfg_file}' : ${#lines[@]}"
-
-IFS=$OIFS
-
-
-# split retains from conf file
-
-readonly size=${#lines[@]}
-if [ $size -ne 4 ]
-then
-	dlog "error in './${lv_rsnapshot_cfg_file}', number of retain entries is wrong, must be 4, but is '$size'"
-	exit $BK_RSYNCFAILS
-fi
-# retain values example
-: << '--COMMENT--'
-retain          eins    5
-retain          zwei    4
-retain          drei    4
-retain          vier    4
-
-retain must be > 1
-if < 2 then, rsnapshot complains with:
-# [2020-04-04T10:23:11] /usr/bin/rsnapshot -c ./conf/wdg_dserver.conf sync: 
-# ERROR: Can not have first backup level's retention count set to 1, and have a second backup level
---COMMENT--
-
-n=0
-for i in "${lines[@]}"
-do
-        # split to array with ()
-	_line=($i)
-
-	# 0 = keyword 'retain', 1 = level= e.g. eins,zwei,drei, 2 = count
-	rlevel=${_line[1]}
-	retains[$n]=$rlevel
-	rcount=${_line[2]}
-	if [[ $rcount -lt 2 ]]
-	then
-		dlog "retain count is < 2 in retain '$rlevel', this is not allowed in 'rsnapshot' and this backup"
-		exit $BK_ERRORINCOUNTERS
-	fi
-
-	retainscount[$n]=$rcount
-	retains_count_file_names[$n]=$bv_retainscountfolder/${lv_lpkey}_${rlevel}
-
-	_t0=$(  printf "%8s %4s (%2s)" ${retains[$n]} ${retainscount[$n]} $( entries_keeped $n )   )
-	dlog "retain $n: $_t0"
-
-	(( n++ ))
-done
-
-firstretain=${retains[0]}
-
-#dlog "firstretain: $firstretain"
-
-# retain from conf splitted
 
 
 # remove index 0 counter, means set count to 0, = interval eins
 # par = oldindex
 function remove_counter_file {
 	local _oldindex=$1
-	local _oldretain=${retains[$_oldindex]}
-	local _oldfile=${retains_count_file_names[$_oldindex]}
+	local _oldretain=${retainlevel[_oldindex]}
+	local _oldfile=${retainscountfiles[_oldindex]}
 	dlog "set count for retain '${_oldretain}' to 0"
 	# means: set linecounter to 0
-	rm ${_oldfile}
+	rm "${_oldfile}"
 	#touch ${_oldfile}
 }
 
 
 # parameter
 # $1 = index in retainslists
-# increment index counter, indirect via number of lines in file
-# means append line in retains_count_file_names[$index] with date 
-# done after rotate, if _created_time="", then error in filesystem
+# increment index counter = number of lines in file
+# in retainscountfiles[$_index]
+# index is > 0 and < 5
 function update_counter {
 	local _index=$1
 	local _currenttime=$( currentdateT )
-	local _currentretain=${retains[$_index]}
-	local _counter_=$( entries_keeped $_index )
-	local retains_count_file_name=${retains_count_file_names[$_index]}
-	dlog " -- increment retains count: value: '${_counter_}',  file:  '${retains_count_file_name}'"
-	local _zero_interval_folder=$( echo "${lv_ro_rsnapshot_root}${_currentretain}.0" )
+	local _currentretain=${retainlevel[_index]}
+	local _retains_count_file_name=${retainscountfiles[_index]}
+	local _nr_old_retain_lines=$( retain_file_lines "$_retains_count_file_name" )
 
+	# set, if created_at exists
+	local _created_time=""
+	#  "retains_count"
+	dlog "- increment retains count: value: '${_nr_old_retain_lines}',  file:  '${_retains_count_file_name}'"
+	local _zero_interval_folder=$( echo "${lv_rsnapshot_root}${_currentretain}.0" )
+	#dlog "- _zero_interval_folder $_zero_interval_folder"
+	# plausibility check of zero interval folder, must be present
 	if test -d ${_zero_interval_folder}
 	then
-		# increment by one line
-		echo "runs at: $_currenttime" >> ${retains_count_file_name}
+		# add one line retains count file
+		echo "runs at: $_currenttime" >> ${_retains_count_file_name}
 
-		local _counternext=$( entries_keeped $_index )
-		dlog " -- new value:                      '${_counternext}'"
-		local _max_count=${retainscount[$_index]}
+		local _counternext=$( retain_file_lines $_retains_count_file_name )
+		dlog "- new value:                      '${_counternext}'"
+		local _max_count=${retainscount[_index]}
 
 		# get loop number from previous 'created at' at current retain
 		# e.g.: /mnt/bdisk/rs/nc/eins.0/created_at_2019-10-05T10:49_number_03767.txt
 		# loop number is at end
-		#set -x
 		# created in bk_rsnapshot.sh:191
-		local cr_file=$( ls -1 ${lv_ro_rsnapshot_root}${_currentretain}.0/${bv_createdatfileprefix}*  )
-		# created_at_date__number_nnnnn
-		dlog "check created info file: '$cr_file'"
-		local _created_time=""
+		# defined in src_filenames.sh:readonly bv_createdatfileprefix="created_at_"
+		local cr_file=$( ls -1 ${lv_rsnapshot_root}${_currentretain}.0/${bv_createdatfileprefix}*  )
+		# created_at_date_number_nnnnn
+		dlog "- check created info file: '$cr_file'"
 		if [ ! -z $cr_file ]
 		then
-			local last_line_in_cr_file=$( cat ${cr_file}  )
+			local line_in_cr_file=$( cat ${cr_file}  )
 			local pat="created at: "
-			_created_time=${last_line_in_cr_file#$pat}
-			#dlog "check created info file: '$_created_time'"
+			# look up pattern after pat
+			# used at end of function
+			_created_time=${line_in_cr_file#$pat}
+		else
+			dlog "- info file not found: '$cr_file'"
 		fi
 	else
 		dlog "interval.0 folder: '${_zero_interval_folder}' check fails"
@@ -338,7 +225,6 @@ function update_counter {
 	fi
 
 	space="xxx"
-	#set +x
 	case $_index in
 		0) 
 			space=" "
@@ -356,15 +242,16 @@ function update_counter {
 	local msg=""
 	if [ $_max_count -lt 10 ]
 	then
-		msg=$( printf "%1d of %1d"  $_counter_ $_max_count )
+		msg=$( printf "%1d of %1d"  $_nr_old_retain_lines $_max_count )
 	else
-		msg=$( printf "%2d of %2d"  $_counter_ $_max_count )
+		msg=$( printf "%2d of %2d"  $_nr_old_retain_lines $_max_count )
 	fi
-	local intervaldonefile="${lv_lpkey}_done.txt"
-	dlog "write reportline to '$bv_intervaldonefolder/$intervaldonefile'"
+	# "interval_done"
+	local intervaldonefile="${bv_intervaldonefolder}/${lv_lpkey}_done.txt"
+	dlog "- write reportline to '$intervaldonefile'"
 	reportline=$(  echo "($msg)${space}${_currentretain} at: $_currenttime created '${_created_time}'" )
-	dlog "reportline is:  $reportline"
-	echo "$reportline" >> $bv_intervaldonefolder/$intervaldonefile
+	dlog "- reportline is:  $reportline"
+	echo "$reportline" >> "$intervaldonefile"
 
 }
 
@@ -373,9 +260,9 @@ function update_counter {
 # $1 = index in retainsliststs
 function do_rs {
 	local _index=$1
-	local _currentretain=${retains[$_index]}
+	local _currentretain=${retainlevel[_index]}
 
-	dlog "do retain '$_currentretain': in '$lv_project' at disk '$lv_disklabel'"
+	dlog "- do retain '$_currentretain': in '$lv_project' at disk '$lv_disklabel'"
 #	dlog "--- rsync $_currentretain"
 	# parameter $INTERVAL $lv_disklabel $lv_project
 	# do first rsnapshot, is real sync
@@ -383,7 +270,7 @@ function do_rs {
 	./bk_rsnapshot.sh $_currentretain $lv_disklabel $lv_project 
 	# #############################################################################
 	local RET=$?
-	dlog "return of 'bk_rsnapshot.sh': $RET"
+	dlog "- return of 'bk_rsnapshot.sh': $RET"
 	#    'rsnapshot_root'  doesn't exist 
 	#	exit $BK_NORSNAPSHOTROOT = 12
 	#    interval from caller is invalid
@@ -453,14 +340,14 @@ function do_rs_123 {
 	##########  do rs #############################################################    
 	do_rs $_index
 	# #############################################################################
-        local RET=$?
+        local rs_123_RET=$?
 	#    exit $BK_NORSNAPSHOTROOT
 	#     interval from caller is invalid
 	#    exit $rs_exitcode = 0
 	# after .sync
 	#    rs_exitcode=$BK_RSYNCFAILS
 
-	if test $RET -eq 0
+	if test $rs_123_RET -eq 0
 	then
 		# increment index 1 counter
 		update_counter $_index
@@ -470,14 +357,10 @@ function do_rs_123 {
 		# _index is current level
 		# previous_index is one level lower 
 		# e.g. rm 'cdisk_dserver_eins'
+		# previous_index is alway set to 0, previous list is now obsolete
 		remove_counter_file $(previous_index $_index)
 	fi
-	local _counter=$( entries_keeped $_index)
-	local _max_count=${retainscount[$_index]}
-	#dlog "after sync"
-	dlog "'${retains[$_index]}'    : $_counter"
-	dlog "'${retains[$_index]}' max: $_max_count"
-	return $RET
+	return $rs_123_RET
 }
 
 
@@ -487,13 +370,13 @@ function do_rs_first {
 	##########  do rs #############################################################    
 	do_rs $_index
 	# #############################################################################
-	local RET=$?
-	if test $RET -eq 0
+	local rs_first_RET=$?
+	if test $rs_first_RET -eq 0
 	then
 		# first was ok, update counter
-		dlog "sync '$lv_project' done"
+		dlog "- sync '$lv_project' done"
 		# increment index 0 counter
-		# counter file doesn't exist ??
+		# counter file doesn't exist 
 		update_counter $_index
 		# no remove index 0 counter, previous_index is -1
 
@@ -501,26 +384,151 @@ function do_rs_first {
 		# write _done.log
 		# write_done_file
 		# snapshot: "write last date: '$_currenttime' to ./${bv_donefolder}/${lv_lpkey}_done.log"
+		# only in last entry at first retain the done date is written
 		write_last_date 
-
 	fi
-	local _counter=$( entries_keeped $_index ) 
-	local _max_count=${retainscount[$_index]}
-	dlog "'${retains[$_index]}'    :   $_counter"
-	dlog "'${retains[$_index]}' max:   $_max_count"
-	return $RET
+	return $rs_first_RET
 }
 
 
 function previous_index {
 	local _index=$1
-	echo $(( _index -1 ))
+	echo $(( _index - 1 ))
 }
+
+
+#############################################
+### start  ##################################
+#############################################
+
+# defined at start of file
+######
+# par1 = label of backup-disk
+#### readonly lv_disklabel=$1
+# par2 = name of the project 
+#### readonly lv_project=$2
+######
+
+
+# do normal rsnapshot
+readonly lv_lpkey=${lv_disklabel}_${lv_project}
+# used in dlog() in 'src_log.sh'
+lv_cc_logname="${lv_disklabel}:project:${lv_project}"
+
+# used in tlog() in 'src_log.sh'
+readonly lv_tracelogname="project"
+
+readonly lv_targetdisk=$( targetdisk "$lv_disklabel" )
+
+lv_label_displayname="$lv_disklabel"
+if [ "$lv_disklabel" != "$lv_targetdisk" ]
+then
+	lv_label_displayname="$lv_disklabel ($lv_targetdisk)"
+fi
+
+
+tlog "start:  '$lv_lpkey'"
+
+dlog ""
+dlog "== start project '$lv_project' at disk '$lv_label_displayname' =="
+
+# check, if config file exists, then we do a backup with 'rsnapshot'
+readonly lv_rsnapshot_cfg_file=${bv_conffolder}/${lv_lpkey}.conf
+if  [ ! -f ./"${lv_rsnapshot_cfg_file}" ]
+then
+	dlog "'${lv_rsnapshot_cfg_file}' doesn't exist"
+	exit $BK_RSYNCFAILS
+fi
+
+readonly lv_rsnapshot_root=\
+$(cat ./"${lv_rsnapshot_cfg_file}" | grep ^snapshot_root | grep -v '#' | gawk '{print $2}')
+
+dlog "- snapshot_root: '$lv_rsnapshot_root'"
+
+
+# define 3 local arrays
+# values: retain          eins          5
+#                         retainlevel   retainscount
+declare -a retainscount
+declare -a retainlevel
+# name of the files with actual retain count
+declare -a retainscountfiles
+
+
+tlog "do project:  '$lv_lpkey'"
+
+# look up for lines with word 'retain'
+readonly retainslist=$(  cat ./"${lv_rsnapshot_cfg_file}" | grep ^retain  )
+readonly OIFS=$IFS
+# IFS is \n
+IFS='
+'
+
+# convert to array of 'retain' lines
+# 0 = 'retain', 1 = level, 2 = count
+readonly lines=($retainslist)
+IFS=$OIFS
+
+# obtain retains from conf file
+
+declare -i size=${#lines[@]}
+if [ $size -ne 4 ]
+then
+	dlog "error in './${lv_rsnapshot_cfg_file}', number of retain entries is wrong, must be 4, but is '$size'"
+	exit $BK_RSYNCFAILS
+fi
+
+# retain values example
+: << '--COMMENT--'
+retain          eins    5
+retain          zwei    4
+retain          drei    4
+retain          vier    4
+
+retaincount must be > 1
+if < 2 then, rsnapshot complains with:
+# [2020-04-04T10:23:11] /usr/bin/rsnapshot -c ./conf/wdg_dserver.conf sync: 
+# ERROR: Can not have first backup level's retention count set to 1, and have a second backup level
+
+
+20260420-2248 --  ddisk:project:lserver: - retain 0:     eins    3 ( 0)
+20260420-2248 --  ddisk:project:lserver: - retain 1:     zwei    4 ( 0)
+20260420-2248 --  ddisk:project:lserver: - retain 2:     drei    5 ( 2)
+20260420-2248 --  ddisk:project:lserver: - retain 3:     vier    6 ( 1)
+is printed here
+
+--COMMENT--
+
+
+
+declare -i n=0
+for linearray in "${lines[@]}"
+do
+        # split to array 
+	# 0 = keyword 'retain', 1 = level= e.g. eins,zwei,drei, 2 = count
+	line=($linearray)
+	retainlevel[n]=${line[1]}
+	retainscount[n]=${line[2]}
+	if [[ ${line[2]}  -lt 2 ]]
+	then
+		dlog "retain count is < 2 in retain '${line[2]}', this is not allowed in 'rsnapshot' and this backup"
+		exit $BK_ERRORINCOUNTERS
+	fi
+
+	# folder: "retains_count"
+	retainscountfiles[n]=$bv_retainscountfolder/${lv_lpkey}_${retainlevel[n]}
+
+	_retains_count_file=${retainscountfiles[n]}
+	print_line=$(printf "%8s %4s (%2s)" "${retainlevel[n]}" "${retainscount[n]}" $(retain_file_lines "$_retains_count_file"))
+	dlog "- retain $n: $print_line"
+
+	(( n++ ))
+done
 
 
 # start of rsnapshot calls
 tlog "do first"
-dlog "do first"
+dlog "- do first"
 ##########  do_rs_first 0 #####################################################
 # index is 0
 do_rs_first
@@ -528,40 +536,41 @@ do_rs_first
 
 
 # index 0
-index=0
-counter=$( entries_keeped $index ) 
-max_count=${retainscount[$index]}
+declare -i index=0
+declare -i counter=$( retain_lines $index ) 
+declare -i max_count=${retainscount[index]}
 
 #  retain eins end
 
 
-# check rotates
+# check rotates, after first retain
 # if  index 0 filecounter >= max, do index 1
 if test $counter -ge  $max_count
 then	
 	# do index 1 = second level
 	index=1
-	dlog "counter: $counter -ge  $max_count index: $index, root: $lv_ro_rsnapshot_root"
+	dlog "- counter: $counter -ge  $max_count index: $index, root: $lv_rsnapshot_root"
 	tlog "do second"
 	##########  do rs index = 1  #############################################################
 	do_rs_123 $index
 	##########################################################################################
 
-	counter=$( entries_keeped $index)
+	counter=$( retain_lines $index )
+	#icnter=$(( counter ))
 	max_count=${retainscount[$index]}
 	# if index 1 counter >= max, do index 2
-	m=$(( max_count )) 
-	if test $counter -ge  $m
+	#intm=$(( max_count )) 
+	if test $counter -ge  $max_count
 	then
 		# do index 2 = third level
 		index=2
-		dlog "counter: $counter -ge  $max_count index: $index, root: $lv_ro_rsnapshot_root"
+		dlog "- counter: $counter -ge  $max_count index: $index, root: $lv_rsnapshot_root"
 		tlog "do third"
 		##########  do rs index = 2  #############################################################
 		do_rs_123 $index
 		##########################################################################################
-		counter=$( entries_keeped $index )
-		max_count=${retainscount[$index]}
+		counter=$( retain_lines $index )
+		max_count=${retainscount[index]}
 
 		# if index 2 counter >= max, do index 3
 		m=$(( max_count )) 
@@ -569,14 +578,14 @@ then
 		then
 	                # do index 3 = fourth level
 			index=3
-			dlog "counter: $counter -ge  $max_count index: $index, root: $lv_ro_rsnapshot_root"
+			dlog "- counter: $counter -ge  $max_count index: $index, root: $lv_rsnapshot_root"
 			tlog "do fourth"
 
 			##########  do rs index = 3  #############################################################
 			do_rs_123 $index
 			##########################################################################################
 
-			counter=$( entries_keeped $index )
+			counter=$( retain_lines $index )
 			max_count=${retainscount[$index]}
 
 			# last, no more loops
@@ -595,9 +604,8 @@ then
 				# oldindex 3
 				index=4 # 1 after last
 
-				dlog "counter: $counter -gt  $max_count index: $index, root: $lv_ro_rsnapshot_root"
-				#_oldfile=${retains_count_file_names[$oldindex]}
-				#oldretain=${retains[$oldindex]}
+				dlog "- counter: $counter -gt  $max_count index: $index, root: $lv_ro_rsnapshot_root"
+				#_oldfile=${retainscountfiles[$oldindex]}
 				dlog ""
 				dlog "(in index 4) do no rotate: '$lv_project' at disk '$lv_disklabel'"
 
@@ -615,33 +623,13 @@ then
 	fi
 fi
 
-########### final generic start #####################
-# final stage at end of project
-# final_func "$lv_disklabel" "$lv_project" "$lv_ro_rsnapshot_root" "$firstretain"
-# end final stage 
-########### final generic end  #####################
-
-
-
 
 tlog "end"
-
-# lv_label_displayname="$lv_disklabel ($lv_targetdisk)"
 
 dlog "==  end project '$lv_project' at disk '$lv_label_displayname' and sync =="
 sync
 dlog ""
 
-
-: << list_of_functions
-182:function entries_keeped {
-268:function remove_counter_file {
-284:function update_counter {
-357:function do_rs {
-433:function do_rs_123 {
-467:function do_rs_first {
-500:function previous_index {
-list_of_functions
 
 # EOF
 

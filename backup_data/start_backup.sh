@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: start_backup.sh
-# bk_version  26.04.1
+# bk_version  26.05.1
 
 
 # Copyright (C) 2017-2026 Richard Albrecht
@@ -30,7 +30,7 @@
 
 readonly callfilename=$(basename "$0")
 
-readonly bv_version="26.04.1"
+readonly bv_version="26.05.1"
 
 
 readonly lv_lockfilename="main_lock"
@@ -96,29 +96,6 @@ echo ""
 
 cd $STARTFOLDER 
 
-
-# normal file test
-# -e     True if exists.
-# -f     True, if exists and is a regular file.
-# -r     True, if exists and is readable.
-# -s     True, if exists and has size bigger than 0 (not empty).
-# -n    string is not null 
-function test_normal_file {
-	local name=$1
-#	   exists            not null          size > 0           is file           readable
-	[ -e "$name" ] &&  [ -n "$name" ] && [ -s "$name" ] && [ -f "$name" ] && [ -r "$name" ] 
-}
-
-# normal file test
-# -e     True if exists.
-# -f     True, if exists and is a regular file.
-# -r     True, if exists and is readable.
-# -n    string is not null 
-function test_file {
-	local name=$1
-#	   exists            not null          is file          readable
-	[ -e "$name" ] &&  [ -n "$name" ] && [ -f "$name" ] && [ -r "$name" ]
-} 
 
 echo "check, if 'backup' is running"
 #echo "check, if 'bk_main.sh' is running"

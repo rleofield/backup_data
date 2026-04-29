@@ -30,23 +30,40 @@
 
 
 
+
+# == daily_rotate ==
+# default = 1,  =  rotate logs
+# checked in bk_main.sh:265:    "if [ $bv_daily_rotate -eq 1 ]"
+readonly bv_daily_rotate=1
+
+
+
 # text file for success and unsuccess
+# used in bk_disks.sh
+# used in bk_loop.sh
 readonly bv_successarray_tempfile="tempfile_successarray.txt"
 readonly bv_unsuccessarray_tempfile="tempfile_unsuccessarray.txt"
+
+# used in bk_loop.sh
+# used in bk_main.sh
+# used in bk_disks.sh
 readonly bv_internalerrors="errors.txt"
 
+# used in bk_disks.sh
+# used in bk_main.sh
 readonly bv_stopfile="stop"
 
-# in bk_disks.sh
-# readonly successloglinestxt="successloglines.txt"
-
-
+# used in bk_loop.sh
 readonly bv_notifyfileprefix="Backup-HD"
+
+# used in bk_project.sh
+# used in bk_rsnapshot.sh
 readonly bv_createdatfileprefix="created_at_"
 
 
 
 # now in bk_disks.sh
+# var is used in bk_loop.sh, bk_disks.sh
 readonly bv_executedprojectsfile="tempfile_executedprojects.txt"
 
 # in bk_main

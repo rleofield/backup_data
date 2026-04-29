@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # file: bk_main.sh
-# bk_version  26.04.1
+# bk_version  26.05.1
 
 # Copyright (C) 2017-2026 Richard Albrecht
 # www.rleofield.de
@@ -79,8 +79,10 @@ readonly lv_cc_logname="main"
 # used in tlog() in 'src_log.sh'
 readonly lv_tracelogname="main"
 
+#echo "AAA logfile: $bv_logfile"
 tlog "start"
 
+#echo "BBB logfile: $bv_logfile"
 
 # gawk is used instead of awk
 function check_if_gawk_exists {
@@ -114,24 +116,6 @@ function check_working_folder {
 		dlog "workingfolder '$bv_workingfolder' is wrong, stop, exit 1 "
 		exit 1
 	fi
-}
-
-# increment counter, if all disk are executed 
-function increment_loop_counter {
-	# increment counter after main_loop.sh and before exit
-	local _counter=$( get_loopcounter )
-	_counter=$(( _counter + 1 ))
-
-	# max is MAX_INT = 9223372036854775807
-	# wraps at 99.999 = 100.000 loops
-	# normally not more than 100.000 loops are used in rsnapshot
-	# see './show_config.sh | g -e total -e Project'
-	if (( _counter > 99999 ))
-	then
-		_counter=0
-	fi
-	# write back to 'loop_counter.log'
-	echo "loop counter: $_counter" > loop_counter.log
 }
 
 
@@ -439,6 +423,24 @@ function rotate_logs(){
 	fi
 }
 
+# increment counter, if all disk are executed 
+function increment_loop_counter {
+	# increment counter after main_loop.sh and before exit
+	local _counter=$( get_loopcounter )
+	_counter=$(( _counter + 1 ))
+
+	# max is MAX_INT = 9223372036854775807
+	# wraps at 99.999 = 100.000 loops
+	# normally not more than 100.000 loops are used in rsnapshot
+	# see './show_config.sh | g -e total -e Project'
+	if (( _counter > 99999 ))
+	then
+		_counter=0
+	fi
+	# write back to 'loop_counter.log'
+	echo "loop counter: $_counter" > loop_counter.log
+}
+
 
 function set_lock(){
 	local _runningnumber=$( get_runningnumber )
@@ -453,7 +455,7 @@ function release_lock(){
 	if [ -f $lv_lockfilename ]
 	then
 		local _release_date=`date +%Y%m%d-%H%M%S`
-		echo "$_release_date: remove file '$lv_lockfilename'"
+		#echo "$_release_date: remove file '$lv_lockfilename'"
 		dlog "$_release_date: remove file '$lv_lockfilename'"
 		rm $lv_lockfilename
 	fi
@@ -462,9 +464,10 @@ function release_lock(){
 
 check_if_gawk_exists 
 check_if_rsnapshot_exists
-
 check_working_folder
+
 start_message
+
 check_main_lock
 check_and_remove_rsnapshot_pid_lock
 clear_internalerrors_list 
@@ -506,14 +509,16 @@ while true
 do
 	dlog "" 
 	_runningnumber=$( get_runningnumber )
-	# _runningnumber is incremented ai loop end in 'increment_loop_counter'
+	# _runningnumber is incremented at loop end in 'increment_loop_counter'
 
 	tlog "counter $_runningnumber"
 	dlog " ===== start main loop ($_runningnumber) =====" 
 	dlog " ===   version: $bv_version   ==="
 	_hostname="$(hostname)"
 	dlog " ===   hostname: $_hostname   ==="
+	_loop_date=`date +%Y%m%d-%H%M%S`
 
+	echo " == start new loop '$_runningnumber', $_loop_date ==" 
 	# rotate log
 	rotate_logs
 
@@ -639,6 +644,9 @@ do
 			dlog "" 
 			dlog "$text_marker_error_in_stop, last loop counter: '$_runningnumber', RET=$dRET "
 		else
+			
+			_loop_date=`date +%Y%m%d-%H%M%S`
+			echo " stopped $_loop_date" 
 			dlog "$text_marker_stop, end reached, start backup again with './start_backup.sh'"
 		fi
 		# normal stop via stop.sh
@@ -716,26 +724,30 @@ done
 dlog "execute loop: shouldn't be reached"
 exit 0
 
-: <<list_of_functions
-85:function check_if_gawk_exists {
-97:function check_if_rsnapshot_exists {
-108:function check_working_folder {
-119:function increment_loop_counter {
-138:function start_message {
-160:function check_main_lock {
-204:function check_and_remove_rsnapshot_pid_lock {
-216:function clear_internalerrors_list {
-224:function shatestfile(){
-239:function shatestfiles(){
-268:function shatest(){
-292:function list_test_flags(){
-319:function check_configuration_folders(){
-343:function check_arrays {
-386:function check_ssh_config(){
-398:function rotate_logs(){
-442:function set_lock(){
-451:function release_lock(){
-list_of_functions
+##############################
+
+: << bk_main_ablauf
+
+     some checks 
+     start_message
+     more checks
+
+     main loop, runs forever
+       while true
+         get loopnumber
+         rotate logs
+         execute_main_begin
+         set lock
+           call ./bk_disks
+         release_lock
+         increment_loop_counter
+         check return of disks
+         check stop
+       end while
+
+
+
+bk_main_ablauf
 
 # EOF
 

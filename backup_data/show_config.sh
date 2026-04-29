@@ -181,7 +181,7 @@ IFS='
 #		cfg="${_projekt_conf}"
 
 		# lookup for backup disk root folder
-		_backup_root=$(awk  '/^snapshot_root/&&!/^'\#'/  {print $2}' ${_projekt_conf})
+		_backup_root=$(gawk  '/^snapshot_root/&&!/^'\#'/  {print $2}' ${_projekt_conf})
 		echo ""
 		dlog1 ""
 
@@ -246,6 +246,10 @@ IFS='
 		do
 			dlog1 "$i"
 		done
+		dlog1 "-----------------"
+		dlog1 ""
+		cat cfg.projects | grep -v declare | grep -v '#' |  grep $_project
+		dlog1 ""
 		dlog1 "======"
 	else
 		dlog1 ""
@@ -262,20 +266,20 @@ echo "================="
 
 
 echo ""
-echo "all disks"
-echo "$bv_disklist"
+#echo "all disks"
+#echo "$bv_disklist"
 echo ""
 
-echo "all Projects"
-cat cfg.projects | grep -v declare | grep -v '#' | grep a_projects
+#echo "all Projects"
+#cat cfg.projects | grep -v declare | grep -v '#' | grep a_projects
 echo ""
 
-echo "all intervals"
-cat cfg.projects | grep -v declare | grep -v '#'| grep -v pdiff | grep a_interval
+#echo "all intervals"
+#cat cfg.projects | grep -v declare | grep -v '#'| grep -v pdiff | grep a_interval
 echo ""
 
-echo "all wait times"
-cat cfg.projects | grep -v declare | grep -v '#' | grep -v pdiff | grep a_waittime
+#echo "all wait times"
+#cat cfg.projects | grep -v declare | grep -v '#' | grep -v pdiff | grep a_waittime
 
 
 # EOF

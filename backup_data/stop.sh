@@ -23,6 +23,8 @@ then
         exit
 fi
 . ./cfg.working_folder
+. ./cfg.projects
+#. ./src_filenames.sh
 . ./src_log.sh
 . ./src_exitcodes.sh
 
@@ -36,7 +38,7 @@ lv_cc_logname="stop"
 
 
 #bv_logfile
-lastlogline=$( awk  'END { print }'  $bv_logfile )
+lastlogline=$( gawk  'END { print }'  $bv_logfile )
 readonly vtest="$text_marker_stop"
 if [[ $lastlogline == *"$vtest"* ]]
 then

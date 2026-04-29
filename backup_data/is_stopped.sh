@@ -22,6 +22,7 @@
 . ./cfg.working_folder
 
 . ./src_exitcodes.sh
+. ./src_filenames.sh
 . ./src_log.sh
 
 cd $bv_workingfolder
@@ -47,7 +48,7 @@ fi
 
 if test -f $bv_logfile 
 then
-	lastlogline=$( awk  'END { print }'  $bv_logfile )
+	lastlogline=$( gawk  'END { print }'  $bv_logfile )
 
 	# waiting, backup ready, normal waiting for next hour
 	vtest="$text_marker_waiting"

@@ -1,7 +1,7 @@
 
 # file exitcodes.sh 
 
-# bk_version  26.04.1
+# bk_version  26.05.1
 # included with 'source'
 
 # Copyright (C) 2017-2026 Richard Albrecht
@@ -65,10 +65,11 @@ readonly BK_DISKNOTUNMOUNTED=4
 readonly BK_MOUNTDIRTNOTEXIST=5
 readonly BK_TIMELIMITNOTREACHED=6
 readonly BK_DISKNOTMOUNTED=7
+readonly BK_NO_ARCHIVE_ROOT=8
 
 
 # used in bk_rsnapshot.sh
-# evaluated in bk_project.sh and set again in bk_project.sh
+# evaluated in bk_project.sh 
 readonly BK_RSYNCFAILS=10
 
 # used in bk_project.sh
@@ -233,6 +234,7 @@ BK_DISKNOTUNMOUNTED=4
 BK_MOUNTDIRTNOTEXIST=5
 BK_TIMELIMITNOTREACHED=6
 BK_DISKNOTMOUNTED=7
+BK_NO_ARCHIVE_ROOT=8
 
 BK_RSYNCFAILS=10
 BK_NOINTERVALSET=11

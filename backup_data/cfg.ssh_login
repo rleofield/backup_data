@@ -57,13 +57,13 @@ readonly sshhost2=""
 # in all cases, message is copied to local folder 'backup_messages_test'
 
 # if sshlogin is empty, nothing is copied to remote PC or local Desktop
-# both vars must be present
+
 readonly sshlogin="rleo"
 readonly sshlogin2=""
 
 # port must be open at remote host
 readonly sshport="22"
-readonly sshport2="22"
+readonly sshport2=""
 
 
 # target folder for local/remote copy, slash at end!

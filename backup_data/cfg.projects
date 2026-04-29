@@ -1,5 +1,5 @@
 # file: cfg.projects
-# bk_version 26.04.1
+# bk_version 26.05.1
 # included with 'source'
 
 # Copyright (C) 2017-2026 Richard Albrecht
@@ -20,15 +20,10 @@
 
 ####### general part  #######
 
-readonly bv_version="26.04.1"
-
-# 'bv_version' is also in startbackup.sh
-# 'bv_version' is also in cron_startbackup.sh
-
-
+readonly bv_version="26.05.1"
 
 # default old backup date: used, if no value in folder 'done' ist set
-readonly max_last_date="2026-03-10T00:00"
+readonly max_last_date="2026-04-05T00:00"
 
 
 # backup waits in this intervall, nothing ist done
@@ -41,7 +36,13 @@ readonly max_last_date="2026-03-10T00:00"
 readonly bv_globalwaittimeinterval=09-10
 
 
-# global cfg constants
+# defined in src_log.sh
+# readonly bv_logfile="cc_log.log"
+# readonly bv_tracefile="trace.log"
+# readonly bv_loopcounter="loop_counter.log"
+
+
+# global variablename prefixes
 
 # prefixes of variables in backup:
 # bv_*   - global vars, all files
@@ -109,6 +110,7 @@ a_projects['bbackup']="testData"
 #   - days:hours:minutes
 #   - hours:minutes
 #   - minutes
+# key is label_project
 declare -A a_interval
 a_interval=()
 a_interval['bbackup_testData']=03:00
@@ -117,14 +119,17 @@ a_interval['bbackup_testData']=03:00
 
 #  'targetdisk()' is used, if label of backup-disk is changed
 #  see text at file end for details
+# key is label
 declare -A a_targetdisk
 a_targetdisk=()
 # value is new backup disk label
 # key   is old backup disk label
-a_targetdisk['hluks']="fluks"
+#a_targetdisk['hluks']="fluks"
 
 
 # backup for this project waits in this interval, nothing ist done
+# start-end
+# key is label_project
 declare -A a_waittime
 a_waittime=()
 a_waittime['bbackup_testData']=09-10
