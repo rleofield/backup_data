@@ -28,7 +28,6 @@
 #				./bk_archive.sh,    no history, rsync only
 
 
-
 # prefixes of variables in backup:
 # bv_*  - global vars, all files
 # lv_*  - local vars, global in file
